@@ -15,9 +15,9 @@ from our_env.noisy_pend import noisyPendulumEnv
 
 
 if __name__ == "__main__":
-	
+
   parser = argparse.ArgumentParser()
-  parser.add_argument("--dir", default=0, type=int)                     
+  parser.add_argument("--dir", default=0, type=int)
   parser.add_argument("--alg", default="sac")                     # Alg name (sac, vlsac)
   parser.add_argument("--env", default="Pendulum-v1")          # Environment name
   parser.add_argument("--seed", default=0, type=int)              # Sets Gym, PyTorch and Numpy seeds
@@ -67,7 +67,7 @@ if __name__ == "__main__":
   state_dim = env.observation_space.shape[0]
   # if args.env == "Pendulum-v1": #testing 2-dim state
   #   state_dim = 2
-  action_dim = env.action_space.shape[0] 
+  action_dim = env.action_space.shape[0]
   max_action = float(env.action_space.high[0])
 
   if args.learn_rf == "False":
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     agent = vlsac_agent.VLSACAgent(**kwargs)
   elif args.alg == 'rfsac':
     agent = rfsac_agent.RFSACAgent(**kwargs)
-  
+
   replay_buffer = buffer.ReplayBuffer(state_dim, action_dim)
 
   # Evaluate untrained policy
@@ -117,7 +117,7 @@ if __name__ == "__main__":
   best_critic = None
 
   for t in range(int(args.max_timesteps)):
-    
+
     episode_timesteps += 1
 
     # Select action randomly or according to policy
@@ -129,7 +129,7 @@ if __name__ == "__main__":
 
 
     # Perform action
-    next_state, reward, done, _ = env.step(action) 
+    next_state, reward, done, _ = env.step(action)
     # print("next state", next_state)
     done_bool = float(done) if episode_timesteps < max_length else 0
 
@@ -153,12 +153,12 @@ if __name__ == "__main__":
     state = next_state
     # print(" I am state", state)
     episode_reward += reward
-    
+
     # Train agent after collecting sufficient data
     if t >= args.start_timesteps:
       info = agent.train(replay_buffer, batch_size=args.batch_size)
 
-    if done: 
+    if done:
       # +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
       print(f"Total T: {t+1} Episode Num: {episode_num+1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f}")
       # Reset environment
@@ -167,9 +167,9 @@ if __name__ == "__main__":
       # prev_state = np.copy(state)
       episode_reward = 0
       episode_timesteps = 0
-      episode_num += 1 
+      episode_num += 1
 
-    # Evaluate episode
+      # Evaluate episode
     if (t + 1) % args.eval_freq == 0:
       steps_per_sec = timer.steps_per_sec(t+1)
       evaluation = util.eval_policy(agent, eval_env)

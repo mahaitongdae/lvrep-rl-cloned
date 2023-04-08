@@ -12,7 +12,7 @@ from agent.sac import sac_agent
 from agent.vlsac import vlsac_agent
 from agent.rfsac import rfsac_agent
 
-from our_env.noisy_pend import noisyPendulumEnv
+# from our_env.noisy_pend import noisyPendulumEnv
 import safe_control_gym
 from safe_control_gym.utils.configuration import ConfigFactory
 from safe_control_gym.utils.registration import make
@@ -21,12 +21,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--dir", default=0, type=int)
-    parser.add_argument("--alg", default="sac")  # Alg name (sac, vlsac)
-    parser.add_argument("--env", default="Pendulum-v1")  # Environment name
+    parser.add_argument("--alg", default="rfsac")  # Alg name (sac, vlsac)
+    parser.add_argument("--env", default="quadrotor")  # Environment name
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
-    parser.add_argument("--start_timesteps", default=25e3, type=float)  # Time steps initial random policy is used
+    parser.add_argument("--start_timesteps", default=5e3, type=float)  # Time steps initial random policy is used
     parser.add_argument("--eval_freq", default=5e3, type=int)  # How often (time steps) we evaluate
-    parser.add_argument("--max_timesteps", default=1e6, type=float)  # Max time steps to run environment
+    parser.add_argument("--max_timesteps", default=1e5, type=float)  # Max time steps to run environment
     parser.add_argument("--expl_noise", default=0.1)  # Std of Gaussian exploration noise
     parser.add_argument("--batch_size", default=256, type=int)  # Batch size for both actor and critic
     parser.add_argument("--hidden_dim", default=256, type=int)  # Network hidden dims
@@ -44,13 +44,13 @@ if __name__ == "__main__":
 
     sigma = args.sigma
 
-    if args.env_id == 'quadrotor':  # safe-control-gym
+    if args.env == 'quadrotor':  # safe-control-gym
         CONFIG_FACTORY = ConfigFactory()
-        CONFIG_FACTORY.parser.set_defaults(overrides=['./env_configs/constrained_tracking_reset.yaml'])
+        CONFIG_FACTORY.parser.set_defaults(overrides=['./our_env/env_configs/stabilization.yaml'])
         config = CONFIG_FACTORY.merge()
 
         CONFIG_FACTORY_EVAL = ConfigFactory()
-        CONFIG_FACTORY_EVAL.parser.set_defaults(overrides=['./env_configs/constrained_tracking_eval.yaml'])
+        CONFIG_FACTORY_EVAL.parser.set_defaults(overrides=['./our_env/env_configs/stabilization.yaml'])
         config_eval = CONFIG_FACTORY_EVAL.merge()
 
         args.fixed_steps = int(config.quadrotor_config['episode_len_sec'] * config.quadrotor_config['ctrl_freq'])
@@ -58,18 +58,19 @@ if __name__ == "__main__":
         args.config_eval = deepcopy(config_eval)
         # config.quadrotor_config['gui'] = False
         # args.config_eval.quadrotor_config['gui'] = False
-        env = make(args.env_id, **config.quadrotor_config)
-        args.obs_scale = [1.] * env.observation_space.shape[0]
+        env = make(args.env, **config.quadrotor_config)
+        eval_env = make(args.env, **config.quadrotor_config)
+        max_length = 1000
 
-    else:
-        env = gym.make(args.env)
-        eval_env = gym.make(args.env)
-        max_length = env._max_episode_steps
-        if args.env == "Pendulum-v1":
-            env = noisyPendulumEnv(sigma=sigma)
-            eval_env = noisyPendulumEnv(sigma=sigma)
-        env.seed(args.seed)
-        eval_env.seed(args.seed)
+    # else:
+    #     env = gym.make(args.env)
+    #     eval_env = gym.make(args.env)
+    #     max_length = env._max_episode_steps
+    #     if args.env == "Pendulum-v1":
+    #         env = noisyPendulumEnv(sigma=sigma)
+    #         eval_env = noisyPendulumEnv(sigma=sigma)
+    #     env.seed(args.seed)
+    #     eval_env.seed(args.seed)
 
     # setup log
     log_path = f'log/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rand_feat_num}/learn_rf={args.learn_rf}/sigma={args.sigma}'
@@ -107,7 +108,8 @@ if __name__ == "__main__":
         "sigma": sigma,
         "rand_feat_num": args.rand_feat_num,
         "learn_rf": learn_rf,
-        "seed": args.seed
+        "seed": args.seed,
+        "model_type": "quadrotor_2d"
     }
 
     # Initialize policy

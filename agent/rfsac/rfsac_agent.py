@@ -15,8 +15,8 @@ from networks.policy import GaussianPolicy
 from networks.vae import Encoder, Decoder, GaussianFeature
 from agent.sac.sac_agent import SACAgent
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device('cpu') #TODO: change to cuda in future
 
 class Critic(nn.Module):
     """
@@ -362,7 +362,8 @@ class RFSACAgent(SACAgent):
             sigma=0.05,
             rand_feat_num=256,
             learn_rf=False,
-            seed=0
+            seed=0,
+            **kwargs
             # feature_tau=0.001,
             # feature_dim=256, # latent feature dim
             # use_feature_target=True,
@@ -382,7 +383,15 @@ class RFSACAgent(SACAgent):
             hidden_dim=hidden_dim,
             seed=seed
         )
+        if 'model_type' in kwargs.keys():
+            if kwargs.get('model_type') == 'quadrotor_2d':
+                self.model_type = 'quadrotor_2d'
+                self.dynamics_step = self.quadrotor_f_star_6d
+                self.stabilizing_target = torch.tensor([0.0, 0.5])
 
+        else:
+            self.model_type = 'inverted_pendulum'
+            self.dynamics_step = self.f_star_3d
         # self.feature_dim = feature_dim
         # self.feature_tau = feature_tau
         # self.use_feature_target = use_feature_target
@@ -417,11 +426,17 @@ class RFSACAgent(SACAgent):
         # 	hidden_depth = 2,
         # 	).to(device)
         # self.critic = RFQCritic().to(device)
-        self.critic = RFVCritic(sigma=sigma, rand_feat_num=rand_feat_num, learn_rf=learn_rf).to(device)
+        if self.model_type == 'inverted_pendulum':
+            self.critic = RFVCritic(sigma=sigma, rand_feat_num=rand_feat_num, learn_rf=learn_rf).to(device)
+        elif self.model_type == 'quadrotor_2d':
+            self.critic = RFVCritic(s_dim=6, embedding_dim=-1, sigma=sigma, rand_feat_num=rand_feat_num, learn_rf=learn_rf).to(device)
+        # self.critic = RFVCritic(sigma=sigma, rand_feat_num=rand_feat_num, learn_rf=learn_rf).to(device)
         # self.critic = Critic().to(device)
         self.critic_target = copy.deepcopy(self.critic)
         self.critic_optimizer = torch.optim.Adam(
             self.critic.parameters(), lr=lr, betas=[0.9, 0.999])
+
+
 
     # def feature_step(self, batch):
     # 	"""
@@ -463,16 +478,21 @@ class RFSACAgent(SACAgent):
 
     # inputs are tensors
     def get_reward(self, states, action):
-        # th = torch.atan2(states[:,1],states[:,0]) #1 is sin, 0 is cosine
-        # thdot = states[:,2]
-        th = states[:, 0]
-        thdot = states[:, 1]
-        action = torch.reshape(action, (action.shape[0],))
-        # print("th shape", th.shape)
-        # print("thdot shape", thdot.shape)
-        # print('action shape', action.shape)
-        th = self.angle_normalize(th)
-        reward = -(th ** 2 + 0.1 * thdot ** 2 + 0.01 * action ** 2)
+        if self.model_type == 'inverted_pendulum':
+            assert states.shape[1] == 3
+            # th = torch.atan2(states[:,1],states[:,0]) #1 is sin, 0 is cosine
+            # thdot = states[:,2]
+            th = states[:, 0]
+            thdot = states[:, 1]
+            action = torch.reshape(action, (action.shape[0],))
+            # print("th shape", th.shape)
+            # print("thdot shape", thdot.shape)
+            # print('action shape', action.shape)
+            th = self.angle_normalize(th)
+            reward = -(th ** 2 + 0.1 * thdot ** 2 + 0.01 * action ** 2)
+        elif self.model_type == 'quadrotor_2d':
+            state_error = states[:, :2] - self.stabilizing_target
+            reward = - torch.sum(0.1 * state_error ** 2 + 0.001 * action ** 2, dim=1)
         return torch.reshape(reward, (reward.shape[0], 1))
 
     def angle_normalize(self, th):
@@ -521,7 +541,7 @@ class RFSACAgent(SACAgent):
         new_states[:, 2] = newthdot
         return new_states
 
-    def quadrotor_f_star_6d(self, states, action, m = 1., g = 10.0, Iyy = 1., dt=0.05):
+    def quadrotor_f_star_6d(self, states, action, m = 0.027, g = 10.0, Iyy = 1.4e-5, dt=0.0167):
         dot_states = torch.empty_like(states)
         dot_states[:, 0] = states[:, 1]
         dot_states[:, 1] = 1 / m * torch.multiply(torch.sum(action, dim=1), torch.sin(states[:, 4]))
@@ -541,27 +561,12 @@ class RFSACAgent(SACAgent):
         # dist = self.actor(batch.state, batch.next_state)
         dist = self.actor(batch.state)
         action = dist.rsample()
-        # print("action shape", action.shape)
-        # print("batch state shape", batch.state.shape)
         log_prob = dist.log_prob(action).sum(-1, keepdim=True)
-
-        # if self.use_feature_target:
-        # 	mean, log_std = self.f_target(batch.state, action)
-        # else:
-        # 	mean, log_std = self.f(batch.state, action)
-        # q1, q2 = self.critic(mean, log_std)
-        # q = torch.min(q1, q2)
-        # q = self.discount * self.critic(batch.next_state) + batch.reward
-        # q = batch.reward
-        # q1,q2 = self.rfQcritic(batch.state,batch.action)
-        # q1,q2 = self.critic(batch.state,action) #not batch.action!!!
-        # q = torch.min(q1, q2)
-        # q = q1 #try not using q1, q1
         reward = self.get_reward(batch.state, action)  # use reward in q-fn
         # print("reward shape", reward.shape)
         # q1,q2 = self.critic(batch.state,action)
         # q1, q2 = self.critic(self.f_star(batch.state,action))
-        q1, q2 = self.critic(self.f_star_3d(batch.state, action))
+        q1, q2 = self.critic(self.dynamics_step(batch.state, action))
         # q1,q2 = self.critic(self.f_star_2d(batch.state,action))
         # print("q1 shape",q1.shape)
         # q = self.discount * torch.min(q1,q2) + reward
@@ -608,7 +613,7 @@ class RFSACAgent(SACAgent):
 
             # next_q1, next_q2 = self.critic_target(next_state, next_action)
             # next_q1, next_q2 = self.critic_target(self.f_star(next_state,next_action))
-            next_q1, next_q2 = self.critic_target(self.f_star_3d(next_state, next_action))
+            next_q1, next_q2 = self.critic_target(self.dynamics_step(next_state, next_action))
             # next_q1, next_q2 = self.critic_target(self.f_star_2d(next_state,next_action))
             next_q = torch.min(next_q1, next_q2) - self.alpha * next_action_log_pi
             next_reward = self.get_reward(next_state, next_action)  # reward for new s,a
@@ -620,7 +625,7 @@ class RFSACAgent(SACAgent):
         # q1,q2 = self.rfQcritic(state,action)
         # q1,q2 = self.critic(state,action)
         # q1,q2 = self.critic(self.f_star_2d(state,action))
-        q1, q2 = self.critic(self.f_star_3d(state, action))
+        q1, q2 = self.critic(self.dynamics_step(state, action))
         q1_loss = F.mse_loss(target_q, q1)
         q2_loss = F.mse_loss(target_q, q2)
         q_loss = q1_loss + q2_loss
@@ -664,6 +669,10 @@ class RFSACAgent(SACAgent):
         # 		self.update_feature_target()
 
         batch = buffer.sample(batch_size)
+
+        # if device == torch.device('cuda:0'):
+        #     for item in batch:
+        #         item = item
 
         # Acritic step
         critic_info = self.critic_step(batch)
