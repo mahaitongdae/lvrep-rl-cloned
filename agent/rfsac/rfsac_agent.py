@@ -17,7 +17,7 @@ from agent.sac.sac_agent import SACAgent
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+# device = torch.device('cpu')
 
 class Critic(nn.Module):
 	"""
@@ -367,9 +367,9 @@ class RFSACAgent(SACAgent):
 			state_dim, 
 			action_dim, 
 			action_space, 
-			# lr=1e-3,
+			lr=1e-3,
 			# lr = 5e-4,
-			lr = 3e-4,
+			# lr = 3e-4,
 			discount=0.99, 
 			target_update_period=2,
 			tau=0.005,
@@ -539,7 +539,7 @@ class RFSACAgent(SACAgent):
 		new_states[:,0] = torch.cos(newth)
 		new_states[:,1] = torch.sin(newth)
 		new_states[:,2] = newthdot
-		return new_states		
+		return new_states.to(device)
 
 	def update_actor_and_alpha(self, batch):
 		"""

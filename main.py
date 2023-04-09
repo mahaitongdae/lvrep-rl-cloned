@@ -3,6 +3,7 @@ import torch
 import gym
 import argparse
 import os
+import datetime
 
 from tensorboardX import SummaryWriter
 
@@ -21,7 +22,7 @@ if __name__ == "__main__":
   parser.add_argument("--alg", default="sac")                     # Alg name (sac, vlsac)
   parser.add_argument("--env", default="Pendulum-v1")          # Environment name
   parser.add_argument("--seed", default=0, type=int)              # Sets Gym, PyTorch and Numpy seeds
-  parser.add_argument("--start_timesteps", default=25e3, type=float)# Time steps initial random policy is used
+  parser.add_argument("--start_timesteps", default=1e3, type=float)# Time steps initial random policy is used
   parser.add_argument("--eval_freq", default=5e3, type=int)       # How often (time steps) we evaluate
   parser.add_argument("--max_timesteps", default=1e6, type=float)   # Max time steps to run environment
   parser.add_argument("--expl_noise", default=0.1)                # Std of Gaussian exploration noise
@@ -47,12 +48,13 @@ if __name__ == "__main__":
   if args.env == "Pendulum-v1":
     env = noisyPendulumEnv(sigma =  sigma)
     eval_env = noisyPendulumEnv(sigma = sigma)
-  env.seed(args.seed)
-  eval_env.seed(args.seed)
+  # env.seed(args.seed)
+  # eval_env.seed(args.seed)
 
 
   # setup log 
-  log_path = f'log/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rand_feat_num}/learn_rf={args.learn_rf}/sigma={args.sigma}'
+  time_now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+  log_path = f'exp/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rand_feat_num}/learn_rf={args.learn_rf}/sigma={args.sigma}/{time_now}'
   summary_writer = SummaryWriter(log_path+"/summary_files")
 
   # set seeds

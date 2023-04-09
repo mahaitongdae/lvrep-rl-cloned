@@ -10,7 +10,7 @@ from agent.sac.critic import DoubleQCritic
 from agent.sac.actor import DiagGaussianActor
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+# device = torch.device('cpu')
 
 class SACAgent(object):
 	"""

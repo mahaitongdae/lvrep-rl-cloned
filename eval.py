@@ -109,7 +109,7 @@ if __name__ == "__main__":
     env = noisyPendulumEnv(sigma =  sigma)
     log_path = f'log/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rand_feat_num}/learn_rf={learn_rf}'
     actor = DiagGaussianActor(obs_dim = 3, action_dim = 1,hidden_dim = args.hidden_dim, hidden_depth = 2, 
-      log_std_bounds=[-5.,2.])
+      log_std_bounds=[-5.,2.], seed=1)
     critic = RFVCritic(sigma = sigma, rand_feat_num = args.rand_feat_num, learn_rf = learn_rf)
     actor.load_state_dict(torch.load(log_path+"/actor.pth"))
     critic.load_state_dict(torch.load(log_path + "/critic.pth"))
