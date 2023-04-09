@@ -3,6 +3,7 @@ import torch
 import gym
 import argparse
 import os
+import datetime
 
 from tensorboardX import SummaryWriter
 
@@ -47,12 +48,13 @@ if __name__ == "__main__":
   if args.env == "Pendulum-v1":
     env = noisyPendulumEnv(sigma =  sigma)
     eval_env = noisyPendulumEnv(sigma = sigma)
-  env.seed(args.seed)
-  eval_env.seed(args.seed)
+  # env.seed(args.seed)
+  # eval_env.seed(args.seed)
 
 
   # setup log 
-  log_path = f'log/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rand_feat_num}/learn_rf={args.learn_rf}/sigma={args.sigma}'
+  time_now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+  log_path = f'log/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rand_feat_num}/learn_rf={args.learn_rf}/sigma={args.sigma}/{time_now}'
   summary_writer = SummaryWriter(log_path+"/summary_files")
 
   # set seeds

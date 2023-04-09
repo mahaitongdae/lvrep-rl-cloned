@@ -11,6 +11,7 @@ from utils import util, buffer
 from agent.sac import sac_agent
 from agent.vlsac import vlsac_agent
 from agent.rfsac import rfsac_agent
+import datetime
 
 # from our_env.noisy_pend import noisyPendulumEnv
 import safe_control_gym
@@ -73,7 +74,8 @@ if __name__ == "__main__":
     #     eval_env.seed(args.seed)
 
     # setup log
-    log_path = f'log/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rand_feat_num}/learn_rf={args.learn_rf}/sigma={args.sigma}'
+    time_now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    log_path = f'log/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rand_feat_num}/learn_rf={args.learn_rf}/sigma={args.sigma}/{time_now}'
     summary_writer = SummaryWriter(log_path + "/summary_files")
 
     # set seeds

@@ -1,6 +1,6 @@
 # python main.py --alg "rfsac" --sigma "0.0" --max_timesteps "80000" --rand_feat_num "512" --learn_rf "True" --seed "0" & 
 
-python main.py --alg "rfsac" --sigma "0.0" --max_timesteps "80000" --rand_feat_num "512" --learn_rf "False"  --seed "0" &
+python main.py --alg "rfsac" --sigma "0.0" --max_timesteps "100000" --rand_feat_num "512" --learn_rf "False"  --seed "0" &
 
 # python main.py --alg "rfsac" --sigma "0.0" --max_timesteps "80000" --rand_feat_num "512" --learn_rf "True" --seed "1" & 
 
