@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
   parser = argparse.ArgumentParser()
   parser.add_argument("--dir", default=0, type=int)
-  parser.add_argument("--alg", default="sac")                     # Alg name (sac, vlsac)
+  parser.add_argument("--alg", default="rfsac")                     # Alg name (sac, vlsac)
   parser.add_argument("--env", default="Pendulum-v1")          # Environment name
   parser.add_argument("--seed", default=0, type=int)              # Sets Gym, PyTorch and Numpy seeds
   parser.add_argument("--start_timesteps", default=25e3, type=float)# Time steps initial random policy is used
@@ -156,7 +156,7 @@ if __name__ == "__main__":
 
     # Train agent after collecting sufficient data
     if t >= args.start_timesteps:
-      info = agent.train(replay_buffer, batch_size=args.batch_size)
+      info, dist_info = agent.train(replay_buffer, batch_size=args.batch_size)
 
     if done:
       # +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
@@ -179,6 +179,8 @@ if __name__ == "__main__":
         info['evaluation'] = evaluation
         for key, value in info.items():
           summary_writer.add_scalar(f'info/{key}', value, t+1)
+        for key, value in dist_info.items():
+          summary_writer.add_histogram(f'dist/{key}', value, t + 1)
         summary_writer.flush()
 
       print('Step {}. Steps per sec: {:.4g}.'.format(t+1, steps_per_sec))

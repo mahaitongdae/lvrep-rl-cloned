@@ -492,7 +492,7 @@ class RFSACAgent(SACAgent):
             reward = -(th ** 2 + 0.1 * thdot ** 2 + 0.01 * action ** 2)
         elif self.model_type == 'quadrotor_2d':
             state_error = states[:, :2] - self.stabilizing_target
-            reward = - torch.sum(0.1 * state_error ** 2 + 0.001 * action ** 2, dim=1)
+            reward = - torch.sum(1. * state_error ** 2 + 0.0001 * action ** 2, dim=1)
         return torch.reshape(reward, (reward.shape[0], 1))
 
     def angle_normalize(self, th):
@@ -589,6 +589,7 @@ class RFSACAgent(SACAgent):
 
             info['alpha_loss'] = alpha_loss
             info['alpha'] = self.alpha
+            info['entropy'] = -log_prob.mean()
 
         return info
 
@@ -645,8 +646,13 @@ class RFSACAgent(SACAgent):
         return {
             'q1_loss': q1_loss.item(),
             'q2_loss': q2_loss.item(),
-            'q1': q1.mean().item(),
-            'q2': q2.mean().item()
+        },{
+            'q1': q1.detach().clone().numpy(),
+            'q2': q2.detach().clone().numpy(),
+            'target_q': target_q.detach().clone().numpy(),
+            'next_q': next_q.detach().clone().numpy(),
+            'reward': reward.numpy(),
+            'next_reward': next_reward.detach().numpy()
         }
 
     def update_feature_target(self):
@@ -675,11 +681,11 @@ class RFSACAgent(SACAgent):
         #         item = item
 
         # Acritic step
-        critic_info = self.critic_step(batch)
+        critic_info, critic_dist_info = self.critic_step(batch)
         # critic_info = self.rfQcritic_step(batch)
 
         # Actor and alpha step
-        actor_info = self.update_actor_and_alpha(batch)
+        # actor_info = self.update_actor_and_alpha(batch)
 
         # Update the frozen target models
         self.update_target()
@@ -687,5 +693,7 @@ class RFSACAgent(SACAgent):
         return {
             # **feature_info,
             **critic_info,
-            **actor_info,
+            # **actor_info,
+        }, {
+            **critic_dist_info,
         }
