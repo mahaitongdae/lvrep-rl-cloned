@@ -10,7 +10,7 @@ from agent.sac.critic import DoubleQCritic
 from agent.sac.actor import DiagGaussianActor
 
 # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = torch.device("cpu")
+device = torch.device('cpu')
 
 class SACAgent(object):
 	"""
@@ -21,14 +21,17 @@ class SACAgent(object):
 			state_dim, 
 			action_dim, 
 			action_space, 
-			lr=3e-4,
-			discount=0.99, 
-			target_update_period=2,
+			critic_lr=3e-4,
+			actor_lr=1e-4,
+			alpha_lr=5e-5,
+			discount=0.98,
+			target_update_period=3,
 			tau=0.005,
 			alpha=0.1,
 			auto_entropy_tuning=True,
 			hidden_dim=1024,
-			seed = 0
+			seed = 0,
+			**kwargs
 			):
 
 		self.steps = 0
@@ -71,15 +74,15 @@ class SACAgent(object):
 		
 		 # optimizers
 		self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),
-																						lr=lr,
+																						lr=actor_lr,
 																						betas=[0.9, 0.999])
 
 		self.critic_optimizer = torch.optim.Adam(self.critic.parameters(),
-																							lr=lr,
+																							lr=critic_lr,
 																							betas=[0.9, 0.999])
 
 		self.log_alpha_optimizer = torch.optim.Adam([self.log_alpha],
-																								lr=lr,
+																								lr=alpha_lr,
 																								betas=[0.9, 0.999])
 
 
@@ -111,19 +114,19 @@ class SACAgent(object):
 		obs, action, next_obs, reward, done = util.unpack_batch(batch)
 		not_done = 1. - done
 
+		reward = 0.1 * reward
+
 		dist = self.actor(next_obs)
 		next_action = dist.rsample()
 		log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
 		target_Q1, target_Q2 = self.critic_target(next_obs, next_action)
-		target_V = torch.min(target_Q1,
-													target_Q2) - self.alpha.detach() * log_prob
+		target_V = torch.min(target_Q1,	target_Q2) - self.alpha.detach() * log_prob
 		target_Q = reward + (not_done * self.discount * target_V)
 		target_Q = target_Q.detach()
 
 		# get current Q estimates
 		current_Q1, current_Q2 = self.critic(obs, action)
-		critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
-				current_Q2, target_Q)
+		critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
 
 		# Optimize the critic
 		self.critic_optimizer.zero_grad()
@@ -134,7 +137,18 @@ class SACAgent(object):
 			'q_loss': critic_loss.item(), 
 			'q1': current_Q1.mean().item(),
 			'q2': current_Q1.mean().item()
-			}
+			},{
+            'q1': current_Q1.detach().clone().cpu().numpy(),
+            'q2': current_Q2.detach().clone().cpu().numpy(),
+            'target_q': target_Q.detach().clone().cpu().numpy(),
+            # 'next_q': next_q.detach().clone().cpu().numpy(),
+            'reward': reward.cpu().numpy(),
+            # 'mb_reward': mb_reward.cpu().numpy(),
+            # 'next_reward': next_reward.detach().cpu().numpy(),
+            # 'rew_error': 0.1 * reward.cpu().numpy() - mb_reward.cpu().numpy(),
+            # 'linear_layer_q1': self.critic.output1.weight.detach().clone().cpu().numpy(),
+            # 'linear_layer_q2': self.critic.output2.weight.detach().clone().cpu().numpy(),
+        }
 
 
 	def update_actor_and_alpha(self, batch):
@@ -165,7 +179,7 @@ class SACAgent(object):
 			info['alpha_loss'] = alpha_loss 
 			info['alpha'] = self.alpha 
 
-		return info 
+		return info
 
 
 	def train(self, buffer, batch_size):
@@ -175,8 +189,9 @@ class SACAgent(object):
 		self.steps += 1
 
 		batch = buffer.sample(batch_size)
-		# Acritic step
-		critic_info = self.critic_step(batch)
+
+		# A critic step
+		critic_info, critic_dist_info = self.critic_step(batch)
 
 		# Actor and alpha step
 		actor_info = self.update_actor_and_alpha(batch)
@@ -187,4 +202,4 @@ class SACAgent(object):
 		return {
 			**critic_info, 
 			**actor_info,
-		}
+		}, {**critic_dist_info}

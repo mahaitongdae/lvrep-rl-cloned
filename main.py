@@ -26,7 +26,7 @@ if __name__ == "__main__":
   parser.add_argument("--eval_freq", default=5e3, type=int)       # How often (time steps) we evaluate
   parser.add_argument("--max_timesteps", default=1e6, type=float)   # Max time steps to run environment
   parser.add_argument("--expl_noise", default=0.1)                # Std of Gaussian exploration noise
-  parser.add_argument("--batch_size", default=256, type=int)      # Batch size for both actor and critic
+  parser.add_argument("--batch_size", default=512, type=int)      # Batch size for both actor and critic
   parser.add_argument("--hidden_dim", default=256, type=int)      # Network hidden dims
   parser.add_argument("--feature_dim", default=256, type=int)      # Latent feature dim
   parser.add_argument("--discount", default=0.99)                 # Discount factor
@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
   # setup log 
   time_now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-  log_path = f'log/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rand_feat_num}/learn_rf={args.learn_rf}/sigma={args.sigma}/{time_now}'
+  log_path = f'exp/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rand_feat_num}/learn_rf={args.learn_rf}/sigma={args.sigma}/{time_now}'
   summary_writer = SummaryWriter(log_path+"/summary_files")
 
   # set seeds

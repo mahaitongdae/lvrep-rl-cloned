@@ -25,7 +25,7 @@ if __name__ == "__main__":
     parser.add_argument("--alg", default="rfsac")  # Alg name (sac, vlsac)
     parser.add_argument("--env", default="quadrotor")  # Environment name
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
-    parser.add_argument("--start_timesteps", default=5e3, type=float)  # Time steps initial random policy is used
+    parser.add_argument("--start_timesteps", default=5e2, type=float)  # Time steps initial random policy is used
     parser.add_argument("--eval_freq", default=5e3, type=int)  # How often (time steps) we evaluate
     parser.add_argument("--max_timesteps", default=1e6, type=float)  # Max time steps to run environment
     parser.add_argument("--expl_noise", default=0.1)  # Std of Gaussian exploration noise
@@ -75,7 +75,7 @@ if __name__ == "__main__":
 
     # setup log
     time_now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-    log_path = f'log/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rand_feat_num}/learn_rf={args.learn_rf}/sigma={args.sigma}/{time_now}'
+    log_path = f'exp/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rand_feat_num}/learn_rf={args.learn_rf}/sigma={args.sigma}/{time_now}'
     summary_writer = SummaryWriter(log_path + "/summary_files")
 
     # set seeds
@@ -198,19 +198,19 @@ if __name__ == "__main__":
             evaluation = util.eval_policy(agent, eval_env)
             evaluations.append(evaluation)
 
-            if t >= args.start_timesteps:
-                info['evaluation'] = evaluation
-                for key, value in info.items():
-                    summary_writer.add_scalar(f'info/{key}', value, t + 1)
-                for key, value in dist_info.items():
-                    summary_writer.add_histogram(f'dist/{key}', value, t + 1)
-                summary_writer.flush()
-
             print('Step {}. Steps per sec: {:.4g}.'.format(t + 1, steps_per_sec))
 
             if evaluation > best_eval_reward:
                 best_actor = agent.actor.state_dict()
                 best_critic = agent.critic.state_dict()
+
+        if t >= args.start_timesteps and (t + 1) % 1e3 == 0:
+            info['evaluation'] = evaluation
+            for key, value in info.items():
+                summary_writer.add_scalar(f'info/{key}', value, t + 1)
+            for key, value in dist_info.items():
+                summary_writer.add_histogram(f'dist/{key}', value, t + 1)
+            summary_writer.flush()
 
                 # print("actor's state dict")
                 # for param_tensor in agent.actor.state_dict():

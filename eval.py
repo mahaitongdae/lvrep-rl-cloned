@@ -62,7 +62,7 @@ if __name__ == "__main__":
   parser.add_argument("--expl_noise", default=0.1)                # Std of Gaussian exploration noise
   parser.add_argument("--batch_size", default=256, type=int)      # Batch size for both actor and critic
   parser.add_argument("--hidden_dim", default=256, type=int)      # Network hidden dims
-  parser.add_argument("--feature_dim", default=256, type=int)      # Latent feature dim
+  parser.add_argument("--feature_dim", default=512, type=int)      # Latent feature dim
   parser.add_argument("--discount", default=0.99)                 # Discount factor
   parser.add_argument("--tau", default=0.005)                     # Target network update rate
   parser.add_argument("--learn_bonus", action="store_true")        # Save model and optimizer parameters
@@ -107,7 +107,8 @@ if __name__ == "__main__":
   
   if args.env == "Pendulum-v1":
     env = noisyPendulumEnv(sigma =  sigma)
-    log_path = f'log/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rand_feat_num}/learn_rf={learn_rf}'
+    # log_path = f'log/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rand_feat_num}/learn_rf={learn_rf}'
+    log_path = f'exp/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rand_feat_num}/learn_rf={learn_rf}/sigma=0.0/2023-04-10-02-08-02'
     actor = DiagGaussianActor(obs_dim = 3, action_dim = 1,hidden_dim = args.hidden_dim, hidden_depth = 2, 
       log_std_bounds=[-5.,2.])
     critic = RFVCritic(sigma = sigma, rand_feat_num = args.rand_feat_num, learn_rf = learn_rf)
