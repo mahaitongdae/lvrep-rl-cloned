@@ -24,7 +24,7 @@ class DoubleQCritic(nn.Module):
     self.apply(util.weight_init)
 
   def forward(self, obs, action):
-    assert obs.size(0) == action.size(0)
+    assert obs.shape[0] == action.shape[0]
 
     obs_action = torch.cat([obs, action], dim=-1)
     q1 = self.Q1(obs_action)

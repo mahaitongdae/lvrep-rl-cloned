@@ -57,7 +57,7 @@ quadrotor_config:
     stabilization_goal: [0, 0.5]
     stabilization_goal_tolerance: 0.01
 
-  episode_len_sec: 6
+  episode_len_sec: 3
   cost: rl_reward
   rew_exponential: True
   done_on_out_of_bound: True

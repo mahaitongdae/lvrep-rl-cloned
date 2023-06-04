@@ -130,7 +130,7 @@ class noisyPendulumEnv(gym.Env):
 
         u = np.clip(u, -self.max_torque, self.max_torque)[0]
         self.last_u = u  # for rendering
-        costs = angle_normalize(th) ** 2 + 0.1 * thdot**2 + 0.001 * (u**2)
+        costs = angle_normalize(th) ** 2 + 0.1 * thdot**2 + 0.01 * (u**2)
         # costs = th**2 + 0.1 *
 
         newthdot = thdot + (3 * g / (2 * l) * np.sin(th) + 3.0 / (m * l**2) * u) * dt
@@ -152,7 +152,7 @@ class noisyPendulumEnv(gym.Env):
 
         if self.render_mode == "human":
             self.render()
-        return self._get_obs(), -costs, done, {}
+        return self._get_obs(), -co-sts, done, {}
 
     def reset(self, *, init_state = None, seed: Optional[int] = None, options: Optional[dict] = None):
         super().reset(seed=seed)
@@ -186,6 +186,7 @@ class noisyPendulumEnv(gym.Env):
         return np.array([np.cos(theta), np.sin(theta), thetadot], dtype=np.float32)
 
     def render(self):
+        self.render_mode = 'human'
         if self.render_mode is None:
             gym.logger.warn(
                 "You are calling render method without specifying any render mode. "
@@ -281,7 +282,7 @@ class noisyPendulumEnv(gym.Env):
                 np.array(pygame.surfarray.pixels3d(self.screen)), axes=(1, 0, 2)
             )
 
-    def visualize(self, init_state, cmd, dt: float =None):
+    def visualize(self, init_state, cmd, dt: float =None, verbose = False):
         """
         Visualize the movement associated to a sequence of control variables
         :param cmd: sequence of controls to be applied on the system given as an numpy array
@@ -291,14 +292,16 @@ class noisyPendulumEnv(gym.Env):
             dt = self.dt
         self.render_mode = "human"
         self.reset(init_state = init_state)
-        print("self.state", self.state)
+        if verbose:
+            print("self.state", self.state)
         t = 0
         for ctrl in cmd:
             ctrl = np.array([ctrl])
             self.render()
             time.sleep(dt)
             self.step(ctrl)
-            print("self.state (time %d)"%t, self.state)
+            if verbose:
+                print("self.state (time %d)"%t, self.state)
             t += 1
         self.render()
         self.close()

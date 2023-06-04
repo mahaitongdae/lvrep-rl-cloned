@@ -24,23 +24,24 @@ def main(env,log_path,agent,rf_num, learn_rf, max_steps = 200,state_dim = None):
   # low_arr =  [-np.pi,-1.]
   # high_arr = [np.pi, 1.]
   # init_states = np.random.uniform(low = low_arr, high = high_arr, size = (n_init_states,state_dim))
-  n_init_states = 1
-  init_states = [np.array([-0.5,0])]
+  n_init_states = 3
+  init_states = [np.array([-0.5,0]), np.array([0.1,0.5]), np.array([-1.6,0])]
   all_rewards = np.empty(n_init_states)
   u_list = np.empty(max_steps)
   for i in np.arange(n_init_states):
     init_state = init_states[i]
-    state = env.reset(init_state = init_state)
+    state = env.reset(init_state = init_state) #
     eps_reward = 0
     for t in range(max_steps):
       print("current state", state)
       action = agent.select_action(np.array(state))
       print("current action", action)
       state,reward,done, _ = env.step(action)
+      env.render()
       eps_reward += reward
       u_list[t] = action
     all_rewards[i] = eps_reward
-    env.visualize(init_state = init_states[i], cmd = u_list)
+    # env.visualize(init_state = init_states[i], cmd = u_list)
 
     # print("eval eps reward for init state: ", init_state,  ": ", eps_reward  )
   
@@ -53,7 +54,7 @@ def main(env,log_path,agent,rf_num, learn_rf, max_steps = 200,state_dim = None):
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument("--dir", default=0, type=int)                     
-  parser.add_argument("--alg", default="rfsac")                     # Alg name (sac, vlsac,rfsac)
+  parser.add_argument("--alg", default="sac")                     # Alg name (sac, vlsac,rfsac)
   parser.add_argument("--env", default="Pendulum-v1")          # Environment name
   parser.add_argument("--seed", default=0, type=int)              # Sets Gym, PyTorch and Numpy seeds
   parser.add_argument("--start_timesteps", default=25e3, type=float)# Time steps initial random policy is used
@@ -71,6 +72,7 @@ if __name__ == "__main__":
   parser.add_argument("--sigma", default = 0.,type = float) #noise for noisy environment
   parser.add_argument("--rand_feat_num", default = 512, type = int)
   parser.add_argument("--learn_rf", default = "False") #string indicating if learn_rf is false or no
+  parser.add_argument("--dir_name", default="2023-04-10-02-08-02") # 2023-04-10-02-08-02 for reproduing Zhaolin's, 2023-04-12-10-39-00 for 1024 rfdim
   args = parser.parse_args()
   
 
@@ -98,28 +100,32 @@ if __name__ == "__main__":
   # Initialize policy
   if args.alg == "sac":
     agent = sac_agent.SACAgent(**kwargs)
+    log_path = f'/home/mht/PycharmProjects/lvrep-rl-cloned/exp/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/' + args.dir_name
+    agent.actor.load_state_dict(torch.load(log_path + "/actor.pth"))
+    agent.critic.load_state_dict(torch.load(log_path + "/critic.pth"))
   elif args.alg == 'vlsac':
     kwargs['extra_feature_steps'] = args.extra_feature_steps
     kwargs['feature_dim'] = args.feature_dim
     agent = vlsac_agent.VLSACAgent(**kwargs)
   elif args.alg == 'rfsac':
     agent = rfsac_agent.RFSACAgent(**kwargs)
+    log_path = f'/home/mht/PycharmProjects/lvrep-rl-cloned/exp/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rand_feat_num}/learn_rf={learn_rf}/sigma=0.0/' + args.dir_name
+    actor = DiagGaussianActor(obs_dim=3, action_dim=1, hidden_dim=args.hidden_dim, hidden_depth=2,
+                              log_std_bounds=[-5., 2.]).to(agent.device)
+    critic = RFVCritic(sigma=sigma, rand_feat_num=args.rand_feat_num, learn_rf=learn_rf).to(agent.device)
+    actor.load_state_dict(torch.load(log_path + "/actor.pth"))
+    critic.load_state_dict(torch.load(log_path + "/critic.pth"))
+    agent.actor = actor
+    agent.critic = critic
   
   if args.env == "Pendulum-v1":
     env = noisyPendulumEnv(sigma =  sigma)
     # log_path = f'log/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rand_feat_num}/learn_rf={learn_rf}'
-    log_path = f'exp/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rand_feat_num}/learn_rf={learn_rf}/sigma=0.0/2023-04-10-02-08-02'
-    actor = DiagGaussianActor(obs_dim = 3, action_dim = 1,hidden_dim = args.hidden_dim, hidden_depth = 2, 
-      log_std_bounds=[-5.,2.])
-    critic = RFVCritic(sigma = sigma, rand_feat_num = args.rand_feat_num, learn_rf = learn_rf)
-    actor.load_state_dict(torch.load(log_path+"/actor.pth"))
-    critic.load_state_dict(torch.load(log_path + "/critic.pth"))
-    agent.actor = actor
-    agent.critic = critic
+
 
     # print("this is critic's embedding layer weight", critic.embed.state_dict()['weight'])
     # print("this is critic's embedding layer bias", critic.embed.state_dict()['bias'])
 
-    main(env, log_path,agent, rf_num = args.rand_feat_num, learn_rf = learn_rf, state_dim = state_dim)
+    main(env, log_path,agent, rf_num = args.rand_feat_num, learn_rf = learn_rf, state_dim = state_dim, max_steps=100)
 	
 

@@ -235,14 +235,14 @@ class RFVCritic(RLNetwork):
         layer1 = nn.Linear(self.n_neurons, 1)  # try default scaling
         # init.uniform_(layer1.weight, -3e-3,3e-3) #weight is the only thing we update
         # init.zeros_(layer1.bias)
-        # layer1.bias.requires_grad = False  # weight is the only thing we update
+        layer1.bias.requires_grad = False  # weight is the only thing we update
         self.output1 = layer1
 
         layer2 = nn.Linear(self.n_neurons, 1)  # try default scaling
         # init.uniform_(layer2.weight, -3e-3,3e-3)
         # init.uniform_(layer2.weight, -3e-4,3e-4)
         # init.zeros_(layer2.bias)
-        # layer2.bias.requires_grad = False  # weight is the only thing we update
+        layer2.bias.requires_grad = False  # weight is the only thing we update
         self.output2 = layer2
 
     def forward(self, states: torch.Tensor):
@@ -259,23 +259,8 @@ class RFVCritic(RLNetwork):
         x2 = self.fourier2(x)
         x1 = torch.cos(x1)
         x2 = torch.cos(x2)
-        # x1 = torch.cos(x)
-        # x2 = torch.sin(x)
-        # x = torch.cat([x1,x2],axis = -1)
-        # x = torch.div(x,1./np.sqrt(2 * self.n_neurons))
-        # if self.sigma > 0:
-        # 	# x1 = torch.multiply(x1,1./np.sqrt(2 * np.pi * self.sigma))
-        # 	# x2 = torch.multiply(x2,1./np.sqrt(2 * np.pi * self.sigma))
-        # 	x1 = torch.multiply(x1,1./np.sqrt(self.sigma))
-        # 	x2 = torch.multiply(x1,1./np.sqrt(self.sigma))
-        # else:
-        # 	# print("I am here")
-        # 	x1 = torch.div(x1,1./self.n_neurons)
-        # 	x2 = torch.div(x2,1./self.n_neurons)
-        # x1 = torch.div(x1,np.sqrt(self.n_neurons/2))
-        # x2 = torch.div(x2,np.sqrt(self.n_neurons/2))
-        x1 = torch.div(x1, 1. / self.n_neurons)
-        x2 = torch.div(x2, 1. / self.n_neurons)
+        # x1 = torch.div(x1, 1. / self.n_neurons)
+        # x2 = torch.div(x2, 1. / self.n_neurons)
         self.cos1 = x1.detach().clone()
         self.cos2 = x2.detach().clone()
         # x = torch.relu(x)
@@ -554,7 +539,7 @@ class RFSACAgent(SACAgent):
         dot_states[:, 2] = states[:, 3]
         dot_states[:, 3] = 1 / m * torch.multiply(torch.sum(action, dim=1), torch.cos(states[:, 4])) - g
         dot_states[:, 4] = states[:, 5]
-        dot_states[:, 5] = 1 / 2 / Iyy * action[:, 1] - action[:, 0]
+        dot_states[:, 5] = 1 / 2 / Iyy * (action[:, 1] - action[:, 0])
 
         new_states = states + dt * dot_states
 
@@ -564,19 +549,13 @@ class RFSACAgent(SACAgent):
         """
         Actor update step
         """
-        # dist = self.actor(batch.state, batch.next_state)
-        dist = self.actor(batch.state)
+        state, _, _, _, _ = unpack_batch(batch)
+        dist = self.actor(state)
         action = dist.rsample()
         log_prob = dist.log_prob(action).sum(-1, keepdim=True)
-        reward = self.get_reward(batch.state, action)  # use reward in q-fn
-        # print("reward shape", reward.shape)
-        # q1,q2 = self.critic(batch.state,action)
-        # q1, q2 = self.critic(self.f_star(batch.state,action))
-        q1, q2 = self.critic(self.dynamics_step(batch.state, action))
-        # q1,q2 = self.critic(self.f_star_2d(batch.state,action))
-        # print("q1 shape",q1.shape)
-        # q = self.discount * torch.min(q1,q2) + reward
-        q = self.discount * torch.min(q1, q2) + reward
+        reward = self.get_reward(state, action)  # use reward in q-fn
+        q1, q2 = self.critic(self.dynamics_step(state, action))
+        q = self.discount * torch.min(q1, q2) + 0.1 * reward
 
         actor_loss = ((self.alpha) * log_prob - q).mean()
 
@@ -586,7 +565,7 @@ class RFSACAgent(SACAgent):
 
         info = {'actor_loss': actor_loss.item()}
 
-        if self.learnable_temperature and self.steps % 12 == 0:
+        if self.learnable_temperature and self.steps % 2 == 0:
             self.log_alpha_optimizer.zero_grad()
             alpha_loss = (self.alpha *
                           (-log_prob - self.target_entropy).detach()).mean()
@@ -621,34 +600,19 @@ class RFSACAgent(SACAgent):
             # next_q1, next_q2 = self.critic_target(next_state, next_action)
             # next_q1, next_q2 = self.critic_target(self.f_star(next_state,next_action))
             next_q1, next_q2 = self.critic_target(self.dynamics_step(next_state, next_action))
-            # next_q1, next_q2 = self.critic_target(self.f_star_2d(next_state,next_action))
             next_q = torch.min(next_q1, next_q2) - self.alpha * next_action_log_pi
             mb_reward = self.get_reward(state, action)
             next_reward = self.get_reward(next_state, next_action)  # reward for new s,a
-            target_q = reward + (1. - done) * self.discount * next_q
-            # target_q = next_reward + (1. - done) * self.discount * next_q
-            # target_q = next_reward + (1. - done) * self.discount * next_q
+            target_q = 0.1 * next_reward + (1. - done) * self.discount * next_q
 
-        # q1, q2 = self.critic(mean, log_std)
-        # q1,q2 = self.rfQcritic(state,action)
-        # q1,q2 = self.critic(state,action)
-        # q1,q2 = self.critic(self.f_star_2d(state,action))
         q1, q2 = self.critic(self.dynamics_step(state, action))
         q1_loss = F.mse_loss(target_q, q1)
         q2_loss = F.mse_loss(target_q, q2)
         q_loss = q1_loss + q2_loss
-        # q = self.critic(next_state)
-        # q = self.rfQcritic(state,action)
-        # q_loss = F.mse_loss(target_q,q)
-        # q1,q2 = self.rfQcritic(state,action)
-        # q = torch.min(q1,q2)
-        # q_loss = F.mse_loss(target_q,q)
 
         self.critic_optimizer.zero_grad()
-        # self.rfQcritic_optimizer.zero_grad()
         q_loss.backward()
         self.critic_optimizer.step()
-        # self.rfQcritic_optimizer.step()
 
         return {
             'q1_loss': q1_loss.item(),
@@ -661,7 +625,7 @@ class RFSACAgent(SACAgent):
             'reward': reward.cpu().numpy(),
             'mb_reward': mb_reward.cpu().numpy(),
             'next_reward': next_reward.detach().cpu().numpy(),
-            'rew_error': 0.1 * reward.cpu().numpy() - mb_reward.cpu().numpy(),
+            'rew_error': reward.cpu().numpy() - mb_reward.cpu().numpy(),
             'linear_layer_weights_q1': self.critic.output1.weight.detach().clone().cpu().numpy(),
             'linear_layer_weights_q2': self.critic.output2.weight.detach().clone().cpu().numpy(),
             'linear_layer_inputs_q1': self.critic.cos1.cpu().numpy(),
@@ -700,7 +664,7 @@ class RFSACAgent(SACAgent):
 
         actor_info = {}
         # Actor and alpha step
-        if self.steps % 6 == 0:
+        if self.steps % 1 == 0:
             actor_info = self.update_actor_and_alpha(batch)
 
         # Update the frozen target models

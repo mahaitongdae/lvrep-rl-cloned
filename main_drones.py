@@ -25,21 +25,21 @@ if __name__ == "__main__":
     parser.add_argument("--alg", default="rfsac")  # Alg name (sac, vlsac)
     parser.add_argument("--env", default="quadrotor")  # Environment name
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
-    parser.add_argument("--start_timesteps", default=5e2, type=float)  # Time steps initial random policy is used
+    parser.add_argument("--start_timesteps", default=25e3, type=float)  # Time steps initial random policy is used
     parser.add_argument("--eval_freq", default=5e3, type=int)  # How often (time steps) we evaluate
-    parser.add_argument("--max_timesteps", default=1e6, type=float)  # Max time steps to run environment
+    parser.add_argument("--max_timesteps", default=2e5, type=float)  # Max time steps to run environment
     parser.add_argument("--expl_noise", default=0.1)  # Std of Gaussian exploration noise
-    parser.add_argument("--batch_size", default=256, type=int)  # Batch size for both actor and critic
+    parser.add_argument("--batch_size", default=512, type=int)  # Batch size for both actor and critic
     parser.add_argument("--hidden_dim", default=256, type=int)  # Network hidden dims
     parser.add_argument("--feature_dim", default=256, type=int)  # Latent feature dim
-    parser.add_argument("--discount", default=0.99)  # Discount factor
+    parser.add_argument("--discount", default=0.98)  # Discount factor
     parser.add_argument("--tau", default=0.005)  # Target network update rate
     parser.add_argument("--learn_bonus", action="store_true")  # Save model and optimizer parameters
     parser.add_argument("--save_model", action="store_true")  # Save model and optimizer parameters
     parser.add_argument("--extra_feature_steps", default=3, type=int)
     parser.add_argument("--sigma", default=0., type=float)  # noise for noisy environment
     parser.add_argument("--embedding_dim", default=-1, type=int)  # if -1, do not add embedding layer
-    parser.add_argument("--rand_feat_num", default=256, type=int)
+    parser.add_argument("--rand_feat_num", default=65536, type=int)
     parser.add_argument("--learn_rf", default="False")  # make this a string (strange Python issue...)
     args = parser.parse_args()
 
@@ -51,7 +51,7 @@ if __name__ == "__main__":
         config = CONFIG_FACTORY.merge()
 
         CONFIG_FACTORY_EVAL = ConfigFactory()
-        CONFIG_FACTORY_EVAL.parser.set_defaults(overrides=['./our_env/env_configs/stabilization.yaml'])
+        CONFIG_FACTORY_EVAL.parser.set_defaults(overrides=['./our_env/env_configs/stabilization_eval.yaml'])
         config_eval = CONFIG_FACTORY_EVAL.merge()
 
         args.fixed_steps = int(config.quadrotor_config['episode_len_sec'] * config.quadrotor_config['ctrl_freq'])

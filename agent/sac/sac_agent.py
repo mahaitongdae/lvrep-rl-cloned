@@ -9,8 +9,8 @@ from utils import util
 from agent.sac.critic import DoubleQCritic
 from agent.sac.actor import DiagGaussianActor
 
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = torch.device('cpu')
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = torch.device('cpu')
 
 class SACAgent(object):
 	"""
@@ -22,8 +22,8 @@ class SACAgent(object):
 			action_dim, 
 			action_space, 
 			critic_lr=3e-4,
-			actor_lr=1e-4,
-			alpha_lr=5e-5,
+			actor_lr=8e-5,
+			alpha_lr=2e-5,
 			discount=0.98,
 			target_update_period=3,
 			tau=0.005,
@@ -93,12 +93,17 @@ class SACAgent(object):
 
 	def select_action(self, state, explore=False):
 		state = torch.FloatTensor(state).to(self.device)
-		state = state.unsqueeze(0)
+		single_action = True if len(state.shape) == 1 else False
+		if single_action == 1:
+			state = state.unsqueeze(0)
 		dist = self.actor(state)
 		action = dist.sample() if explore else dist.mean
 		action = action.clamp(*self.action_range)
-		assert action.ndim == 2 and action.shape[0] == 1
-		return util.to_np(action[0])
+		if single_action:
+			assert action.ndim == 2 and action.shape[0] == 1
+			return util.to_np(action[0])
+		else:
+			return util.to_np(action)
 
 
 	def update_target(self):
@@ -143,6 +148,8 @@ class SACAgent(object):
             'target_q': target_Q.detach().clone().cpu().numpy(),
             # 'next_q': next_q.detach().clone().cpu().numpy(),
             'reward': reward.cpu().numpy(),
+			'q1_error': (current_Q1 - target_Q).detach().clone().cpu().numpy(),
+			'q2_error': (current_Q2 - target_Q).detach().clone().cpu().numpy(),
             # 'mb_reward': mb_reward.cpu().numpy(),
             # 'next_reward': next_reward.detach().cpu().numpy(),
             # 'rew_error': 0.1 * reward.cpu().numpy() - mb_reward.cpu().numpy(),
