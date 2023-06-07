@@ -1,6 +1,6 @@
 import torch 
 import numpy as np
-import seaborn as sns
+# import seaborn as sns
 from matplotlib import pyplot as plt
 from envs.pendulum import Pendulum
 from algorithms.run_min_algo import run_min_algo
@@ -30,7 +30,7 @@ def main():
     # n_init_states = 100
     # init_states = np.random.uniform( low = [-np.pi, -1.], high = [np.pi,1.], size = (n_init_states,2))
     n_init_states = 1
-    init_states = np.array([np.pi,0.]).reshape(1,2)
+    init_states = np.array([np.pi, 0.]).reshape(1,2)
     # print("init[0] ", init_states[0,:])
 
     max_steps = 200
@@ -67,6 +67,24 @@ def main():
     os.makedirs(os.path.dirname(traj_file), exist_ok = True)
     with open(traj_file, 'wb') as g:
         np.save(g, all_traj)
+
+    fig, ax = plt.subplots(1, 3, dpi=150, figsize=(15, 2))
+    plt.subplots_adjust(wspace=0.45)
+    labels_s = (r'$\theta(t)$', r'$\dot{\theta}(t)$')
+    labels_u = (r'$u(t)$',)
+    for i in range(2):
+        ax[i].plot(0.05 * np.linspace(0, 1, 200), all_traj[0, :, i])
+        ax[i].axhline([np.pi, 0.][i], linestyle='--', color='tab:orange')
+        ax[i].set_xlabel(r'$t$')
+        ax[i].set_ylabel(labels_s[i])
+    for i in range(1):
+        ax[2 + i].plot(0.05 * np.linspace(0, 1, 200), cmd_opt)
+        ax[2 + i].axhline(2., linestyle='--', color='tab:orange')
+        ax[2 + i].axhline(-2., linestyle='--', color='tab:orange')
+        ax[2 + i].set_xlabel(r'$t$')
+        ax[2 + i].set_ylabel(labels_u[i])
+    plt.savefig('pendulum_swingup_constrained.png',
+                bbox_inches='tight')
 
     costs_file = f"cost_log/seed={seed}_euler={euler}_sigma={sigma}.npy"
     os.makedirs(os.path.dirname(costs_file), exist_ok = True)

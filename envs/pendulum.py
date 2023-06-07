@@ -84,11 +84,13 @@ class Pendulum(DiffEnv):
         return cost_next_state, self.cost_ctrl(ctrl)
 
     def cost_ctrl(self, ctrl):
-        return self.reg_ctrl * ctrl ** 2  -  (torch.log(2 - ctrl ) +torch.log(2 + ctrl ))
+        return self.reg_ctrl * ctrl ** 2  -  (torch.log(2 - ctrl) + torch.log(2 + ctrl ))
 
     def cost_state(self, state, time_iter):
         # print("hey start time iter", self.stay_put_time_start_iter)
-        if time_iter >= self.stay_put_time_start_iter:
+        if time_iter == 200:
+            cost_state = 100 * ((state[0]) ** 2 + state[1] ** 2)
+        elif time_iter >= self.stay_put_time_start_iter:
             # print("i here", time_iter)
             # cost_state = (self.angle_normalize(state[0])) ** 2 + self.reg_speed * state[1] ** 2
             cost_state = (state[0]) ** 2 + self.reg_speed * state[1] ** 2
