@@ -313,6 +313,7 @@ class nystromVCritic(RLNetwork):
         else:
             self.kernel = lambda z: np.exp(-np.linalg.norm(z)**2/(2.))
         K_m1 = self.make_K(self.nystrom_samples1,self.kernel)
+        print('start eig')
         [eig_vals1,S1] = np.linalg.eig(K_m1) #numpy linalg eig doesn't produce negative eigenvalues... (unlike torch)
         self.eig_vals1= torch.from_numpy(eig_vals1).float()
         self.S1 = torch.from_numpy(S1).float()
@@ -334,6 +335,7 @@ class nystromVCritic(RLNetwork):
 
 
     def make_K(self, samples,kernel):
+        print('start cal K')
         m,d = samples.shape
         K_m = np.empty((m,m))
         for i in np.arange(m):
@@ -347,7 +349,7 @@ class nystromVCritic(RLNetwork):
         K_x1 = torch.exp(-torch.linalg.norm(x1,axis = 2)**2/2).float()
         phi_all1 = (K_x1 @ (self.S1)) @ torch.diag(self.eig_vals1**(-0.5))
         phi_all1 = phi_all1 * self.n_neurons * 5
-        phi_all1 = phi_all1.to(torch.float32)
+        phi_all1 = phi_all1.to(torch.float32).cuda()
         return self.output1(phi_all1), self.output2(phi_all1)
 
 
@@ -585,17 +587,7 @@ class RFSACAgent(SACAgent):
         newthdot = thdot +(3. * g / (2 * l) * torch.sin(th) + 3.0 / (m * l**2) * u) * dt
         newthdot = torch.clip(newthdot, -max_speed,max_speed)
         newth = th + newthdot * dt
-        # new_states = torch.empty((states.shape[0],3))
-        # # print("new states shape 1", new_states.shape)
-        # new_states[:,0] = torch.cos(newth)
-        # new_states[:,1] = torch.sin(newth)
-        # new_states[:,2] = newthdot
-        # print("new states shape", new_states.shape)
-        new_states = torch.empty((states.shape[0],3))
-        new_states[:,0] = torch.cos(newth)
-        new_states[:,1] = torch.sin(newth)
-        new_states[:,2] = newthdot
-        return new_states       
+        return torch.vstack([torch.cos(newth), torch.sin(newth), newthdot]).T
 
     def update_actor_and_alpha(self, batch):
         """

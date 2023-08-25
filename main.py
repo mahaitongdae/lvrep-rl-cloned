@@ -18,12 +18,12 @@ if __name__ == "__main__":
 	
   parser = argparse.ArgumentParser()
   parser.add_argument("--dir", default=0, type=int)                     
-  parser.add_argument("--alg", default="sac")                     # Alg name (sac, vlsac)
+  parser.add_argument("--alg", default="rfsac")                     # Alg name (sac, vlsac)
   parser.add_argument("--env", default="Pendulum-v1")          # Environment name
   parser.add_argument("--seed", default=0, type=int)              # Sets Gym, PyTorch and Numpy seeds
-  parser.add_argument("--start_timesteps", default=25e3, type=float)# Time steps initial random policy is used
+  parser.add_argument("--start_timesteps", default=10, type=float)# Time steps initial random policy is used
   parser.add_argument("--eval_freq", default=5e3, type=int)       # How often (time steps) we evaluate
-  parser.add_argument("--max_timesteps", default=1e6, type=float)   # Max time steps to run environment
+  parser.add_argument("--max_timesteps", default=8e4, type=float)   # Max time steps to run environment
   parser.add_argument("--expl_noise", default=0.1)                # Std of Gaussian exploration noise
   parser.add_argument("--batch_size", default=256, type=int)      # Batch size for both actor and critic
   parser.add_argument("--hidden_dim", default=256, type=int)      # Network hidden dims
@@ -35,10 +35,10 @@ if __name__ == "__main__":
   parser.add_argument("--extra_feature_steps", default=3, type=int)
   parser.add_argument("--sigma", default = 0.,type = float) #noise for noisy environment
   parser.add_argument("--embedding_dim", default = -1,type =int) #if -1, do not add embedding layer
-  parser.add_argument("--rf_num", default = 256, type = int)
+  parser.add_argument("--rf_num", default = 512, type = int)
   parser.add_argument("--learn_rf", default = "False") #make this a string (strange Python issue...) 
   parser.add_argument("--euler", default = "False") #True if euler discretization to be used; otherwise use default OpenAI gym discretization
-  parser.add_argument("--use_nystrom", default = "True")
+  parser.add_argument("--use_nystrom", default = "False")
   args = parser.parse_args()
 
   sigma = args.sigma
@@ -51,8 +51,8 @@ if __name__ == "__main__":
   if args.env == "Pendulum-v1":
     env = noisyPendulumEnv(sigma =  sigma, euler = euler)
     eval_env = noisyPendulumEnv(sigma = sigma, euler = euler)
-  env.seed(args.seed)
-  eval_env.seed(args.seed)
+  # env.seed(args.seed)
+  # eval_env.seed(args.seed)
   
 
   # setup log 
