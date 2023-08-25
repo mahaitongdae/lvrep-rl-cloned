@@ -37,7 +37,7 @@ if __name__ == "__main__":
   parser.add_argument("--embedding_dim", default = -1,type =int) #if -1, do not add embedding layer
   parser.add_argument("--rf_num", default = 512, type = int)
   parser.add_argument("--learn_rf", default = "False") #make this a string (strange Python issue...) 
-  parser.add_argument("--euler", default = "False") #True if euler discretization to be used; otherwise use default OpenAI gym discretization
+  parser.add_argument("--euler", default = "False")  #True if euler discretization to be used; otherwise use default OpenAI gym discretization
   parser.add_argument("--use_nystrom", default = "False")
   args = parser.parse_args()
 
