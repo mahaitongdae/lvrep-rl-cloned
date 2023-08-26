@@ -4,6 +4,7 @@ import torch
 import argparse
 import os
 import json
+import datetime
 
 from tensorboardX import SummaryWriter
 
@@ -28,7 +29,7 @@ ENV_CONFIG = {'sin_input': True,
 if __name__ == "__main__":
 	
   parser = argparse.ArgumentParser()
-  parser.add_argument("--dir", default=1, type=int)
+  parser.add_argument("--dir", default=10, type=int)
   parser.add_argument("--alg", default="rfsac")                     # Alg name (sac, vlsac)
   parser.add_argument("--env", default="CartPoleContinuous-v0")          # Environment name
   parser.add_argument("--seed", default=0, type=int)              # Sets Gym, PyTorch and Numpy seeds
