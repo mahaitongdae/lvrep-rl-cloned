@@ -1,8 +1,9 @@
 import numpy as np
 import torch
-import gym
+# import gym
 import argparse
 import os
+import json
 
 from tensorboardX import SummaryWriter
 
@@ -11,7 +12,17 @@ from agent.sac import sac_agent
 from agent.vlsac import vlsac_agent
 from agent.rfsac import rfsac_agent
 
-from our_env.noisy_pend import noisyPendulumEnv
+# from envs.noisy_pend import noisyPendulumEnv
+from envs.env_helper import *
+
+ENV_CONFIG = {'sin_input': True,
+              'reward_exponential': False,
+              'reward_scale': 1.,
+              'reward_type': 'energy',
+              'theta_cal': 'sin_cos',
+              'noisy': False,
+              'noise_scale': 0.
+              }
 
 
 if __name__ == "__main__":
@@ -19,7 +30,7 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument("--dir", default=0, type=int)                     
   parser.add_argument("--alg", default="rfsac")                     # Alg name (sac, vlsac)
-  parser.add_argument("--env", default="Pendulum-v1")          # Environment name
+  parser.add_argument("--env", default="CartPoleContinuous-v0")          # Environment name
   parser.add_argument("--seed", default=0, type=int)              # Sets Gym, PyTorch and Numpy seeds
   parser.add_argument("--start_timesteps", default=10, type=float)# Time steps initial random policy is used
   parser.add_argument("--eval_freq", default=5e3, type=int)       # How often (time steps) we evaluate
@@ -36,21 +47,43 @@ if __name__ == "__main__":
   parser.add_argument("--sigma", default = 0.,type = float) #noise for noisy environment
   parser.add_argument("--embedding_dim", default = -1,type =int) #if -1, do not add embedding layer
   parser.add_argument("--rf_num", default = 512, type = int)
+  parser.add_argument("--nystrom_sample_dim", default=512, type=int,
+                      help='sample dim, must be greater or equal rf num.')
   parser.add_argument("--learn_rf", default = "False") #make this a string (strange Python issue...) 
   parser.add_argument("--euler", default = "False")  #True if euler discretization to be used; otherwise use default OpenAI gym discretization
-  parser.add_argument("--use_nystrom", default = "False")
+  parser.add_argument("--use_nystrom", default = "True")
   args = parser.parse_args()
 
   sigma = args.sigma
   euler = True if args.euler == "True" else False
   use_nystrom = True if args.use_nystrom == "True" else False
 
-  env = gym.make(args.env)
-  eval_env = gym.make(args.env)
-  max_length = env._max_episode_steps
+  # initialize environments
+  # env = gym.make(args.env)
+  # eval_env = gym.make(args.env)
+
   if args.env == "Pendulum-v1":
-    env = noisyPendulumEnv(sigma =  sigma, euler = euler)
-    eval_env = noisyPendulumEnv(sigma = sigma, euler = euler)
+    # env = noisyPendulumEnv(sigma =  sigma, euler = euler)
+    # eval_env = noisyPendulumEnv(sigma = sigma, euler = euler)
+    ENV_CONFIG.update({'reward_scale': 0.2, })
+    env = env_creator_pendulum(ENV_CONFIG)
+    ENV_CONFIG.update({'reward_scale': 1., })
+    eval_env = env_creator_pendulum(ENV_CONFIG)
+  elif args.env == 'Quadrotor2D-v1':
+    ENV_CONFIG.update({'reward_scale': 1.,})
+    env = env_creator(ENV_CONFIG)
+    eval_env = env_creator(ENV_CONFIG)
+  elif args.env == 'Pendubot-v0':
+    ENV_CONFIG.update({'reward_scale': 1., })
+    env = env_creator_pendubot(ENV_CONFIG)
+    eval_env = env_creator_pendubot(ENV_CONFIG)
+  elif args.env == 'CartPoleContinuous-v0':
+    ENV_CONFIG.update({'reward_scale': 1., })
+    env = env_creator_cartpole(ENV_CONFIG)
+    eval_env = env_creator_cartpole(ENV_CONFIG)
+  env = Gymnasium2GymWrapper(env)
+  eval_env = Gymnasium2GymWrapper(eval_env)
+  # max_length = env._max_episode_steps
   # env.seed(args.seed)
   # eval_env.seed(args.seed)
   
@@ -63,11 +96,7 @@ if __name__ == "__main__":
   torch.manual_seed(args.seed)
   np.random.seed(args.seed)
 
-  # # 
-  # if args.env == "Pendulum-v1": #hard-code for now
-  #   state_dim = 2
-  #   # print("I am here!")
-  # else:
+
   state_dim = env.observation_space.shape[0]
   action_dim = env.action_space.shape[0] 
   max_action = float(env.action_space.high[0])
@@ -77,18 +106,32 @@ if __name__ == "__main__":
   else:
     learn_rf = True
 
-  kwargs = {
+  # kwargs = {
+  #   "discount": args.discount,
+  #   "tau": args.tau,
+  #   "hidden_dim": args.hidden_dim,
+  #   "sigma": sigma,
+  #   "rf_num": args.rf_num,
+  #   "learn_rf": learn_rf,
+  #   "use_nystrom": use_nystrom,
+  #
+  # }
+  kwargs = vars(args)
+
+  kwargs.update({
     "state_dim": state_dim,
     "action_dim": action_dim,
     "action_space": env.action_space,
-    "discount": args.discount,
-    "tau": args.tau,
-    "hidden_dim": args.hidden_dim,
-    "sigma": sigma,
-    "rf_num": args.rf_num,
-    "learn_rf": learn_rf,
-    "use_nystrom": use_nystrom
-  }
+    'obs_space_high': np.clip(env.observation_space.high, -10., 10.).tolist(),
+    'obs_space_low': np.clip(env.observation_space.low, -10., 10.).tolist(),  # in case of inf observation space
+    'obs_space_dim': env.observation_space.shape,
+    'dynamics_type': args.env.split('-')[0],
+    'dynamics_parameters': {
+      'stabilizing_target': [0.0, 0.0, 0.5, 0.0, 0.0, 0.0],
+    },
+  })
+
+  kwargs['dynamics_parameters'].update(ENV_CONFIG)
 
   # Initialize policy
   if args.alg == "sac":
@@ -131,34 +174,18 @@ if __name__ == "__main__":
     # Perform action
     next_state, reward, done, _ = env.step(action) 
     # print("next state", next_state)
-    done_bool = float(done) if episode_timesteps < max_length else 0
-
-    # if episode_timesteps >= 2: #start adding to buffer once 2 state action pairs seen
-    # # Store data in replay buffer
-    #   replay_buffer.add(prev_state, prev_action, prev_reward, state, action,reward,next_state, done_bool)
-    #   print("prev state", prev_state)
-    #   print("prev action", prev_action)
-    #   print("state", state)
-    #   print("action",action)
-    #   print("next state", next_state)
-    #   print("prev_reward", prev_reward)
-    #   print("reward", reward)
+    # done_bool = float(done) if episode_timesteps < max_length else 0
 
     replay_buffer.add(state,action,next_state,reward,done)
 
     prev_state = np.copy(state)
-    # # print("I am prev state", prev_state)
-    # prev_action = np.copy(action)
-    # prev_reward = np.copy(reward)
     state = next_state
-    # print(" I am state", state)
     episode_reward += reward
     
     # Train agent after collecting sufficient data
     if use_nystrom == True and t == args.start_timesteps: #init nystrom at the step training begins
       kwargs["replay_buffer"] = replay_buffer
       agent = rfsac_agent.RFSACAgent(**kwargs) #reinit agent is not ideal, temp fix
-      # agent.critic.init_using_samples(replay_buffer, n_samples = args.rf_num)
 
     if t >= args.start_timesteps:
       info = agent.train(replay_buffer, batch_size=args.batch_size)
@@ -191,14 +218,6 @@ if __name__ == "__main__":
         best_actor = agent.actor.state_dict()
         best_critic = agent.critic.state_dict()
 
-        # print("actor's state dict")
-        # for param_tensor in agent.actor.state_dict():
-        #   print(param_tensor, "\t", agent.actor.state_dict()[param_tensor].size())
-
-        # print("critic's state dict")
-        # for param_tensor in agent.critic.state_dict():
-        #   print(param_tensor,"\t", agent.critic.state_dict()[param_tensor].size())
-
   summary_writer.close()
 
   print('Total time cost {:.4g}s.'.format(timer.time_cost()))
@@ -206,3 +225,7 @@ if __name__ == "__main__":
   #save best actor/best critic
   torch.save(best_actor, log_path+"/actor.pth")
   torch.save(best_critic, log_path+"/critic.pth")
+
+  # save parameters
+  with open(os.path.join(log_path, 'params.json'), 'w') as fp:
+    json.dump(kwargs, fp, indent=2)

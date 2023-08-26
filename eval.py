@@ -11,7 +11,7 @@ from agent.sac import sac_agent
 from agent.vlsac import vlsac_agent
 from agent.rfsac import rfsac_agent
 
-from our_env.noisy_pend import noisyPendulumEnv
+from envs.noisy_pend import noisyPendulumEnv
 
 from agent.rfsac.rfsac_agent import RFVCritic, nystromVCritic
 from agent.sac.actor import DiagGaussianActor
