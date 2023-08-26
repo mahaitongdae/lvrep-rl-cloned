@@ -1,4 +1,4 @@
-N=4
+N=32
 (
 for ALG in rfsac; do
   for SIGMA in 0.0 1.0 2.0; do
