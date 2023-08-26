@@ -360,7 +360,7 @@ class nystromVCritic(RLNetwork):
         K_x1 = torch.exp(-torch.linalg.norm(x1,axis = 2)**2/2).float()
         phi_all1 = (K_x1 @ (self.S1)) @ torch.diag((self.eig_vals1 + 1e-8) ** (-0.5))
         phi_all1 = self.norm(phi_all1)
-        phi_all1 = phi_all1.to(torch.float32).cuda() # TODO: if cuda necessary here?
+        phi_all1 = phi_all1.to(torch.float32)
         return self.output1(phi_all1), self.output2(phi_all1)
 
 
