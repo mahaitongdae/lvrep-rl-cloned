@@ -5,6 +5,7 @@ import argparse
 import os
 import json
 import datetime
+import time
 
 from tensorboardX import SummaryWriter
 
@@ -31,7 +32,7 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument("--dir", default=10, type=int)
   parser.add_argument("--alg", default="rfsac")                     # Alg name (sac, vlsac)
-  parser.add_argument("--env", default="CartPoleContinuous-v0")          # Environment name
+  parser.add_argument("--env", default="Pendulum-v1")          # Environment name
   parser.add_argument("--seed", default=0, type=int)              # Sets Gym, PyTorch and Numpy seeds
   parser.add_argument("--start_timesteps", default=10, type=float)# Time steps initial random policy is used
   parser.add_argument("--eval_freq", default=5e3, type=int)       # How often (time steps) we evaluate
@@ -160,6 +161,8 @@ if __name__ == "__main__":
   best_actor = None
   best_critic = None
 
+  itime = time.time()
+
   for t in range(int(args.max_timesteps)):
     
     episode_timesteps += 1
@@ -199,7 +202,9 @@ if __name__ == "__main__":
       # prev_state = np.copy(state)
       episode_reward = 0
       episode_timesteps = 0
-      episode_num += 1 
+      episode_num += 1
+      ctime = time.time()
+      print("Average time per step: {:.3e}".format((ctime - itime) / t))
 
     # Evaluate episode
     if (t + 1) % args.eval_freq == 0:
