@@ -11,17 +11,18 @@ from utils import util, buffer
 from agent.sac import sac_agent
 from agent.vlsac import vlsac_agent
 from agent.rfsac import rfsac_agent
+from datetime import datetime
 
 # from envs.noisy_pend import noisyPendulumEnv
 from envs.env_helper import *
 
-ENV_CONFIG = {'sin_input': True,
-              'reward_exponential': False,
-              'reward_scale': 1.,
-              'reward_type': 'energy',
-              'theta_cal': 'sin_cos',
-              'noisy': False,
-              'noise_scale': 0.
+ENV_CONFIG = {'sin_input': True,              # fixed
+              'reward_exponential': False,    # fixed
+              'reward_scale': 1.,             # further tune
+              'reward_type': 'energy',        # control different envs
+              'theta_cal': 'sin_cos',         # fixed
+              'noisy': False,                 # todo:depreciated
+              'noise_scale': 0.               # should be same with sigma
               }
 
 
@@ -30,11 +31,11 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument("--dir", default=1, type=int)
   parser.add_argument("--alg", default="rfsac")                     # Alg name (sac, vlsac)
-  parser.add_argument("--env", default="CartPoleContinuous-v0")          # Environment name
+  parser.add_argument("--env", default="Pendubot-v0")          # Environment name
   parser.add_argument("--seed", default=0, type=int)              # Sets Gym, PyTorch and Numpy seeds
-  parser.add_argument("--start_timesteps", default=10, type=float)# Time steps initial random policy is used
-  parser.add_argument("--eval_freq", default=5e3, type=int)       # How often (time steps) we evaluate
-  parser.add_argument("--max_timesteps", default=8e4, type=float)   # Max time steps to run environment
+  parser.add_argument("--start_timesteps", default=1e4, type=float)# Time steps initial random policy is used
+  parser.add_argument("--eval_freq", default=2000, type=int)       # How often (time steps) we evaluate
+  parser.add_argument("--max_timesteps", default=15e4, type=float)   # Max time steps to run environment
   parser.add_argument("--expl_noise", default=0.1)                # Std of Gaussian exploration noise
   parser.add_argument("--batch_size", default=256, type=int)      # Batch size for both actor and critic
   parser.add_argument("--hidden_dim", default=256, type=int)      # Network hidden dims
@@ -44,7 +45,7 @@ if __name__ == "__main__":
   parser.add_argument("--learn_bonus", action="store_true")        # Save model and optimizer parameters
   parser.add_argument("--save_model", action="store_true")        # Save model and optimizer parameters
   parser.add_argument("--extra_feature_steps", default=3, type=int)
-  parser.add_argument("--sigma", default = 0.,type = float) #noise for noisy environment
+  parser.add_argument("--sigma", default = 1.,type = float) #noise for noisy environment
   parser.add_argument("--embedding_dim", default = -1,type =int) #if -1, do not add embedding layer
   parser.add_argument("--rf_num", default = 512, type = int)
   parser.add_argument("--nystrom_sample_dim", default=512, type=int,
@@ -57,6 +58,8 @@ if __name__ == "__main__":
   sigma = args.sigma
   euler = True if args.euler == "True" else False
   use_nystrom = True if args.use_nystrom == "True" else False
+
+  ENV_CONFIG.update({'noisy': args.sigma, 'noise_scale': args.sigma})
 
   # initialize environments
   # env = gym.make(args.env)
@@ -74,9 +77,11 @@ if __name__ == "__main__":
     env = env_creator(ENV_CONFIG)
     eval_env = env_creator(ENV_CONFIG)
   elif args.env == 'Pendubot-v0':
-    ENV_CONFIG.update({'reward_scale': 1., })
+    eval_config = ENV_CONFIG.copy()
+    eval_config.update({'reward_scale': 1., 'eval': True})
+    eval_env = env_creator_pendubot(eval_config)
+    ENV_CONFIG.update({'reward_scale': 10.})
     env = env_creator_pendubot(ENV_CONFIG)
-    eval_env = env_creator_pendubot(ENV_CONFIG)
   elif args.env == 'CartPoleContinuous-v0':
     ENV_CONFIG.update({'reward_scale': 1., })
     env = env_creator_cartpole(ENV_CONFIG)
@@ -86,10 +91,17 @@ if __name__ == "__main__":
   # max_length = env._max_episode_steps
   # env.seed(args.seed)
   # eval_env.seed(args.seed)
-  
 
-  # setup log 
-  log_path = f'log/{args.env}/{args.alg}/{args.dir}/{args.seed}/T={args.max_timesteps}/rf_num={args.rf_num}/learn_rf={args.learn_rf}/sigma={args.sigma}/euler={euler}/use_nystrom={use_nystrom}'
+  env_name = f'{args.env}_sigma_{args.sigma}_rew_scale_{ENV_CONFIG["reward_scale"]}'
+
+  if args.env == 'Pendubot-v0':
+    env_name = env_name + f'_reward_{ENV_CONFIG["reward_type"]}'
+
+  alg_name = f'{args.alg}_nystrom_{use_nystrom}_rf_num_{args.rf_num}_sample_dim_{args.nystrom_sample_dim}'
+  exp_name = f'seed_{args.seed}_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}'
+
+  # setup log
+  log_path = f'log/{env_name}/{alg_name}/{exp_name}'
   summary_writer = SummaryWriter(log_path+"/summary_files")
 
   # set seeds
@@ -203,7 +215,7 @@ if __name__ == "__main__":
     # Evaluate episode
     if (t + 1) % args.eval_freq == 0:
       steps_per_sec = timer.steps_per_sec(t+1)
-      evaluation = util.eval_policy(agent, eval_env)
+      evaluation = util.eval_policy(agent, eval_env, eval_episodes=50)
       evaluations.append(evaluation)
 
       if t >= args.start_timesteps:
@@ -227,5 +239,6 @@ if __name__ == "__main__":
   torch.save(best_critic, log_path+"/critic.pth")
 
   # save parameters
-  with open(os.path.join(log_path, 'params.json'), 'w') as fp:
+  kwargs.update({"action_space": None}) # action space might not be serializable
+  with open(os.path.join(log_path, 'train_params.json'), 'w') as fp:
     json.dump(kwargs, fp, indent=2)

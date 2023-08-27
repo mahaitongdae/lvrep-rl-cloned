@@ -153,7 +153,8 @@ def env_creator_pendubot(env_config):
                          noisy=noisy,
                          noisy_scale=noise_scale,
                          reward_type=env_config.get('reward_type'),
-                         theta_cal=env_config.get('theta_cal')
+                         theta_cal=env_config.get('theta_cal'),
+                         eval=env_config.get('eval', False)
                          ) #, render_mode='human'
     env = TransformReward(env, lambda r: reward_scale_pendubot * r)
     if env_config.get('reward_exponential'):
