@@ -233,5 +233,5 @@ if __name__ == "__main__":
   torch.save(best_critic, log_path+"/critic.pth")
 
   # save parameters
-  with open(os.path.join(log_path, 'params.json'), 'w') as fp:
-    json.dump(kwargs, fp, indent=2)
+  # with open(os.path.join(log_path, 'params.json'), 'w') as fp:
+  #   json.dump(kwargs, fp, indent=2)
