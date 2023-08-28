@@ -2,8 +2,8 @@
 #(
 for ALG in rfsac; do
   for SIGMA in 0.0 1.0; do
-    for MAX_TIMESTEPS in 100000; do
-      for NYSTROM_SAMPLE_DIM in 512 1024 2048; do
+    for MAX_TIMESTEPS in 200000; do
+      for NYSTROM_SAMPLE_DIM in 1024 2048; do
         for SEED in 0; do
           for UES_NYSTROM in True; do
             for ENV in Pendubot-v0; do

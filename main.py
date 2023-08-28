@@ -4,6 +4,7 @@ import torch
 import argparse
 import os
 import json
+import pickle as pkl
 
 from tensorboardX import SummaryWriter
 
@@ -19,7 +20,7 @@ from envs.env_helper import *
 ENV_CONFIG = {'sin_input': True,              # fixed
               'reward_exponential': False,    # fixed
               'reward_scale': 1.,             # further tune
-              'reward_type': 'energy',        # control different envs
+              'reward_type': 'lqr',        # control different envs
               'theta_cal': 'sin_cos',         # fixed
               'noisy': False,                 # todo:depreciated
               'noise_scale': 0.               # should be same with sigma
@@ -45,9 +46,9 @@ if __name__ == "__main__":
   parser.add_argument("--learn_bonus", action="store_true")        # Save model and optimizer parameters
   parser.add_argument("--save_model", action="store_true")        # Save model and optimizer parameters
   parser.add_argument("--extra_feature_steps", default=3, type=int)
-  parser.add_argument("--sigma", default = 1.,type = float) #noise for noisy environment
+  parser.add_argument("--sigma", default = 0.,type = float) #noise for noisy environment
   parser.add_argument("--embedding_dim", default = -1,type =int) #if -1, do not add embedding layer
-  parser.add_argument("--rf_num", default = 512, type = int)
+  parser.add_argument("--rf_num", default = 1024, type = int)
   parser.add_argument("--nystrom_sample_dim", default=512, type=int,
                       help='sample dim, must be greater or equal rf num.')
   parser.add_argument("--learn_rf", default = "False") #make this a string (strange Python issue...) 
@@ -79,8 +80,9 @@ if __name__ == "__main__":
   elif args.env == 'Pendubot-v0':
     eval_config = ENV_CONFIG.copy()
     eval_config.update({'reward_scale': 1., 'eval': True})
+    print(eval_config)
     eval_env = env_creator_pendubot(eval_config)
-    ENV_CONFIG.update({'reward_scale': 10.})
+    ENV_CONFIG.update({'reward_scale': 3.})
     env = env_creator_pendubot(ENV_CONFIG)
   elif args.env == 'CartPoleContinuous-v0':
     ENV_CONFIG.update({'reward_scale': 1., })
@@ -240,5 +242,5 @@ if __name__ == "__main__":
 
   # save parameters
   kwargs.update({"action_space": None}) # action space might not be serializable
-  with open(os.path.join(log_path, 'train_params.json'), 'w') as fp:
-    json.dump(kwargs, fp, indent=2)
+  with open(os.path.join(log_path, 'train_params.pkl'), 'w') as fp:
+    pkl.dump(kwargs, fp)
