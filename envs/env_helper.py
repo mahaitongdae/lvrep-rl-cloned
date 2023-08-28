@@ -1,12 +1,10 @@
 import gymnasium
 import numpy as np
 from gymnasium.wrappers import TransformReward
-try:
-    import safe_control_gym
-    from safe_control_gym.utils.configuration import ConfigFactory
-    from safe_control_gym.utils.registration import make, register
-except:
-    pass
+import gym
+from gym.wrappers import TransformReward as TransformRewardGym
+from gym.wrappers import TransformObservation as TransformObservationGym
+
 
 
 
@@ -33,6 +31,26 @@ class TransformTriangleObservationWrapper(gymnasium.ObservationWrapper):
         #     env.z_threshold, np.finfo(np.float32).max,
         #     1., 1., np.finfo(np.float32).max
         # ])
+        low = env.observation_space.low
+        high = env.observation_space.high
+        transformed_low = np.hstack([low[:-2], [-1., -1.,], low[-1:]])
+        transformed_high = np.hstack([high[:-2], [1., 1.,], high[-1:]])
+
+        self.observation_space = gymnasium.spaces.Box(low=transformed_low, high=transformed_high, dtype=np.float32)
+
+    def observation(self, observation):
+        '''
+        transfer observations. We assume that the last two observations is the angle and angular velocity.
+        '''
+        theta = observation[-2]
+        sin_cos_theta = np.array([np.cos(theta), np.sin(theta)])
+        theta_dot = observation[-1:]
+        return np.hstack([observation[:-2], sin_cos_theta, theta_dot])
+
+class TransformTriangleObservationWrapperGym(gym.ObservationWrapper):
+
+    def __init__(self, env):
+        super().__init__(env)
         low = env.observation_space.low
         high = env.observation_space.high
         transformed_low = np.hstack([low[:-2], [-1., -1.,], low[-1:]])
@@ -107,15 +125,23 @@ class Gymnasium2GymWrapper(gymnasium.Wrapper):
         return obs
 
 def env_creator(env_config):
+    import sys
+    sys.path.append('/home/mht/PycharmProjects/safe-control-gym')
+    try:
+        import safe_control_gym
+        from safe_control_gym.utils.configuration import ConfigFactory
+        from safe_control_gym.utils.registration import make, register
+    except:
+        pass
     CONFIG_FACTORY = ConfigFactory()
-    CONFIG_FACTORY.parser.set_defaults(overrides=['./quad_2d_env_config/stabilization.yaml'])
+    CONFIG_FACTORY.parser.set_defaults(overrides=['/home/mht/PycharmProjects/lvrep-rl-cloned/envs/quad_2d_env_config/stabilization.yaml']) # TODO
     config = CONFIG_FACTORY.merge()
     env = make('quadrotor', **config.quadrotor_config)
     if env_config.get('sin_input'):
-        trans_rew_env = TransformReward(env, lambda r: env_config.get('reward_scale') * r)
-        return TransformTriangleObservationWrapper(trans_rew_env)
+        trans_rew_env = TransformRewardGym(env, lambda r: env_config.get('reward_scale') * r)
+        return TransformTriangleObservationWrapperGym(trans_rew_env)
     else:
-        return TransformReward(env, lambda r: env_config.get('reward_scale') * r)
+        return TransformRewardGym(env, lambda r: env_config.get('reward_scale') * r)
 
 def env_creator_pendulum(env_config):
     env = gymnasium.make('Pendulum-v1')
@@ -165,3 +191,8 @@ def env_creator_pendubot(env_config):
         return env
 
 
+if __name__ == '__main__':
+    from main import ENV_CONFIG
+    env = env_creator(ENV_CONFIG)
+    print(env.reset())
+    print(env.step(env.action_space.sample()))
