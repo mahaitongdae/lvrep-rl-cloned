@@ -1,5 +1,5 @@
-#N=4
-#(
+#!/bin/bash
+# (
 for ALG in rfsac; do
   for SIGMA in 0.0 1.0; do
     for MAX_TIMESTEPS in 400000; do
