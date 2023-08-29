@@ -51,14 +51,17 @@ if __name__ == "__main__":
   parser.add_argument("--rf_num", default = 1024, type = int)
   parser.add_argument("--nystrom_sample_dim", default=512, type=int,
                       help='sample dim, must be greater or equal rf num.')
-  parser.add_argument("--learn_rf", default = False, type=bool) #make this a string (strange Python issue...)
-  parser.add_argument("--euler", default = False, type=bool)  #True if euler discretization to be used; otherwise use default OpenAI gym discretization
-  parser.add_argument("--use_nystrom", default = False, type=bool)
+  parser.add_argument("--learn_rf", action='store_true')
+  parser.add_argument("--euler", action='store_true')  # True if euler discretization to be used; otherwise use default OpenAI gym discretization
+  parser.add_argument("--use_nystrom", action='store_true')
+  parser.set_defaults(use_nystrom=False)
+  parser.set_defaults(euler=False)
+  parser.set_defaults(learn_rf=False) # if want to add these, just add --use_nystrom to the scripts.
   args = parser.parse_args()
 
   sigma = args.sigma
-  euler = True if args.euler == "True" else False
-  use_nystrom = True if args.use_nystrom == "True" else False
+  euler = True if args.euler == True else False
+  use_nystrom = True if args.use_nystrom == True else False
 
   ENV_CONFIG.update({'noisy': args.sigma, 'noise_scale': args.sigma})
 
