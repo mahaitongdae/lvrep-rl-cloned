@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH -c 8
+SBATCH -c 8
 #SBATCH -N 1
 #SBATCH -t 0-01:30
 #SBATCH -p gpu
 #SBATCH --gres=gpu:1
-#SBATCH --mem=16000
+SBATCH --mem=16000
 #SBATCH -o pytorch_%j.out
 #SBATCH -e pytorch_%j.err
 
