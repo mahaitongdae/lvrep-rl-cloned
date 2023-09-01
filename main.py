@@ -248,7 +248,11 @@ if __name__ == "__main__":
         info.update({'eval_len': eval_len,
                      'eval_ret': eval_ret})
         for key, value in info.items():
-          summary_writer.add_scalar(f'info/{key}', value, t+1)
+          if 'dist' not in key:
+            summary_writer.add_scalar(f'info/{key}', value, t+1)
+          else:
+            for dist_key, dist_val in value.items():
+              summary_writer.add_histogram(dist_key, dist_val, t+1)
         summary_writer.flush()
 
       print('Step {}. Steps per sec: {:.4g}.'.format(t+1, steps_per_sec))

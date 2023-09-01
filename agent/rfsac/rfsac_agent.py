@@ -986,6 +986,13 @@ class RFSACAgent(SACAgent):
             'layer_norm_weights_norm': self.critic.norm.weight.norm(),
             }
 
+        dist = {
+            'td_error': (torch.min(q1, q2) - target_q).detach().clone().numpy(),
+            'q': torch.min(q1, q2).detach().clone().numpy()
+        }
+
+        info.update({'critic_dist': dist})
+
         if self.learn_rf and isinstance(self.critic, nystromVCritic):
             info.update({'largest_eig': self.critic.eig_vals1.max().detach().clone().item(),
                          'smallest_eig': self.critic.eig_vals1.min().detach().clone().item()},
