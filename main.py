@@ -60,7 +60,7 @@ if __name__ == "__main__":
   parser.add_argument("--critic_lr", type=float, default=1e-3)
   parser.set_defaults(use_nystrom=True)
   parser.set_defaults(euler=False)
-  parser.set_defaults(learn_rf=False) # if want to add these, just add --use_nystrom to the scripts.
+  parser.set_defaults(learn_rf=True) # if want to add these, just add --use_nystrom to the scripts.
   parser.set_defaults(reward_exponential=ENV_CONFIG['reward_exponential'])
   args = parser.parse_args()
   print(args.reward_exponential)
