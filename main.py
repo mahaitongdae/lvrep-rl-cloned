@@ -18,7 +18,7 @@ from datetime import datetime
 from envs.env_helper import *
 
 ENV_CONFIG = {'sin_input': True,              # fixed
-              'reward_exponential': False,    # fixed
+              'reward_exponential': True,    # fixed
               'reward_scale': 1.,             # further tune
               'reward_type': 'lqr',        # control different envs
               'theta_cal': 'sin_cos',         # fixed
@@ -32,9 +32,9 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument("--dir", default=1, type=int)
   parser.add_argument("--alg", default="rfsac")                     # Alg name (sac, vlsac)
-  parser.add_argument("--env", default="Pendubot-v0")          # Environment name
+  parser.add_argument("--env", default="Quadrotor2D-v2")          # Environment name
   parser.add_argument("--seed", default=0, type=int)              # Sets Gym, PyTorch and Numpy seeds
-  parser.add_argument("--start_timesteps", default=1e4, type=float)# Time steps initial random policy is used
+  parser.add_argument("--start_timesteps", default=5e3, type=float)# Time steps initial random policy is used
   parser.add_argument("--eval_freq", default=2000, type=int)       # How often (time steps) we evaluate
   parser.add_argument("--max_timesteps", default=15e4, type=float)   # Max time steps to run environment
   parser.add_argument("--expl_noise", default=0.1)                # Std of Gaussian exploration noise
@@ -48,22 +48,30 @@ if __name__ == "__main__":
   parser.add_argument("--extra_feature_steps", default=3, type=int)
   parser.add_argument("--sigma", default = 0.,type = float) #noise for noisy environment
   parser.add_argument("--embedding_dim", default = -1,type =int) #if -1, do not add embedding layer
-  parser.add_argument("--rf_num", default = 1024, type = int)
+  parser.add_argument("--rf_num", default = 512, type = int)
   parser.add_argument("--nystrom_sample_dim", default=512, type=int,
                       help='sample dim, must be greater or equal rf num.')
   parser.add_argument("--learn_rf", action='store_true')
   parser.add_argument("--euler", action='store_true')  # True if euler discretization to be used; otherwise use default OpenAI gym discretization
   parser.add_argument("--use_nystrom", action='store_true')
-  parser.set_defaults(use_nystrom=False)
+  parser.add_argument("--use_random_feature", dest='use_nystrom', action='store_false')
+  parser.add_argument("--reward_exponential", action='store_true')
+  parser.add_argument("--no_reward_exponential", dest='reward_exponential', action='store_false')
+  parser.add_argument("--critic_lr", type=float, default=3e-4)
+  parser.set_defaults(use_nystrom=True)
   parser.set_defaults(euler=False)
   parser.set_defaults(learn_rf=False) # if want to add these, just add --use_nystrom to the scripts.
   args = parser.parse_args()
+  print(args.reward_exponential)
 
   sigma = args.sigma
   euler = True if args.euler == True else False
   use_nystrom = True if args.use_nystrom == True else False
 
   ENV_CONFIG.update({'noisy': args.sigma, 'noise_scale': args.sigma})
+  for key, item in vars(args).items():
+    if key in ENV_CONFIG.keys():
+      ENV_CONFIG.update({key: item})
 
   # initialize environments
   # env = gym.make(args.env)
@@ -76,10 +84,12 @@ if __name__ == "__main__":
     env = env_creator_pendulum(ENV_CONFIG)
     ENV_CONFIG.update({'reward_scale': 1., })
     eval_env = env_creator_pendulum(ENV_CONFIG)
-  elif args.env == 'Quadrotor2D-v1':
-    ENV_CONFIG.update({'reward_scale': 1.,})
-    env = env_creator(ENV_CONFIG)
-    eval_env = env_creator(ENV_CONFIG)
+  elif args.env == 'Quadrotor2D-v2':
+    eval_config = ENV_CONFIG.copy()
+    eval_config.update({'reward_scale': 1., 'eval': True, 'reward_exponential': False})
+    eval_env = env_creator_quad2d(eval_config)
+    ENV_CONFIG.update({'reward_scale': 10.,})
+    env = env_creator_quad2d(ENV_CONFIG)
   elif args.env == 'Pendubot-v0':
     eval_config = ENV_CONFIG.copy()
     eval_config.update({'reward_scale': 1., 'eval': True})
@@ -92,9 +102,9 @@ if __name__ == "__main__":
     env = env_creator_cartpole(ENV_CONFIG)
     eval_env = env_creator_cartpole(ENV_CONFIG)
 
-  if args.env != 'Quadrotor2D-v1':
-    env = Gymnasium2GymWrapper(env)
-    eval_env = Gymnasium2GymWrapper(eval_env)
+  # wrapper back to gym to fit the code
+  env = Gymnasium2GymWrapper(env)
+  eval_env = Gymnasium2GymWrapper(eval_env)
 
   # max_length = env._max_episode_steps
   # env.seed(args.seed)
@@ -105,7 +115,12 @@ if __name__ == "__main__":
   if args.env == 'Pendubot-v0':
     env_name = env_name + f'_reward_{ENV_CONFIG["reward_type"]}'
 
-  alg_name = f'{args.alg}_nystrom_{use_nystrom}_rf_num_{args.rf_num}_sample_dim_{args.nystrom_sample_dim}'
+  if args.alg == 'sac':
+    alg_name = 'sac'
+  else:
+    alg_name = f'{args.alg}_nystrom_{use_nystrom}_rf_num_{args.rf_num}'
+    if use_nystrom:
+      alg_name = alg_name + f'_sample_dim_{args.nystrom_sample_dim}'
   exp_name = f'seed_{args.seed}_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}'
 
   # setup log
@@ -137,13 +152,12 @@ if __name__ == "__main__":
   #
   # }
   kwargs = vars(args)
-
   kwargs.update({
     "state_dim": state_dim,
     "action_dim": action_dim,
     "action_space": env.action_space,
-    'obs_space_high': np.clip(env.observation_space.high, -10., 10.).tolist(),
-    'obs_space_low': np.clip(env.observation_space.low, -10., 10.).tolist(),  # in case of inf observation space
+    'obs_space_high': np.clip(env.observation_space.high, -3., 3.).tolist(),
+    'obs_space_low': np.clip(env.observation_space.low, -3., 3.).tolist(),  # in case of inf observation space
     'obs_space_dim': env.observation_space.shape,
     'dynamics_type': args.env.split('-')[0],
     'dynamics_parameters': {
@@ -192,7 +206,8 @@ if __name__ == "__main__":
 
 
     # Perform action
-    next_state, reward, done, _ = env.step(action) 
+    next_state, reward, done, _ = env.step(action)
+    # print(action, next_state, reward)
     # print("next state", next_state)
     # done_bool = float(done) if episode_timesteps < max_length else 0
 
@@ -201,6 +216,7 @@ if __name__ == "__main__":
     prev_state = np.copy(state)
     state = next_state
     episode_reward += reward
+    info = {}
     
     # Train agent after collecting sufficient data
     if use_nystrom == True and t == args.start_timesteps: #init nystrom at the step training begins
@@ -214,11 +230,12 @@ if __name__ == "__main__":
       # +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
       print(f"Total T: {t+1} Episode Num: {episode_num+1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f} use_nystrom:{use_nystrom} rf_num:{args.rf_num} seed:{args.seed}")
       # Reset environment
+      info.update({'ep_len': episode_timesteps})
       state, done = env.reset(), False
       # prev_state = np.copy(state)
       episode_reward = 0
       episode_timesteps = 0
-      episode_num += 1 
+      episode_num += 1
 
     # Evaluate episode
     if (t + 1) % args.eval_freq == 0:

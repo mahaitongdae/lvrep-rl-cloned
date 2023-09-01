@@ -143,6 +143,24 @@ def env_creator(env_config):
     else:
         return TransformRewardGym(env, lambda r: env_config.get('reward_scale') * r)
 
+def env_creator_quad2d(env_config):
+    from gymnasium.envs.registration import register
+    register(id='Quadrotor2D-v2',
+             entry_point='envs:Quadrotor2D',
+             max_episode_steps=180)
+    env = gymnasium.make('Quadrotor2D-v2')
+    if env_config.get('sin_input'):
+        trans_rew_env = TransformReward(env, lambda r: env_config.get('reward_scale') * r)
+        env = TransformTriangleObservationWrapper(trans_rew_env)
+    else:
+        env =  TransformReward(env, lambda r: env_config.get('reward_scale') * r)
+    if env_config.get('reward_exponential'):
+        return TransformReward(env, lambda r: np.exp(r))
+    else:
+        return env
+
+
+
 def env_creator_pendulum(env_config):
     env = gymnasium.make('Pendulum-v1')
     if env_config.get('reward_exponential'):
@@ -193,6 +211,8 @@ def env_creator_pendubot(env_config):
 
 if __name__ == '__main__':
     from main import ENV_CONFIG
+    ENV_CONFIG['sin_input'] = False
     env = env_creator(ENV_CONFIG)
-    print(env.reset())
-    print(env.step(env.action_space.sample()))
+    env.reset()
+    print(env.observation_space)
+    print(env.step(np.ones([2,])))

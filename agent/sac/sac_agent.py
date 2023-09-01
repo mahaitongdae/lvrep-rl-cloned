@@ -28,6 +28,7 @@ class SACAgent(object):
 			alpha=0.1,
 			auto_entropy_tuning=True,
 			hidden_dim=1024,
+			**kwargs
 			):
 
 		self.steps = 0
@@ -69,16 +70,16 @@ class SACAgent(object):
 		
 		 # optimizers
 		self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),
-																						lr=lr,
-																						betas=[0.9, 0.999])
-
+												lr=lr,
+												betas=[0.9, 0.999])
+		critic_lr = kwargs['critic_lr'] if 'critic_lr' in kwargs.keys() else lr
 		self.critic_optimizer = torch.optim.Adam(self.critic.parameters(),
-																							lr=lr,
-																							betas=[0.9, 0.999])
+												 lr=critic_lr,
+												 betas=[0.9, 0.999])
 
 		self.log_alpha_optimizer = torch.optim.Adam([self.log_alpha],
-																								lr=lr,
-																								betas=[0.9, 0.999])
+													lr=lr,
+													betas=[0.9, 0.999])
 
 
 	@property
@@ -178,6 +179,7 @@ class SACAgent(object):
 
 		# Actor and alpha step
 		actor_info = self.update_actor_and_alpha(batch)
+
 
 		# Update the frozen target models
 		self.update_target()

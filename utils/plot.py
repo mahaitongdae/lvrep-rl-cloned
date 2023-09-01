@@ -25,47 +25,64 @@ def plot(data_source = 'events'):
                      (0.0, 0.8431372549019608, 1.0)])
 
     # noisy Pendulum
+    # path_dict = {
+    #     'Nystrom_1024'          : '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_lqr/good_results/rfsac_nystrom_True_rf_num_1024_sample_dim_1024/',
+    #     'Nystrom_2048_top_1024' : '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_lqr/good_results/rfsac_nystrom_True_rf_num_1024_sample_dim_2048/',
+    #     'Nystrom_4096_top_1024' : '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_lqr/good_results/rfsac_nystrom_True_rf_num_1024_sample_dim_4096/',
+    #     'Random_feature_2048'   : '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_False_rf_num_2048',
+    #     'Random_feature_4096'   : '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_False_rf_num_4096',
+    #     # 'SAC'                   : '/home/mht/ray_results/Pendulum-v1/SAC/_2023-08-25_02-56-515vwpn54u'
+    # }
+    #
+    # title = 'Pendubot'
+
     path_dict = {
-        'Nystrom_1024'          : '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_1024/seed_0_2023-08-28-01-45-57/summary_files',
-        'Nystrom_2048_top_1024' : '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_2048/seed_0_2023-08-28-02-52-42/summary_files',
-        'Nystrom_4096_top_1024' : '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_4096/seed_0_2023-08-28-04-17-53/summary_files',
-        # 'Random feature'        : '/home/mht/ray_results/Pendulum-v1/RFSAC_random_feature_512_512/_2023-08-25_02-56-436_uo_c04',
+        'Nystrom_1024': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/good_results/rfsac_nystrom_True_rf_num_1024_sample_dim_1024/',
+        'Nystrom_2048_top_1024': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/good_results/rfsac_nystrom_True_rf_num_1024_sample_dim_2048/',
+        'Nystrom_4096_top_1024': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/good_results/rfsac_nystrom_True_rf_num_1024_sample_dim_4096/',
+        'Random_feature_2048': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_False_rf_num_2048',
+        'Random_feature_4096': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_False_rf_num_4096',
         # 'SAC'                   : '/home/mht/ray_results/Pendulum-v1/SAC/_2023-08-25_02-56-515vwpn54u'
     }
 
+    title = 'Noisy Pendubot'
 
 
     dfs = []
     for key, path in path_dict.items():
         # rfdim = int(rfdim)
-        if data_source == 'csv':
-            df = pd.read_csv(os.path.join(path, 'progress.csv'))
-        elif data_source == 'events':
-            for fname in os.listdir(path):
-                if fname.startswith('events'):
-                    break
-            df = extract_data_from_events(os.path.join(path, fname), ['info/evaluation'])
+        for dir in os.listdir(path):
+            if not os.path.isdir(os.path.join(path, dir)):
+                continue
+            abs_path = os.path.join(os.path.join(path, dir), 'summary_files')
+            if data_source == 'csv':
+                df = pd.read_csv(os.path.join(path, 'progress.csv'))
+            elif data_source == 'events':
+                for fname in os.listdir(abs_path):
+                    if fname.startswith('events'):
+                        break
+                df = extract_data_from_events(os.path.join(abs_path, fname), ['info/evaluation'])
 
-        df['Algorithm'] = key
-        # df['episode_reward_evaluated'] = np.log(df['episode_reward_mean'] / 200.) / 10. * 200
-        # if rfdim.startswith('SAC'):
-        #     df['exp_setup'] = rfdim
-        # elif rfdim.endswith('thexp'):
-        #     df['exp_setup'] = 'thexp'
-        # elif rfdim.endswith('exp'):
-        #     df['exp_setup'] = 'sinthexp'
-        # elif rfdim.endswith('th'):
-        #     df['exp_setup'] = 'th'
-        # else:
-        #     df['exp_setup'] = 'sinth'
-        dfs.append(df)
+            df['Algorithm'] = key
+            # df['episode_reward_evaluated'] = np.log(df['episode_reward_mean'] / 200.) / 10. * 200
+            # if rfdim.startswith('SAC'):
+            #     df['exp_setup'] = rfdim
+            # elif rfdim.endswith('thexp'):
+            #     df['exp_setup'] = 'thexp'
+            # elif rfdim.endswith('exp'):
+            #     df['exp_setup'] = 'sinthexp'
+            # elif rfdim.endswith('th'):
+            #     df['exp_setup'] = 'th'
+            # else:
+            #     df['exp_setup'] = 'sinth'
+            dfs.append(df)
 
     total_df = pd.concat(dfs, ignore_index=True)
     for y in ['info/evaluation',]: #  'episode_reward_max',
         plt.figure(figsize=[6, 4])
         sns.lineplot(total_df, x='training_iteration', y=y, hue='Algorithm', palette='muted')
         # plt.tight_layout()
-        title = y.split('/')[-1] + 'Pendubot'
+        # title = ' Pendubot'
         plt.title(title)
         plt.ylabel('')
         plt.xlim(0, 300000)

@@ -17,7 +17,7 @@ from agent.sac.sac_agent import SACAgent
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+torch.autograd.set_detect_anomaly(True)
 
 class Critic(nn.Module):
     """
@@ -189,7 +189,7 @@ class RFQCritic(RLNetwork):
 #currently hardcoding s_dim
 #this is a  V function
 class RFVCritic(RLNetwork):
-    def __init__(self, s_dim = 3, embedding_dim = -1, rf_num = 256,sigma = 0.0, learn_rf = False):
+    def __init__(self, s_dim = 3, embedding_dim = -1, rf_num = 256,sigma = 0.0, learn_rf = False, **kwargs):
         super().__init__()
         self.n_layers = 1
         self.feature_dim = rf_num
@@ -248,6 +248,12 @@ class RFVCritic(RLNetwork):
         layer2.bias.requires_grad = False #weight is the only thing we update
         self.output2= layer2
 
+        self.norm1 = nn.LayerNorm(self.feature_dim)
+        self.norm1.bias.requires_grad = False
+
+        self.norm = nn.LayerNorm(self.feature_dim)
+        self.norm.bias.requires_grad = False
+
 
     def forward(self, states: torch.Tensor):
         x = states
@@ -272,8 +278,11 @@ class RFVCritic(RLNetwork):
         #   x2 = torch.multiply(x2,1./np.sqrt(2 * np.pi * self.sigma)) 
         # x1 = torch.div(x1,np.sqrt(self.feature_dim/2))
         # x2 = torch.div(x2,np.sqrt(self.feature_dim/2))
-        x1 = torch.div(x1,1./self.feature_dim)
-        x2 = torch.div(x2,1./self.feature_dim)
+        # x1 = torch.div(x1,1./self.feature_dim)
+        # x2 = torch.div(x2,1./self.feature_dim)
+        # change to layer norm
+        x1 = self.norm1(x1)
+        x2 = self.norm(x2)
         # print("x1 norm", torch.linalg.norm(x1,axis = 1))
         # x = torch.relu(x)
         return self.output1(x1), self.output2(x2)
@@ -291,7 +300,14 @@ class RFVCritic(RLNetwork):
 #this is a  V function
 #buffer: if not None, use samples from buffer to compute nystrom features
 class nystromVCritic(RLNetwork):
-    def __init__(self, s_dim = 3, s_low = np.array([-1,-1,-8]), feat_num = 256, sigma = 0.0, buffer = None, **kwargs):
+    def __init__(self,
+                 s_dim=3,
+                 s_low=np.array([-1, -1, -8]),
+                 feat_num=256,
+                 sigma=0.0,
+                 buffer=None,
+                 learn_rf = False,
+                 **kwargs):
         super().__init__()
         self.n_layers = 1
         self.feature_dim = feat_num
@@ -310,40 +326,42 @@ class nystromVCritic(RLNetwork):
         self.dynamics_parameters = kwargs.get('dynamics_parameters')
 
         np.random.seed(kwargs.get('seed'))
-        #create nystrom feats 
+        # create nystrom feats
         self.nystrom_samples1 = np.random.uniform(self.s_low, self.s_high, size=(self.sample_dim, self.s_dim))
-        # self.nystrom_samples2 = np.random.uniform(s_low,s_high,size = (feat_num, s_dim)) 
-        
+        # self.nystrom_samples1 = np.random.uniform([-0.3, -0.03, 0.3, -0.03, 0.955, 0., -0.03],
+        #                                           [0.3, 0.03, 0.7, 0.03, 1., 0.295, 0.03], size=(self.sample_dim, self.s_dim))
+        # self.nystrom_samples2 = np.random.uniform(s_low,s_high,size = (feat_num, s_dim))
+
         if sigma > 0.0:
-            self.kernel = lambda z: np.exp(-np.linalg.norm(z)**2/(2.* sigma**2))
+            self.kernel = lambda z: np.exp(-np.linalg.norm(z) ** 2 / (2. * sigma ** 2))
         else:
-            self.kernel = lambda z: np.exp(-np.linalg.norm(z)**2/(2.))
+            self.kernel = lambda z: np.exp(-np.linalg.norm(z) ** 2 / (2.))
         K_m1 = self.make_K(self.nystrom_samples1, self.kernel)
         print('start eig')
 
-        [eig_vals1, S1] = np.linalg.eig(K_m1) #numpy linalg eig doesn't produce negative eigenvalues... (unlike torch)
-        
+        [eig_vals1, S1] = np.linalg.eig(K_m1)  # numpy linalg eig doesn't produce negative eigenvalues... (unlike torch)
+
         # truncate top k eigens
+        argsort = np.argsort(eig_vals1)[::-1]
+        eig_vals1 = eig_vals1[argsort]
+        S1 = S1[:, argsort]
         eig_vals1 = np.clip(eig_vals1, 1e-8, np.inf)[:self.feature_dim]
-        self.eig_vals1= torch.from_numpy(eig_vals1).float().to(device)
+        self.eig_vals1 = torch.from_numpy(eig_vals1).float().to(device)
         self.S1 = torch.from_numpy(S1[:, :self.feature_dim]).float().to(device)
         self.nystrom_samples1 = torch.from_numpy(self.nystrom_samples1).to(device)
 
-        layer1 = nn.Linear( self.feature_dim, 1) #try default scaling
+        layer1 = nn.Linear(self.feature_dim, 1)  # try default scaling
         init.zeros_(layer1.bias)
-        layer1.bias.requires_grad = False #weight is the only thing we update
+        layer1.bias.requires_grad = False  # weight is the only thing we update
         self.output1 = layer1
 
-
-        layer2 = nn.Linear( self.feature_dim, 1) #try default scaling
+        layer2 = nn.Linear(self.feature_dim, 1)  # try default scaling
         init.zeros_(layer2.bias)
-        layer2.bias.requires_grad = False #weight is the only thing we update
-        self.output2= layer2
-        
+        layer2.bias.requires_grad = False  # weight is the only thing we update
+        self.output2 = layer2
+
         self.norm = nn.LayerNorm(self.feature_dim)
         self.norm.bias.requires_grad = False
-        
-
 
     def make_K(self, samples,kernel):
         print('start cal K')
@@ -358,8 +376,9 @@ class nystromVCritic(RLNetwork):
     def forward(self, states: torch.Tensor):
         x1 = self.nystrom_samples1.unsqueeze(0) - states.unsqueeze(1)
         K_x1 = torch.exp(-torch.linalg.norm(x1,axis = 2)**2/2).float()
-        phi_all1 = (K_x1 @ (self.S1)) @ torch.diag((self.eig_vals1 + 1e-8) ** (-0.5))
+        phi_all1 = (K_x1 @ (self.S1)) @ torch.diag((self.eig_vals1.clone() + 1e-8) ** (-0.5))
         phi_all1 = self.norm(phi_all1)
+        # phi_all1 = 50. * phi_all1
         phi_all1 = phi_all1.to(torch.float32)
         return self.output1(phi_all1), self.output2(phi_all1)
 
@@ -472,10 +491,10 @@ class RFSACAgent(SACAgent):
         #   ).to(device)
         # self.critic = RFQCritic().to(device)
         if use_nystrom == False: #use RF
-            self.critic = RFVCritic(sigma = sigma, rf_num = rf_num, learn_rf = learn_rf).to(device)
+            self.critic = RFVCritic(s_dim=state_dim, sigma = sigma, rf_num = rf_num, learn_rf = learn_rf, **kwargs).to(device)
         else: #use nystrom
             feat_num = rf_num
-            self.critic = nystromVCritic(sigma = sigma, feat_num = feat_num, buffer = replay_buffer, **kwargs).to(device)
+            self.critic = nystromVCritic(sigma = sigma, feat_num = feat_num, buffer = replay_buffer, learn_rf = learn_rf,  **kwargs).to(device)
         # self.critic = Critic().to(device)
         self.critic_target = copy.deepcopy(self.critic)
         self.critic_optimizer = torch.optim.Adam(
@@ -502,7 +521,14 @@ class RFSACAgent(SACAgent):
             else:
                 self.dynamics = self.quadrotor_f_star_6d
         else:
-            raise NotImplementedError  
+            raise NotImplementedError
+
+        if learn_rf:
+            self.eig_optimizer = torch.optim.Adam([self.critic.eig_vals1],
+                                                  lr = 1e-4)
+        self.learn_rf = learn_rf
+
+
 
     # def feature_step(self, batch):
     #   """
@@ -581,6 +607,12 @@ class RFSACAgent(SACAgent):
         newth = th + newthdot * dt
         return torch.vstack([torch.cos(newth), torch.sin(newth), newthdot]).T
 
+    def __quad_action_preprocess(self, action):
+        action = 0.075 * action + 0.075  # map from -1, 1 to 0.0 - 0.15
+        # print(action)
+        return action
+
+
     def quadrotor_f_star_6d(self, states, action, m=0.027, g=10.0, Iyy=1.4e-5, dt=0.0167):
         # dot_states = torch.empty_like(states)
         # dot_states[:, 0] = states[:, 1]
@@ -589,31 +621,34 @@ class RFSACAgent(SACAgent):
         # dot_states[:, 3] = 1 / m * torch.multiply(torch.sum(action, dim=1), torch.cos(states[:, 4])) - g
         # dot_states[:, 4] = states[:, 5]
         # dot_states[:, 5] = 1 / 2 / Iyy * (action[:, 1] - action[:, 0])
-        
-        dot_states = torch.vstack([states[:, 1],
-                             1 / m * torch.multiply(torch.sum(action, dim=1), torch.sin(states[:, 4])),
-                             states[:, 3],
-                             1 / m * torch.multiply(torch.sum(action, dim=1), torch.cos(states[:, 4])) - g,
-                             states[:, 5],
-                             1 / 2 / Iyy * (action[:, 1] - action[:, 0])
-                             ]).T
+        action = self.__quad_action_preprocess(action)
+        def dot_states(states):
+            dot_states = torch.vstack([states[:, 1],
+                                 1 / m * torch.multiply(torch.sum(action, dim=1), torch.sin(states[:, 4])),
+                                 states[:, 3],
+                                 1 / m * torch.multiply(torch.sum(action, dim=1), torch.cos(states[:, 4])) - g,
+                                 states[:, 5],
+                                 1 / 2 / Iyy * (action[:, 1] - action[:, 0]) * 0.025
+                                 ]).T
+            return dot_states
 
-        return states + dt * dot_states
+        k1 = dot_states(states)
+        k2 = dot_states(states + dt / 2 * k1)
+        k3 = dot_states(states + dt / 2 * k2)
+        k4 = dot_states(states + dt * k3)
+
+        return states + dt / 6 * (k1 + k2 + k3 + k4)
 
     def quadrotor_f_star_7d(self, states, action, m=0.027, g=10.0, Iyy=1.4e-5, dt=0.0167):
-        new_states = torch.empty_like(states, device=device)
-        new_states[:, 0] = states[:, 0] + dt * states[:, 1]
-        new_states[:, 1] = states[:, 1] + dt * (
-                1 / m * torch.multiply(torch.sum(action, dim=1), torch.sin(states[:, 4])))
-        new_states[:, 2] = states[:, 2] + dt * states[:, 3]
-        new_states[:, 3] = states[:, 3] + dt * (
-                1 / m * torch.multiply(torch.sum(action, dim=1), torch.cos(states[:, 4])) - g)
+        action = self.__quad_action_preprocess(action)
         theta = torch.atan2(states[:, -2], states[:, -3])
-        new_theta = theta + dt * states[:, 5]
-        new_states[:, 4] = torch.cos(new_theta)
-        new_states[:, 5] = torch.sin(new_theta)
-        new_states[:, 6] = states[:, 6] + dt * (1 / 2 / Iyy * (action[:, 1] - action[:, 0]))
-        return new_states
+        state_6d = torch.concat([states[:,:-3], torch.reshape(theta, [-1, 1]), states[:, -1:]], dim=1)
+        new_states = self.quadrotor_f_star_6d(state_6d, action)
+        new_theta = new_states[:, -2]
+        new_cos = torch.reshape(torch.cos(new_theta), [-1, 1])
+        new_sin = torch.reshape(torch.sin(new_theta), [-1, 1])
+        new_states_7d = torch.concat([new_states[:, :-2], new_cos, new_sin, new_states[:, -1:]], dim=-1)
+        return new_states_7d
 
     def cartpole_f_4d(self, states, action, ):
         """
@@ -786,13 +821,15 @@ class RFSACAgent(SACAgent):
 
         elif self.dynamics_type == 'Quadrotor2D':
             if isinstance(self.args.get('dynamics_parameters').get('stabilizing_target'), list):
-                stabilizing_target = torch.tensor(self.args.get('dynamics_parameters').get('stabilizing_target'))
+                stabilizing_target = torch.tensor(self.args.get('dynamics_parameters').get('stabilizing_target'),
+                                                  device=device)
             else:
-                stabilizing_target = self.args.get('dynamics_parameters').get('stabilizing_target')
+                stabilizing_target = self.args.get('dynamics_parameters').get('stabilizing_target').to(device)
             if self.sin_input is False:
                 assert obs.shape[1] == 6
                 state_error = obs - stabilizing_target
-                reward = -(torch.sum(1. * state_error ** 2, dim=1) + torch.sum(0.0001 * action ** 2, dim=1))
+                reward = -(torch.sum( torch.multiply(torch.tensor([1., 1., 1., 1., 1., 0.1], device=device),
+                                                     state_error ** 2), dim=1) + torch.sum(0.1 * action ** 2, dim=1))
                 # if self.args.get('dynamics_parameters').get('reward_exponential'):
                 #     reward = torch.exp(reward)
             else:
@@ -800,7 +837,8 @@ class RFSACAgent(SACAgent):
                 th = torch.unsqueeze(torch.atan2(obs[:, -2], obs[:, -3]), dim=1)  # -2 is sin, -3 is cos
                 obs = torch.hstack([obs[:, :4], th, obs[:, -1:]])
                 state_error = obs - stabilizing_target
-                reward = -(torch.sum(1. * state_error ** 2, dim=1) + torch.sum(0.0001 * action ** 2, dim=1))
+                reward = -(torch.sum(torch.multiply(torch.tensor([1., 1., 1., 1., 1., 0.1], device=device),
+                                                    state_error ** 2), dim=1) + torch.sum(0.1 * action ** 2, dim=1))
 
         elif self.dynamics_type == 'CartPoleContinuous':
             if self.sin_input is False:
@@ -930,12 +968,30 @@ class RFSACAgent(SACAgent):
         self.critic_optimizer.zero_grad()
         q_loss.backward()
         self.critic_optimizer.step()
-        return {
-            'q1_loss': q1_loss.item(), 
+
+        if self.learn_rf and self.steps % 10 == 0:
+            q1, q2 = self.critic(self.dynamics(state, action))
+            q1_loss = F.mse_loss(target_q, q1)
+            q2_loss = F.mse_loss(target_q, q2)
+            q_loss = q1_loss + q2_loss
+            self.eig_optimizer.zero_grad()
+            q_loss.backward()
+            self.eig_optimizer.step()
+
+        info = {
+            'q1_loss': q1_loss.item(),
             'q2_loss': q2_loss.item(),
             'q1': q1.mean().item(),
-            'q2': q2.mean().item()
+            'q2': q2.mean().item(),
+            'layer_norm_weights_norm': self.critic.norm.weight.norm(),
             }
+
+        if self.learn_rf and isinstance(self.critic, nystromVCritic):
+            info.update({'largest_eig': self.critic.eig_vals1.max().detach().clone().item(),
+                         'smallest_eig': self.critic.eig_vals1.min().detach().clone().item()},
+                        )
+
+        return info
 
     def update_feature_target(self):
         for param, target_param in zip(self.f.parameters(), self.f_target.parameters()):
