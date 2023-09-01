@@ -12,7 +12,7 @@ class Quadrotor2D(gymnasium.Env):
     m = 0.027
     g = 10.0
     Iyy = 1.4e-5
-    dt = 0.0167
+    dt = 0.008
     stabilizing_target = np.array([0., 0., 0.5, 0., 0., 0.])
 
     def __init__(self, sin_input = True, eval = False, noisy=False, noise_scale=0.0):
@@ -77,8 +77,8 @@ class Quadrotor2D(gymnasium.Env):
 
     def get_reward(self, state, action):
         state_error = state - self.stabilizing_target
-        reward = - np.sum(np.multiply(np.array([1., 1., 1., 1., 1., 0.1]),
-                                      state_error ** 2)) + np.sum(0.1 * action ** 2)
+        reward = - np.sum(np.multiply(np.array([1., 0., 1., 0., 0., 0.]),
+                                      state_error ** 2))#  + np.sum(0.1 * action ** 2)
         return reward
 
     def get_done(self):
@@ -100,7 +100,7 @@ class Quadrotor2D(gymnasium.Env):
             obs[4] = obs[4] + noise[2]
         else:
             obs = self.state
-        reward = -100. if done else self.get_reward(old_state, action)
+        reward = self.get_reward(old_state, action) # -100. if done else
         return obs, reward, done, False, {
             'done_where': done_where
         }

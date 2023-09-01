@@ -36,17 +36,24 @@ def plot(data_source = 'events'):
     #
     # title = 'Pendubot'
 
+    # path_dict = {
+    #     'Nystrom_1024': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/good_results/rfsac_nystrom_True_rf_num_1024_sample_dim_1024/',
+    #     'Nystrom_2048_top_1024': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/good_results/rfsac_nystrom_True_rf_num_1024_sample_dim_2048/',
+    #     'Nystrom_4096_top_1024': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/good_results/rfsac_nystrom_True_rf_num_1024_sample_dim_4096/',
+    #     'Random_feature_2048': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_False_rf_num_2048',
+    #     'Random_feature_4096': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_False_rf_num_4096',
+    #     # 'SAC'                   : '/home/mht/ray_results/Pendulum-v1/SAC/_2023-08-25_02-56-515vwpn54u'
+    # }
+    #
+    # title = 'Noisy Pendubot'
+
     path_dict = {
-        'Nystrom_1024': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/good_results/rfsac_nystrom_True_rf_num_1024_sample_dim_1024/',
-        'Nystrom_2048_top_1024': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/good_results/rfsac_nystrom_True_rf_num_1024_sample_dim_2048/',
-        'Nystrom_4096_top_1024': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/good_results/rfsac_nystrom_True_rf_num_1024_sample_dim_4096/',
-        'Random_feature_2048': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_False_rf_num_2048',
-        'Random_feature_4096': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_False_rf_num_4096',
-        # 'SAC'                   : '/home/mht/ray_results/Pendulum-v1/SAC/_2023-08-25_02-56-515vwpn54u'
+        'Random_feature_2048': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_0.5/good_results/rfsac_nystrom_False_rf_num_2048_sample_dim_1024',
+        'Random_feature_4096': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_0.5/good_results/rfsac_nystrom_False_rf_num_4096_sample_dim_1024',
+
     }
 
-    title = 'Noisy Pendubot'
-
+    title = 'Drones'
 
     dfs = []
     for key, path in path_dict.items():
@@ -85,7 +92,7 @@ def plot(data_source = 'events'):
         # title = ' Pendubot'
         plt.title(title)
         plt.ylabel('')
-        plt.xlim(0, 300000)
+        # plt.xlim(0, 300000)
         plt.ylim(-500, 0)
         plt.xlabel('training iterations')
         plt.tight_layout()

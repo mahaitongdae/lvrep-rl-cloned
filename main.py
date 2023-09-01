@@ -38,7 +38,7 @@ if __name__ == "__main__":
   parser.add_argument("--eval_freq", default=2000, type=int)       # How often (time steps) we evaluate
   parser.add_argument("--max_timesteps", default=15e4, type=float)   # Max time steps to run environment
   parser.add_argument("--expl_noise", default=0.1)                # Std of Gaussian exploration noise
-  parser.add_argument("--batch_size", default=512, type=int)      # Batch size for both actor and critic
+  parser.add_argument("--batch_size", default=1024, type=int)      # Batch size for both actor and critic
   parser.add_argument("--hidden_dim", default=256, type=int)      # Network hidden dims
   parser.add_argument("--feature_dim", default=256, type=int)      # Latent feature dim
   parser.add_argument("--discount", default=0.99)                 # Discount factor
@@ -48,8 +48,8 @@ if __name__ == "__main__":
   parser.add_argument("--extra_feature_steps", default=3, type=int)
   parser.add_argument("--sigma", default = 0.,type = float) #noise for noisy environment
   parser.add_argument("--embedding_dim", default = -1,type =int) #if -1, do not add embedding layer
-  parser.add_argument("--rf_num", default = 512, type = int)
-  parser.add_argument("--nystrom_sample_dim", default=512, type=int,
+  parser.add_argument("--rf_num", default = 2048, type = int)
+  parser.add_argument("--nystrom_sample_dim", default=2048, type=int,
                       help='sample dim, must be greater or equal rf num.')
   parser.add_argument("--learn_rf", action='store_true')
   parser.add_argument("--euler", action='store_true')  # True if euler discretization to be used; otherwise use default OpenAI gym discretization
@@ -57,10 +57,11 @@ if __name__ == "__main__":
   parser.add_argument("--use_random_feature", dest='use_nystrom', action='store_false')
   parser.add_argument("--reward_exponential", action='store_true')
   parser.add_argument("--no_reward_exponential", dest='reward_exponential', action='store_false')
-  parser.add_argument("--critic_lr", type=float, default=3e-4)
+  parser.add_argument("--critic_lr", type=float, default=1e-3)
   parser.set_defaults(use_nystrom=True)
   parser.set_defaults(euler=False)
   parser.set_defaults(learn_rf=False) # if want to add these, just add --use_nystrom to the scripts.
+  parser.set_defaults(reward_exponential=ENV_CONFIG['reward_exponential'])
   args = parser.parse_args()
   print(args.reward_exponential)
 

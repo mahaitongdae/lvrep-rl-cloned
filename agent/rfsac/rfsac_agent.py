@@ -524,7 +524,7 @@ class RFSACAgent(SACAgent):
             raise NotImplementedError
 
         if learn_rf:
-            self.eig_optimizer = torch.optim.Adam([self.critic.eig_vals1],
+            self.eig_optimizer = torch.optim.Adam([self.critic.eig_vals1, self.critic.S1],
                                                   lr = 1e-4)
         self.learn_rf = learn_rf
 
@@ -828,8 +828,8 @@ class RFSACAgent(SACAgent):
             if self.sin_input is False:
                 assert obs.shape[1] == 6
                 state_error = obs - stabilizing_target
-                reward = -(torch.sum( torch.multiply(torch.tensor([1., 1., 1., 1., 1., 0.1], device=device),
-                                                     state_error ** 2), dim=1) + torch.sum(0.1 * action ** 2, dim=1))
+                reward = -(torch.sum( torch.multiply(torch.tensor([1., 0., 1., 0., 0., 0.], device=device),
+                                                     state_error ** 2), dim=1) ) # + torch.sum(0.1 * action ** 2, dim=1)
                 # if self.args.get('dynamics_parameters').get('reward_exponential'):
                 #     reward = torch.exp(reward)
             else:
@@ -837,8 +837,8 @@ class RFSACAgent(SACAgent):
                 th = torch.unsqueeze(torch.atan2(obs[:, -2], obs[:, -3]), dim=1)  # -2 is sin, -3 is cos
                 obs = torch.hstack([obs[:, :4], th, obs[:, -1:]])
                 state_error = obs - stabilizing_target
-                reward = -(torch.sum(torch.multiply(torch.tensor([1., 1., 1., 1., 1., 0.1], device=device),
-                                                    state_error ** 2), dim=1) + torch.sum(0.1 * action ** 2, dim=1))
+                reward = -(torch.sum(torch.multiply(torch.tensor([1., 0., 1., 0., 0., 0.], device=device),
+                                                    state_error ** 2), dim=1) ) # + torch.sum(0.1 * action ** 2, dim=1)
 
         elif self.dynamics_type == 'CartPoleContinuous':
             if self.sin_input is False:
