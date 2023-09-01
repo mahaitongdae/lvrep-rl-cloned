@@ -15,7 +15,7 @@ class Quadrotor2D(gymnasium.Env):
     dt = 0.008
     stabilizing_target = np.array([0., 0., 0.5, 0., 0., 0.])
 
-    def __init__(self, sin_input = True, eval = False, noisy=False, noise_scale=0.0):
+    def __init__(self, sin_input = True, eval = False, noisy=False, noise_scale=0.0, **kwargs):
         super(Quadrotor2D, self).__init__()
         self.eval = eval
         self.sin_input = sin_input
@@ -92,6 +92,8 @@ class Quadrotor2D(gymnasium.Env):
         old_state = self.state
         self.state = self.quadrotor_f_star_6d(self.state, action)
         done, done_where = self.get_done()
+        if self.eval:
+            done = False
         if self.sigma is not None:
             noise = np.random.normal(scale=self.sigma * self.dt, size=[3,])
             obs = self.state
@@ -104,6 +106,9 @@ class Quadrotor2D(gymnasium.Env):
         return obs, reward, done, False, {
             'done_where': done_where
         }
+
+    def _get_obs(self):
+        return self.state
 
 if __name__ == '__main__':
     from gymnasium.envs.registration import register

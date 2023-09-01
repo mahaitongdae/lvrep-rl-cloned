@@ -181,7 +181,7 @@ if __name__ == "__main__":
   replay_buffer = buffer.ReplayBuffer(state_dim, action_dim)
 
   # Evaluate untrained policy
-  evaluations = [util.eval_policy(agent, eval_env)]
+  evaluations = [util.eval_policy(agent, eval_env)[1]]
 
   state, done = env.reset(), False
   episode_reward = 0
@@ -241,20 +241,23 @@ if __name__ == "__main__":
     # Evaluate episode
     if (t + 1) % args.eval_freq == 0:
       steps_per_sec = timer.steps_per_sec(t+1)
-      evaluation = util.eval_policy(agent, eval_env, eval_episodes=50)
-      evaluations.append(evaluation)
+      eval_len, eval_ret = util.eval_policy(agent, eval_env, eval_episodes=50)
+      evaluations.append(eval_ret)
 
       if t >= args.start_timesteps:
-        info['evaluation'] = evaluation
+        info.update({'eval_len': eval_len,
+                     'eval_ret': eval_ret})
         for key, value in info.items():
           summary_writer.add_scalar(f'info/{key}', value, t+1)
         summary_writer.flush()
 
       print('Step {}. Steps per sec: {:.4g}.'.format(t+1, steps_per_sec))
 
-      if evaluation > best_eval_reward:
+      if eval_ret > best_eval_reward:
         best_actor = agent.actor.state_dict()
         best_critic = agent.critic.state_dict()
+
+      best_eval_reward = max(evaluations)
 
   summary_writer.close()
 

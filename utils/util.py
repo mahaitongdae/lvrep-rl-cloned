@@ -49,7 +49,6 @@ def eval_policy(policy, eval_env, eval_episodes=100):
 	avg_len = 0.
 	for _ in range(eval_episodes):
 		state, done = eval_env.reset(), False
-		avg_len += 1
 		# print("eval_policy state", state)
 		while not done:
 			action = policy.select_action(np.array(state))
@@ -63,7 +62,7 @@ def eval_policy(policy, eval_env, eval_episodes=100):
 	print("---------------------------------------")
 	print(f"Evaluation over {eval_episodes} episodes: avg eplen {avg_len}, avg return {avg_reward:.3f}")
 	print("---------------------------------------")
-	return avg_reward
+	return avg_len, avg_reward
 
 
 

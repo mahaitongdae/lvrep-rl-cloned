@@ -3,10 +3,6 @@ import numpy as np
 from gymnasium.wrappers import TransformReward
 import gym
 from gym.wrappers import TransformReward as TransformRewardGym
-from gym.wrappers import TransformObservation as TransformObservationGym
-
-
-
 
 ENV_CONFIG = {'sin_input': True,
               'reward_exponential': False,
@@ -98,15 +94,17 @@ class TransformDoubleTriangleObservationWrapper(gymnasium.ObservationWrapper):
 
 class NoisyObservationWrapper(gymnasium.Wrapper):
 
-    def __init__(self, env, noise_scale):
+    def __init__(self, env, noise_scale, noise_add_dim=None):
         super().__init__(env)
         # np.random.seed(seed)
         self.noise_scale = noise_scale
+        self.noise_add_dim = noise_add_dim if noise_add_dim else [0]
 
     def step(self, action):
         obs, reward, done, terminated, info = self.env.step(action)
-        self.env.state[0] = self.env.state[0] + self.np_random.normal(scale=self.noise_scale) * self.env.dt
-        return self._get_obs(), reward, done, terminated, info
+        for d in self.noise_add_dim:
+            self.env.state[d] = self.env.state[d] + self.np_random.normal(scale=self.noise_scale) * self.env.dt
+        return self.env._get_obs(), reward, done, terminated, info
 
 class Gymnasium2GymWrapper(gymnasium.Wrapper):
 
@@ -148,7 +146,9 @@ def env_creator_quad2d(env_config):
     register(id='Quadrotor2D-v2',
              entry_point='envs:Quadrotor2D',
              max_episode_steps=180)
-    env = gymnasium.make('Quadrotor2D-v2')
+    env = gymnasium.make('Quadrotor2D-v2',**env_config)
+    if env_config.get('noise_scale') > 0.:
+        env = NoisyObservationWrapper(env, noise_scale=env_config.get('sigma'), noise_add_dim=[0, 2, 4])
     if env_config.get('sin_input'):
         trans_rew_env = TransformReward(env, lambda r: env_config.get('reward_scale') * r)
         env = TransformTriangleObservationWrapper(trans_rew_env)
@@ -168,7 +168,7 @@ def env_creator_pendulum(env_config):
     else:
         env = TransformReward(env, lambda r: env_config.get('reward_scale') * r)
     if env_config.get('noisy'):
-        env = NoisyObservationWrapper(env, noise_scale=env_config.get('noise_scale', 1))
+        env = NoisyObservationWrapper(env, noise_scale=env_config.get('noise_scale', 1), noise_add_dim=[0])
     return env
 
 def env_creator_cartpole(env_config):
@@ -212,7 +212,7 @@ def env_creator_pendubot(env_config):
 if __name__ == '__main__':
     from main import ENV_CONFIG
     ENV_CONFIG['sin_input'] = False
-    env = env_creator(ENV_CONFIG)
+    env = env_creator_quad2d(ENV_CONFIG)
     env.reset()
     print(env.observation_space)
     print(env.step(np.ones([2,])))
