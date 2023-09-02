@@ -46,7 +46,7 @@ if __name__ == "__main__":
   parser.add_argument("--learn_bonus", action="store_true")        # Save model and optimizer parameters
   parser.add_argument("--save_model", action="store_true")        # Save model and optimizer parameters
   parser.add_argument("--extra_feature_steps", default=3, type=int)
-  parser.add_argument("--sigma", default = 0.,type = float) #noise for noisy environment
+  parser.add_argument("--sigma", default = 1.,type = float) #noise for noisy environment
   parser.add_argument("--embedding_dim", default = -1,type =int) #if -1, do not add embedding layer
   parser.add_argument("--rf_num", default = 2048, type = int)
   parser.add_argument("--nystrom_sample_dim", default=2048, type=int,

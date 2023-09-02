@@ -107,7 +107,7 @@ class Quadrotor2D(gymnasium.Env):
             'done_where': done_where
         }
 
-    def _get_obs(self):
+    def get_obs(self):
         return self.state
 
 if __name__ == '__main__':
