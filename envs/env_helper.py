@@ -104,7 +104,7 @@ class NoisyObservationWrapper(gymnasium.Wrapper):
         obs, reward, done, terminated, info = self.env.step(action)
         for d in self.noise_add_dim:
             self.env.state[d] = self.env.state[d] + self.np_random.normal(scale=self.noise_scale) * self.env.dt
-        return self.env._get_obs(), reward, done, terminated, info
+        return self.env.get_obs(), reward, done, terminated, info
 
 class Gymnasium2GymWrapper(gymnasium.Wrapper):
 
@@ -148,7 +148,7 @@ def env_creator_quad2d(env_config):
              max_episode_steps=180)
     env = gymnasium.make('Quadrotor2D-v2',**env_config)
     if env_config.get('noise_scale') > 0.:
-        env = NoisyObservationWrapper(env, noise_scale=env_config.get('sigma'), noise_add_dim=[0, 2, 4])
+        env = NoisyObservationWrapper(env, noise_scale=env_config.get('noise_scale'), noise_add_dim=[0, 2, 4])
     if env_config.get('sin_input'):
         trans_rew_env = TransformReward(env, lambda r: env_config.get('reward_scale') * r)
         env = TransformTriangleObservationWrapper(trans_rew_env)

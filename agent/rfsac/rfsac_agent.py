@@ -987,8 +987,8 @@ class RFSACAgent(SACAgent):
             }
 
         dist = {
-            'td_error': (torch.min(q1, q2) - target_q).detach().clone().numpy(),
-            'q': torch.min(q1, q2).detach().clone().numpy()
+            'td_error': (torch.min(q1, q2) - target_q).cpu().detach().clone().numpy(),
+            'q': torch.min(q1, q2).cpu().detach().clone().numpy()
         }
 
         info.update({'critic_dist': dist})
