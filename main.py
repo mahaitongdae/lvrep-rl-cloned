@@ -60,7 +60,7 @@ if __name__ == "__main__":
   parser.add_argument("--critic_lr", type=float, default=1e-3)
   parser.set_defaults(use_nystrom=False)
   parser.set_defaults(euler=False)
-  parser.set_defaults(learn_rf=False) # if want to add these, just add --use_nystrom to the scripts.
+  parser.set_defaults(learn_rf=True) # if want to add these, just add --use_nystrom to the scripts.
   parser.set_defaults(reward_exponential=ENV_CONFIG['reward_exponential'])
   args = parser.parse_args()
   print(args.reward_exponential)
@@ -119,7 +119,7 @@ if __name__ == "__main__":
   if args.alg == 'sac':
     alg_name = 'sac'
   else:
-    alg_name = f'{args.alg}_nystrom_{use_nystrom}_rf_num_{args.rf_num}'
+    alg_name = f'{args.alg}_nystrom_{use_nystrom}_rf_num_{args.rf_num}_learn_rf_{args.learn_rf}'
     if use_nystrom:
       alg_name = alg_name + f'_sample_dim_{args.nystrom_sample_dim}'
   exp_name = f'seed_{args.seed}_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}'

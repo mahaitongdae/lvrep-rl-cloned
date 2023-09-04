@@ -529,7 +529,7 @@ class RFSACAgent(SACAgent):
         else:
             raise NotImplementedError
 
-        if learn_rf:
+        if learn_rf and use_nystrom:
             self.eig_optimizer = torch.optim.Adam([self.critic.eig_vals1, self.critic.S1],
                                                   lr = 1e-4)
         self.learn_rf = learn_rf
@@ -975,7 +975,7 @@ class RFSACAgent(SACAgent):
         q_loss.backward()
         self.critic_optimizer.step()
 
-        if self.learn_rf and self.steps % 10 == 0:
+        if self.learn_rf and isinstance(self.critic, nystromVCritic) and self.steps % 10 == 0:
             q1, q2 = self.critic(self.dynamics(state, action))
             q1_loss = F.mse_loss(target_q, q1)
             q2_loss = F.mse_loss(target_q, q2)
