@@ -58,9 +58,9 @@ if __name__ == "__main__":
   parser.add_argument("--reward_exponential", action='store_true')
   parser.add_argument("--no_reward_exponential", dest='reward_exponential', action='store_false')
   parser.add_argument("--critic_lr", type=float, default=1e-3)
-  parser.set_defaults(use_nystrom=True)
+  parser.set_defaults(use_nystrom=False)
   parser.set_defaults(euler=False)
-  parser.set_defaults(learn_rf=True) # if want to add these, just add --use_nystrom to the scripts.
+  parser.set_defaults(learn_rf=False) # if want to add these, just add --use_nystrom to the scripts.
   parser.set_defaults(reward_exponential=ENV_CONFIG['reward_exponential'])
   args = parser.parse_args()
   print(args.reward_exponential)
@@ -271,7 +271,10 @@ if __name__ == "__main__":
   torch.save(best_actor, log_path+"/actor.pth")
   torch.save(best_critic, log_path+"/critic.pth")
 
+  torch.save(agent.actor.state_dict(), log_path + "/actor_last.pth")
+  torch.save(agent.critic.state_dict(), log_path + "/critic_last.pth")
+
   # save parameters
-  kwargs.update({"action_space": None}) # action space might not be serializable
+  # kwargs.update({"action_space": None}) # action space might not be serializable
   with open(os.path.join(log_path, 'train_params.pkl'), 'wb') as fp:
     pkl.dump(kwargs, fp)

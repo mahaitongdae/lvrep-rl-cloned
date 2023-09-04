@@ -8,7 +8,7 @@ import time
 
 import gym
 from gym import spaces
-from gym.envs.classic_control import utils
+# from gym.envs.classic_control import utils
 from gym.error import DependencyNotInstalled
 
 DEFAULT_X = np.pi

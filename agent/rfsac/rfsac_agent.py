@@ -325,30 +325,36 @@ class nystromVCritic(RLNetwork):
         self.sin_input = kwargs.get('dynamics_parameters').get('sin_input')
         self.dynamics_parameters = kwargs.get('dynamics_parameters')
 
-        np.random.seed(kwargs.get('seed'))
-        # create nystrom feats
-        self.nystrom_samples1 = np.random.uniform(self.s_low, self.s_high, size=(self.sample_dim, self.s_dim))
-        # self.nystrom_samples1 = np.random.uniform([-0.3, -0.03, 0.3, -0.03, 0.955, 0., -0.03],
-        #                                           [0.3, 0.03, 0.7, 0.03, 1., 0.295, 0.03], size=(self.sample_dim, self.s_dim))
-        # self.nystrom_samples2 = np.random.uniform(s_low,s_high,size = (feat_num, s_dim))
+        eval = kwargs.get('eval', False)
+        if not eval:
+            np.random.seed(kwargs.get('seed'))
+            # create nystrom feats
+            self.nystrom_samples1 = np.random.uniform(self.s_low, self.s_high, size=(self.sample_dim, self.s_dim))
+            # self.nystrom_samples1 = np.random.uniform([-0.3, -0.03, 0.3, -0.03, 0.955, 0., -0.03],
+            #                                           [0.3, 0.03, 0.7, 0.03, 1., 0.295, 0.03], size=(self.sample_dim, self.s_dim))
+            # self.nystrom_samples2 = np.random.uniform(s_low,s_high,size = (feat_num, s_dim))
 
-        if sigma > 0.0:
-            self.kernel = lambda z: np.exp(-np.linalg.norm(z) ** 2 / (2. * sigma ** 2))
+            if sigma > 0.0:
+                self.kernel = lambda z: np.exp(-np.linalg.norm(z) ** 2 / (2. * sigma ** 2))
+            else:
+                self.kernel = lambda z: np.exp(-np.linalg.norm(z) ** 2 / (2.))
+            K_m1 = self.make_K(self.nystrom_samples1, self.kernel)
+            print('start eig')
+
+            [eig_vals1, S1] = np.linalg.eig(K_m1)  # numpy linalg eig doesn't produce negative eigenvalues... (unlike torch)
+
+            # truncate top k eigens
+            argsort = np.argsort(eig_vals1)[::-1]
+            eig_vals1 = eig_vals1[argsort]
+            S1 = S1[:, argsort]
+            eig_vals1 = np.clip(eig_vals1, 1e-8, np.inf)[:self.feature_dim]
+            self.eig_vals1 = torch.from_numpy(eig_vals1).float().to(device)
+            self.S1 = torch.from_numpy(S1[:, :self.feature_dim]).float().to(device)
+            self.nystrom_samples1 = torch.from_numpy(self.nystrom_samples1).to(device)
         else:
-            self.kernel = lambda z: np.exp(-np.linalg.norm(z) ** 2 / (2.))
-        K_m1 = self.make_K(self.nystrom_samples1, self.kernel)
-        print('start eig')
-
-        [eig_vals1, S1] = np.linalg.eig(K_m1)  # numpy linalg eig doesn't produce negative eigenvalues... (unlike torch)
-
-        # truncate top k eigens
-        argsort = np.argsort(eig_vals1)[::-1]
-        eig_vals1 = eig_vals1[argsort]
-        S1 = S1[:, argsort]
-        eig_vals1 = np.clip(eig_vals1, 1e-8, np.inf)[:self.feature_dim]
-        self.eig_vals1 = torch.from_numpy(eig_vals1).float().to(device)
-        self.S1 = torch.from_numpy(S1[:, :self.feature_dim]).float().to(device)
-        self.nystrom_samples1 = torch.from_numpy(self.nystrom_samples1).to(device)
+            self.nystrom_samples1 = torch.zeros((self.sample_dim, self.s_dim))
+            self.eig_vals1 = torch.ones([self.feature_dim,])
+            self.S1 = torch.zeros([self.s_dim, self.feature_dim])
 
         layer1 = nn.Linear(self.feature_dim, 1)  # try default scaling
         init.zeros_(layer1.bias)
