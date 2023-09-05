@@ -13,7 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 import sys
 sys.path.append("../utility/")
 from scipy.integrate import odeint
-from Utility import data_collecter
+from utility.Utility import data_collecter
 import time
 #define network
 def gaussian_init_(n_units, std=1):    
@@ -64,29 +64,29 @@ def K_loss(data,net,u_dim=1,Nstate=4):
 
 
 #loss function
-def Klinear_loss(data,net,mse_loss,u_dim=1,gamma=0.99,Nstate=4,all_loss=0):
-    steps,train_traj_num,NKoopman = data.shape
+def Klinear_loss(data, net, mse_loss, u_dim=1, gamma=0.99, Nstate=4, all_loss=0):
+    steps, train_traj_num, NKoopman = data.shape
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     data = torch.DoubleTensor(data).to(device)
-    X_current = net.encode(data[0,:,u_dim:])
+    X_current = net.encode(data[0, :, u_dim:])
     beta = 1.0
     beta_sum = 0.0
-    loss = torch.zeros(1,dtype=torch.float64).to(device)
-    Augloss = torch.zeros(1,dtype=torch.float64).to(device)
-    for i in range(steps-1):
-        X_current = net.forward(X_current,data[i,:,:u_dim])
+    loss = torch.zeros(1, dtype=torch.float64).to(device)
+    Augloss = torch.zeros(1, dtype=torch.float64).to(device)
+    for i in range(steps - 1):
+        X_current = net.forward(X_current, data[i, :, :u_dim])
         beta_sum += beta
         if not all_loss:
-            loss += beta*mse_loss(X_current[:,:Nstate],data[i+1,:,u_dim:])
+            loss += beta * mse_loss(X_current[:, :Nstate], data[i + 1, :, u_dim:])
         else:
-            Y = net.encode(data[i+1,:,u_dim:])
-            loss += beta*mse_loss(X_current,Y)
-        X_current_encoded = net.encode(X_current[:,:Nstate])
-        Augloss += mse_loss(X_current_encoded,X_current)
+            Y = net.encode(data[i + 1, :, u_dim:])
+            loss += beta * mse_loss(X_current, Y)
+        X_current_encoded = net.encode(X_current[:, :Nstate])
+        Augloss += mse_loss(X_current_encoded, X_current)
         beta *= gamma
-    loss = loss/beta_sum
-    Augloss = Augloss/beta_sum
-    return loss+0.5*Augloss
+    loss = loss / beta_sum
+    Augloss = Augloss / beta_sum
+    return loss + 0.5 * Augloss
 
 def Stable_loss(net,Nstate):
     x_ref = np.zeros(Nstate)
@@ -198,7 +198,7 @@ def train(env_name,train_steps = 30000,suffix="",all_loss=0,\
     print("END-best_loss{}".format(best_loss))
     
 
-def main():
+def main(args):
     if args.return_norm_th == "True":
         return_norm_th = True
     else:
@@ -214,24 +214,24 @@ def main():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env",type=str,default="Pendulum-v1")
-    parser.add_argument("--suffix",type=str,default="Pendulum-v1")
+    parser.add_argument("--env",type=str,default="Quadrotor2D-v2")
+    parser.add_argument("--suffix",type=str,default="Quadrotor2D-v2")
     parser.add_argument("--all_loss",type=int,default=1)
     # parser.add_argument("--K_train_samples",type=int,default=50000)
     parser.add_argument("--K_train_samples",type=int,default=100000)
     parser.add_argument("--e_loss",type=int,default=0)
     parser.add_argument("--gamma",type=float,default=0.8)
-    parser.add_argument("--encode_dim",type=int,default=20)
+    parser.add_argument("--encode_dim",type=int,default=70)
     parser.add_argument("--layer_depth",type=int,default=3)
     parser.add_argument("--train_steps", type=int, default=30000)
-    parser.add_argument("--dt", type=float, default=0.05)
+    parser.add_argument("--dt", type=float, default=0.008)
     parser.add_argument("--seed", type = int, default = 0)
     parser.add_argument("--return_norm_th", default = "False")
-    parser.add_argument("--sigma", type = float, default = 0.0)
+    parser.add_argument("--sigma", type = float, default = 1.0)
     parser.add_argument("--euler", default = "False") 
     args = parser.parse_args()
     t1 = time.time()
-    main()
+    main(args)
     t2 = time.time()
     print(f"this training took {t2-t1} seconds")
 

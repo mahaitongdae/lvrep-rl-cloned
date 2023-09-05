@@ -1,18 +1,16 @@
-import numpy as np
-import gym
 import random
 from scipy.integrate import odeint
 import scipy.linalg
-from copy import copy
 from rbf import rbf
 from gym import spaces
 import sys
 sys.path.append("../franka")
 sys.path.append("../gym_env")
 
-from our_env.noisy_pend import noisyPendulumEnv
 from pendulum import PendulumEnv
 #data collect
+from envs.env_helper import *
+import numpy as np
 
 class RBFLiftFunc():
     def __init__(self,env_name,Nstate,udim,Nrbf,observation_space,type="thinplate",center=None) -> None:
@@ -275,6 +273,22 @@ class data_collecter():
                 self.Nstates = 3 #[th, norm(th), thdot]
             else:
                 self.Nstates = 2 # [th,thdot]
+            self.umin = self.env.action_space.low
+            self.umax = self.env.action_space.high
+        elif self.env_name == 'Quadrotor2D-v2':
+            ENV_CONFIG.update({'reward_scale': 10.,
+                               'noise_scale': sigma,
+                               'noisy': sigma > 0.})
+            self.env = Gymnasium2GymWrapper(env_creator_quad2d(ENV_CONFIG))
+            self.udim = self.env.action_space.shape[0]
+            self.Nstates = self.env.observation_space.shape[0]
+            self.umin = self.env.action_space.low
+            self.umax = self.env.action_space.high
+        elif self.env_name == 'Pendubot-v0':
+            ENV_CONFIG.update({'reward_scale': 3.})
+            self.env = env_creator_pendubot(ENV_CONFIG)
+            self.udim = self.env.action_space.shape[0]
+            self.Nstates = self.env.observation_space.shape[0]
             self.umin = self.env.action_space.low
             self.umax = self.env.action_space.high
         else:
