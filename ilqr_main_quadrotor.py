@@ -3,6 +3,7 @@ import numpy as np
 import seaborn as sns
 from matplotlib import pyplot as plt
 from envs.pendulum import Pendulum
+from envs.quadrotor import Quadrotor
 from algorithms.run_min_algo import run_min_algo
 import argparse
 import os
@@ -13,7 +14,7 @@ def eval_traj(env, traj, cmd, horizon = 200):
     #with horizon steps per episode
     cost = 0.
     for i in np.arange(horizon):
-        cost += env.angle_normalize(traj[i][0])**2 + env.reg_speed * traj[i][1]**2 + env.reg_ctrl * cmd[i]**2
+        cost += traj[i][0] ** 2 + (traj[i][2] - 0.5) ** 2
         print("cmd %d" % i, cmd[i])
     return cost
 
@@ -28,21 +29,21 @@ def main():
 
     np.random.seed(seed)
     n_init_states = 1
-    init_states = np.array([np.pi,0.]).reshape(1,2)
+    init_states = np.array([0., 0., 0.5, 0., 0., 0.]).reshape(1,-1)
 
     max_steps = 200
     final_opt_cost = np.empty(n_init_states)
-    all_cmd_opt = np.empty((n_init_states,max_steps))
-    all_traj = np.empty((n_init_states,max_steps,2))
+    all_cmd_opt = np.empty((n_init_states, max_steps, 2))
+    all_traj = np.empty((n_init_states,max_steps, 6))
 
 
     #Create nonlinear control envs for different initial states
     for i in np.arange(n_init_states):
         # np.random.seed(i)
-        env = Pendulum(horizon = max_steps, init_state = init_states[i,:], sigma = sigma,euler = euler)
+        env = Quadrotor(horizon = max_steps, init_state = init_states[i,:], sigma = sigma,euler = euler)
         cmd_opt, _,metrics = run_min_algo(env, algo = 'ddp_linquad_reg', max_iter = 100)
-        all_cmd_opt[i,:] = cmd_opt.reshape(-1)
-        eval_env = Pendulum(horizon = max_steps, init_state = init_states[i,:], sigma=sigma, euler = euler)
+        all_cmd_opt[i,:] = cmd_opt.reshape([-1, env.dim_ctrl])
+        eval_env = Quadrotor(horizon = max_steps, init_state = init_states[i,:], sigma=sigma, euler = euler)
 
         traj_opt,_ = eval_env.forward(cmd_opt)
         for j in np.arange(max_steps):
