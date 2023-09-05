@@ -188,8 +188,9 @@ def env_creator_cartpole(env_config):
 def env_creator_pendubot(env_config):
     from gymnasium.envs.registration import register
     reward_scale_pendubot = env_config.get('reward_scale')
-    noisy = env_config.get('noisy')
+
     noise_scale = env_config.get('noise_scale')
+    noisy = noise_scale > 0.
     register(id='Pendubot-v0',
              entry_point='envs:PendubotEnv',
              max_episode_steps=200)

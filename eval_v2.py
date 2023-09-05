@@ -17,7 +17,11 @@ def eval(log_path, ):
     env_name = kwargs['env']
     
     eval_config = ENV_CONFIG.copy()
-    eval_config.update({'reward_scale': 1., 'eval': True, 'reward_exponential': False})
+    eval_config.update({'reward_scale': 1.,
+                        'eval': True,
+                        'reward_exponential': False,
+                        'reward_type': 'energy',
+                        'noise_scale': kwargs['sigma']})
     
     if env_name == "Pendulum-v1":
         eval_env = env_creator_pendulum(eval_config)
@@ -53,7 +57,7 @@ def eval(log_path, ):
     agent.device = torch.device("cpu")
     # agent.critic = critic
 
-    eval_policy(agent, eval_env)
+    eval_policy(agent, eval_env, eval_episodes=10)
 
 
 if __name__ == '__main__':
@@ -69,4 +73,7 @@ if __name__ == '__main__':
         .update({'random_feature':'/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_1.0_rew_scale_10.0/good_results/rfsac_nystrom_False_rf_num_4096/seed_0_2023-09-04-08-46-10',
                  'nystrom':'/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_1.0_rew_scale_10.0/good_results/rfsac_nystrom_True_rf_num_4096_sample_dim_8192/seed_2_2023-09-04-01-12-57'})
 
-    eval(log_paths['noisy_Quadrotor']['nystrom'])
+    # eval(log_paths['noisy_Quadrotor']['nystrom'])
+    log_paths['Pendubot'].update({'nystrom': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_2048_sample_dim_2048/seed_0_2023-09-04-09-51-42'})
+    log_paths['noisy_Pendubot'].update({'nystrom': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_4096/seed_0_2023-09-04-18-02-40'})
+    eval(log_paths['noisy_Pendubot']['nystrom'])

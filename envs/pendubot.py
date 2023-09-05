@@ -484,7 +484,7 @@ def energy_based_controller(env, kd = 1., kp = 1., ke = 1.5):
 
 
 def main():
-    env = PendubotEnv(render_mode=None, reward_type='energy', theta_cal='sin_cos', noisy=False, noisy_scale=0.)
+    env = PendubotEnv(render_mode=None, reward_type='lqr', theta_cal='sin_cos', noisy=True, noisy_scale=1.)
     rets = []
     for i in range(100):
         env.reset(seed=i)
