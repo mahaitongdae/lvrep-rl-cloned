@@ -32,7 +32,7 @@ def main():
 
     np.random.seed(seed)
     n_init_states = 10
-    init_states = np.random.normal(scale=[0.1, 0.1, 0.01, 0.01], size=[10, 4]) + np.array([np.pi/2, 0., 0., 0.,])
+    init_states = np.random.normal(scale=[0.1, 0.1, 0.1, 0.1], size=[10, 4]) + np.array([np.pi/2, 0., 0., 0.,])
 
     max_steps = 200
     final_opt_cost = np.empty(n_init_states)

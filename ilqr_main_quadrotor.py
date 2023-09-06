@@ -28,8 +28,9 @@ def main():
     torch.set_default_tensor_type(torch.DoubleTensor)
 
     np.random.seed(seed)
-    n_init_states = 1
-    init_states = np.array([0., 0., 0.5, 0., 0., 0.]).reshape(1,-1)
+    n_init_states = 10
+    init_states = np.random.normal(scale=[0.1, 0.01, 0.1, 0.01, 0.1, 0.01], size=[n_init_states, 6]) \
+                  + np.array([0., 0., 0.5, 0., 0., 0.])
 
     max_steps = 200
     final_opt_cost = np.empty(n_init_states)
