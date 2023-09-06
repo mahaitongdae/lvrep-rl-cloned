@@ -286,7 +286,7 @@ class data_collecter():
             self.umax = self.env.action_space.high
         elif self.env_name == 'Pendubot-v0':
             ENV_CONFIG.update({'reward_scale': 3.})
-            self.env = env_creator_pendubot(ENV_CONFIG)
+            self.env = Gymnasium2GymWrapper(env_creator_pendubot(ENV_CONFIG))
             self.udim = self.env.action_space.shape[0]
             self.Nstates = self.env.observation_space.shape[0]
             self.umin = self.env.action_space.low
