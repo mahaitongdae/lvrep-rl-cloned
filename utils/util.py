@@ -66,7 +66,7 @@ def eval_policy(policy, eval_env, eval_episodes=100):
 	print("---------------------------------------")
 	print(f"Evaluation over {eval_episodes} episodes: avg eplen {avg_len}, avg return {avg_ret:.3f} $\pm$ {std_ret:.3f}")
 	print("---------------------------------------")
-	return avg_len, avg_ret
+	return avg_len, avg_ret, std_ret, ep_rets
 
 
 
@@ -114,3 +114,18 @@ def to_np(t):
 		return np.array([])
 	else:
 		return t.cpu().detach().numpy()
+
+def clear_data():
+	import pickle as pkl
+	with open('/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/temp_good_results/rfsac_nystrom_True_rf_num_2048_sample_dim_8192/seed_0_2023-09-02-12-24-08/train_params.pkl',
+			  'rb') as f:
+		a = pkl.load(f)
+		a['replay_buffer'] = None
+		print(a)
+	with open('/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/temp_good_results/rfsac_nystrom_True_rf_num_2048_sample_dim_8192/seed_0_2023-09-02-12-24-08/train_params.pkl',
+			  'wb') as f:
+		pkl.dump(a, f)
+
+
+if __name__ == '__main__':
+    clear_data()

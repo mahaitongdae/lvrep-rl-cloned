@@ -57,7 +57,9 @@ def eval(log_path, ):
     agent.device = torch.device("cpu")
     # agent.critic = critic
 
-    eval_policy(agent, eval_env, eval_episodes=10)
+    _, _, _, ep_rets = eval_policy(agent, eval_env, eval_episodes=10)
+
+    return ep_rets
 
 
 if __name__ == '__main__':
@@ -67,7 +69,7 @@ if __name__ == '__main__':
                  'noisy_Pendubot':{}}
     #### Quadrotor
     ## Nystrom
-    log_paths['Quadrotor'].update({'nystrom': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/temp_good_results/rfsac_nystrom_True_rf_num_2048_sample_dim_8192/seed_0_2023-09-02-12-24-08',
+    log_paths['Quadrotor'].update({'nstrom': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/temp_good_results/rfsac_nystrom_True_rf_num_2048_sample_dim_8192/seed_0_2023-09-02-12-24-08',
                                    'random_feature': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/rfsac_nystrom_False_rf_num_2048_learn_rf_True/seed_0_2023-09-04-18-09-29'
                       })
     log_paths['noisy_Quadrotor']\
