@@ -31,18 +31,18 @@ from envs.env_helper import *
 
 
 
-def Prepare_Region_LQR(env_name, Nstate,NKoopman, thdot_weight=0.1, u_weight = 0.01):
-	x_ref = np.array([1.0, 0.0, 0.0, 1.0, 0.0, 0.0])
-	if env_name == "Quadrotor2D-v2":
-		Q = np.zeros((NKoopman,NKoopman))
-		Q[0, 0] = 1.
-		Q[1, 1] = 1.
-		Q[2, 2] = 0.01
-		Q[3, 3] = 0.01
-		Q[4, 4] = 1.
-		Q[5, 5] = 0.01
-		R = np.eye(1) * u_weight
-	return Q,R, x_ref
+# def Prepare_Region_LQR(env_name, Nstate,NKoopman, thdot_weight=0.1, u_weight = 0.01):
+# 	x_ref = np.array([1.0, 0.0, 0.0, 1.0, 0.0, 0.0])
+# 	# if env_name == "Quadrotor2D-v2":
+# 	Q = np.zeros((NKoopman,NKoopman))
+# 	Q[0, 0] = 1.
+# 	Q[1, 1] = 1.
+# 	Q[2, 2] = 0.01
+# 	Q[3, 3] = 0.01
+# 	Q[4, 4] = 1.
+# 	Q[5, 5] = 0.01
+# 	R = np.eye(1) * u_weight
+# 	return Q,R, x_ref
 
 def Psi_o(s,net,NKoopman): # Evaluates basis functions Psi(s(t_k))
 	psi = np.zeros([NKoopman,1])
@@ -79,7 +79,7 @@ def main(tr_seed = 0, save_traj = False, samples = 80000, sigma = 0.0, euler = F
 	dt = 0.008
 	print("euler", euler)
 	print("sigma",sigma)
-	model_path = 'KoopmanU_Quadrotor2D-v2layer3_edim70_eloss0_gamma0.8_aloss1_samples100000_dt0.008_seed0_return_norm_th=False_sigma=1.0_euler=False.pth'
+	model_path = 'KoopmanU_Pendubot-v0layer3_edim70_eloss0_gamma0.8_aloss1_samples100000_dt0.05_seed0_return_norm_th=False_sigma=1.0_euler=False.pth'
 	Data_collect = data_collecter(env_name)
 	udim = Data_collect.udim
 	Nstate = Data_collect.Nstates
@@ -100,7 +100,7 @@ def main(tr_seed = 0, save_traj = False, samples = 80000, sigma = 0.0, euler = F
 	gamma = 1.
 	Ad = state_dict['lA.weight'].cpu().numpy()
 	Bd = state_dict['lB.weight'].cpu().numpy()
-	Q,R,x_ref = Prepare_Region_LQR(env_name,Nstate,NKoopman)
+	# Q,R,x_ref = Prepare_Region_LQR(env_name,Nstate,NKoopman)
 	Ad = np.matrix(Ad)
 	Bd = np.matrix(Bd)
 	print(f"Bd for seed={tr_seed}", Bd)
@@ -161,7 +161,7 @@ def main(tr_seed = 0, save_traj = False, samples = 80000, sigma = 0.0, euler = F
 	np.random.seed(eval_seed)
 	max_steps = 200
 
-	n_init_states = 1
+	n_init_states = 10
 
 	final_costs = np.empty(n_init_states)
 
@@ -171,17 +171,14 @@ def main(tr_seed = 0, save_traj = False, samples = 80000, sigma = 0.0, euler = F
 					   'reward_scale': 1.0,
 					   'eval': True,
 					   'noise_scale': sigma})
-	env = Gymnasium2GymWrapper(env_creator_quad2d(ENV_CONFIG))
+	env = Gymnasium2GymWrapper(env_creator_pendubot(ENV_CONFIG))
 	obs_dim = env.observation_space.shape[0]
 	if save_traj == True:
 		all_traj = np.empty((n_init_states,max_steps,obs_dim))
 
 	for i in np.arange(n_init_states):
-		# x_ref_lift = Psi_o(x_ref,net,NKoopman).reshape(-1,1)
 		eps_cost = 0
-		obs = np.array(env.reset(seed=i))
-		# # mpc.x0 = x0 - x_ref_lift
-		# obs = init_state
+		obs = np.array(env.reset(seed=int(i)))
 		for t in np.arange(max_steps):
 			if save_traj == True:
 				all_traj[i,t,:] = obs

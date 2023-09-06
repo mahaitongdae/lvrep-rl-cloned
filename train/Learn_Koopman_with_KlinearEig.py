@@ -227,7 +227,7 @@ if __name__ == "__main__":
     parser.add_argument("--dt", type=float, default=0.05)
     parser.add_argument("--seed", type = int, default = 0)
     parser.add_argument("--return_norm_th", default = "False")
-    parser.add_argument("--sigma", type = float, default = 1.0)
+    parser.add_argument("--sigma", type = float, default = 0.0)
     parser.add_argument("--euler", default = "False") 
     args = parser.parse_args()
     t1 = time.time()
