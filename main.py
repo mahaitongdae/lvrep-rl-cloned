@@ -20,7 +20,7 @@ from envs.env_helper import *
 ENV_CONFIG = {'sin_input': True,              # fixed
               'reward_exponential': True,    # fixed
               'reward_scale': 1.,             # further tune
-              'reward_type': 'lqr',        # control different envs
+              'reward_type': 'energy',        # control different envs
               'theta_cal': 'sin_cos',         # fixed
               'noisy': False,                 # todo:depreciated
               'noise_scale': 0.               # should be same with sigma
@@ -60,7 +60,7 @@ if __name__ == "__main__":
   parser.add_argument("--critic_lr", type=float, default=1e-3)
   parser.set_defaults(use_nystrom=False)
   parser.set_defaults(euler=False)
-  parser.set_defaults(learn_rf=True) # if want to add these, just add --use_nystrom to the scripts.
+  parser.set_defaults(learn_rf=False) # if want to add these, just add --use_nystrom to the scripts.
   parser.set_defaults(reward_exponential=ENV_CONFIG['reward_exponential'])
   args = parser.parse_args()
   print(args.reward_exponential)
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     env = env_creator_quad2d(ENV_CONFIG)
   elif args.env == 'Pendubot-v0':
     eval_config = ENV_CONFIG.copy()
-    eval_config.update({'reward_scale': 1., 'eval': True})
+    eval_config.update({'reward_scale': 1., 'eval': True, 'reward_type': 'energy', })
     print(eval_config)
     eval_env = env_creator_pendubot(eval_config)
     ENV_CONFIG.update({'reward_scale': 3.})
@@ -241,7 +241,7 @@ if __name__ == "__main__":
     # Evaluate episode
     if (t + 1) % args.eval_freq == 0:
       steps_per_sec = timer.steps_per_sec(t+1)
-      eval_len, eval_ret = util.eval_policy(agent, eval_env, eval_episodes=50)
+      eval_len, eval_ret, _, _ = util.eval_policy(agent, eval_env, eval_episodes=50)
       evaluations.append(eval_ret)
 
       if t >= args.start_timesteps:

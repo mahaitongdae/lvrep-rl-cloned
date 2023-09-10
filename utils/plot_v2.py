@@ -3,24 +3,33 @@ import pandas as pd
 import seaborn as sns
 import os
 import numpy as np
+from matplotlib.ticker import ScalarFormatter
 try:
     from tensorflow.python.training.summary_io import summary_iterator
+    # we need tensorflow for extracting data from tensorboard events.
 except:
     pass
-from eval_v2 import eval
+try:
+    from eval_v2 import eval
+except:
+    pass
 
 def extract_data_from_events(path, tags):
     data = {key : [] for key in tags+['training_iteration']}
-    for e in summary_iterator(path):
-        for v in e.summary.value:
-            if v.tag in tags :
-                data.get('training_iteration').append(int(e.step))
-                data.get(v.tag).append(v.simple_value)
+    try:
+        for e in summary_iterator(path):
+            for v in e.summary.value:
+                if v.tag in tags :
+                    # try:
+                    data.get('training_iteration').append(int(e.step))
+                    data.get(v.tag).append(v.simple_value)
+    except:
+        pass
 
     return pd.DataFrame.from_dict(data)
 
 def plot(data_source = 'events'):
-    sns.set(style='darkgrid', font_scale=1)
+    sns.set(style='darkgrid', font_scale=1.3)
     sns.set_palette([(0.0, 0.24705882352941178, 1.0),
                      (0.011764705882352941, 0.9294117647058824, 0.22745098039215686),
                      (0.9098039215686274, 0.0, 0.043137254901960784),
@@ -29,19 +38,61 @@ def plot(data_source = 'events'):
                      (0.0, 0.8431372549019608, 1.0)])
 
 
-    path_dict = {
-        'Random_feature': '/home/mht/PycharmProjects/lvrep-rl-cloned/results/noisy_2d_drones/rfsac_nystrom_False_rf_num_2048',
-        'Nystrom': '/home/mht/PycharmProjects/lvrep-rl-cloned/results/noisy_2d_drones/rfsac_nystrom_True_rf_num_4096_sample_dim_8192',
-
-    }
+    # path_dict = {
+    #     'Random_feature': '/home/mht/PycharmProjects/lvrep-rl-cloned/results/noisy_2d_drones/rfsac_nystrom_False_rf_num_2048',
+    #     'Nystrom': '/home/mht/PycharmProjects/lvrep-rl-cloned/results/noisy_2d_drones/rfsac_nystrom_True_rf_num_4096_sample_dim_8192',
+    #
+    # }
 
     title = 'Drones'
 
     path_dict = {
-        'rf_2048': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/rfsac_nystrom_False_rf_num_2048_learn_rf_True',
-        'rf_4096': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/rfsac_nystrom_False_rf_num_4096_learn_rf_True'
-
+        'random feature': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/rfsac_nystrom_False_rf_num_4096_learn_rf_True',
+        'Nystrom': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/rfsac_nystrom_True_rf_num_4096_learn_rf_False_sample_dim_4096',
+        'noisy random feature': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_1.0_rew_scale_10.0/rfsac_nystrom_False_rf_num_4096_learn_rf_True',
+        'noisy Nystrom': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_1.0_rew_scale_10.0/rfsac_nystrom_True_rf_num_4096_learn_rf_False_sample_dim_4096'
     }
+
+    # title = 'Pendubot Random Feature'
+    #
+    # title = '2D Drones Random Feature'
+    # path_dict = {
+    #     '2048': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/rfsac_nystrom_False_rf_num_2048_learn_rf_True',
+    #     '4096': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/rfsac_nystrom_False_rf_num_4096_learn_rf_True',
+    #     '8192': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/rfsac_nystrom_False_rf_num_8192_learn_rf_True'
+    # }
+    #
+    # title = 'Noisy 2D Drones Random Feature'
+    # path_dict = {
+    #     '2048': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_1.0_rew_scale_10.0/rfsac_nystrom_False_rf_num_2048',
+    #     '4096': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_1.0_rew_scale_10.0/rfsac_nystrom_False_rf_num_4096_learn_rf_True',
+    #     '8192': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_1.0_rew_scale_10.0/rfsac_nystrom_False_rf_num_8192'
+    # }
+    #
+    # title = '2D Drones Random Feature'
+    #
+    # path_dict = {
+    #     'Top 2048 of 2048' : '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/rfsac_nystrom_True_rf_num_2048_sample_dim_2048',
+    #     # TODO: outliers
+    #     'Top 2048 of 4096' : '/media/mht/新加卷/lvrep_log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_2048',
+    #     'Top 2048 of 8192' : '/media/mht/新加卷/lvrep_log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_4096'
+    # }
+
+
+    # title = 'Pendubot'
+    # path_dict = {
+    #     'Top 1024 of 1024' : '/media/mht/新加卷/lvrep_log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_1024',
+    #     # TODO: outliers
+    #     'Top 1024 of 2048' : '/media/mht/新加卷/lvrep_log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_2048',
+    #     'Top 1024 of 4096' : '/media/mht/新加卷/lvrep_log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_4096'
+    # }
+
+    # title = 'Noisy Pendubot'
+    # path_dict = {
+    #     'Top 1024 of 1024': '/media/mht/新加卷/lvrep_log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_1024',
+    #     'Top 1024 of 2048': '/media/mht/新加卷/lvrep_log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_2048',
+    #     'Top 1024 of 4096': '/media/mht/新加卷/lvrep_log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_4096'
+    # }
 
     dfs = []
     for key, path in path_dict.items():
@@ -58,7 +109,9 @@ def plot(data_source = 'events'):
                         break
                 df = extract_data_from_events(os.path.join(abs_path, fname), ['info/eval_ret'])
 
-            df['Algorithm'] = key
+
+            df['feature dim'] = key
+            df['training_iteration'] = df['training_iteration'] / 1e4
             # df['episode_reward_evaluated'] = np.log(df['episode_reward_mean'] / 200.) / 10. * 200
             # if rfdim.startswith('SAC'):
             #     df['exp_setup'] = rfdim
@@ -75,14 +128,18 @@ def plot(data_source = 'events'):
     total_df = pd.concat(dfs, ignore_index=True)
     for y in ['info/eval_ret',]: #  'episode_reward_max',
         plt.figure(figsize=[6, 4])
-        sns.lineplot(total_df, x='training_iteration', y=y, hue='Algorithm', palette='muted')
+        sns.lineplot(total_df, x='training_iteration', y=y, hue='feature dim', palette='muted')
         # plt.tight_layout()
         # title = ' Pendubot'
         plt.title(title)
-        plt.ylabel('')
+        plt.ylabel('episodic return')
         # plt.xlim(0, 300000)
         # plt.ylim(-500, 0)
-        plt.xlabel('training iterations')
+        plt.xlabel(r'training iterations ($\times 10^4$)')
+        # plt.ticklabel_format(axis='x', style='scientific')
+        # formatter = ScalarFormatter(useMathText=True)
+        # formatter.set_scientific(True)
+        # plt.gca().xaxis.set_major_formatter(formatter)
         plt.tight_layout()
         plt.show()
         # figpath = '/home/mht/PycharmProjects/rllib-random-feature/fig/' + title + '.pdf'
@@ -96,13 +153,55 @@ def plot_bar():
                      (0.5411764705882353, 0.16862745098039217, 0.8862745098039215),
                      (1.0, 0.7686274509803922, 0.0),
                      (0.0, 0.8431372549019608, 1.0)])
+    # title = '2D Drones Random Feature'
+    # path_dict = {
+    #     '2048': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/rfsac_nystrom_False_rf_num_2048_learn_rf_True',
+    #     '4096': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/rfsac_nystrom_False_rf_num_4096_learn_rf_True',
+    #     '8192': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/rfsac_nystrom_False_rf_num_8192_learn_rf_True'
+    # }
+    # title = '2D Drones Nystrom'
+    # path_dict = {
+    #     '2048': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_1.0_rew_scale_10.0/rfsac_nystrom_True_rf_num_2048_sample_dim_4096',
+    #     # '8192': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_1.0_rew_scale_10.0/rfsac_nystrom_True_rf_num_2048_sample_dim_8192',
+    #     '4096': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_1.0_rew_scale_10.0/rfsac_nystrom_True_rf_num_4096_sample_dim_4096'
+    # }
 
+    # title = 'Pendubot Random Feature'
+    # path_dict = {
+    #     '2048': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_energy/rfsac_nystrom_False_rf_num_2048_learn_rf_True',
+    #     '4096': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_energy/rfsac_nystrom_False_rf_num_4096_learn_rf_True',
+    #     '8192': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_energy/rfsac_nystrom_False_rf_num_8192_learn_rf_True'
+    # }
+
+    title = 'Pendubot Random Feature'
     path_dict = {
-        'rf_2048': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/rfsac_nystrom_False_rf_num_2048_learn_rf_True',
-        'rf_4096': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/rfsac_nystrom_False_rf_num_4096_learn_rf_True'
-
+        '2048': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_energy/rfsac_nystrom_False_rf_num_2048_learn_rf_False',
+        '4096': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_energy/rfsac_nystrom_False_rf_num_4096_learn_rf_False',
+        '8192': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_energy/rfsac_nystrom_False_rf_num_8192_learn_rf_False'
     }
-    title = '2D Drones Random Feature'
+
+    # title = 'Noisy Pendubot Random Feature'
+    # path_dict = {
+    #     '2048': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_energy/rfsac_nystrom_False_rf_num_2048_learn_rf_False',
+    #     '4096': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_energy/rfsac_nystrom_False_rf_num_4096_learn_rf_False',
+    #     '8192': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_energy/rfsac_nystrom_False_rf_num_8192_learn_rf_False'
+    # }
+
+
+    # title = 'Pendubot'
+    # path_dict = {
+    #     'Top 1024 of 1024' : '/media/mht/新加卷/lvrep_log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_1024',
+    #     # TODO: outliers
+    #     'Top 1024 of 2048' : '/media/mht/新加卷/lvrep_log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_2048',
+    #     'Top 1024 of 4096' : '/media/mht/新加卷/lvrep_log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_4096'
+    # }
+    #
+    # title = 'Noisy Pendubot'
+    # path_dict = {
+    #     'Top 1024 of 1024': '/media/mht/新加卷/lvrep_log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_1024',
+    #     'Top 1024 of 2048': '/media/mht/新加卷/lvrep_log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_2048',
+    #     'Top 1024 of 4096': '/media/mht/新加卷/lvrep_log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_4096'
+    # }
 
     dfs = []
     for key, path in path_dict.items():
@@ -111,7 +210,10 @@ def plot_bar():
         for dir in os.listdir(path):
             if not os.path.isdir(os.path.join(path, dir)):
                 continue
-            ep_rets = eval(os.path.join(path, dir))
+            try:
+                ep_rets = eval(os.path.join(path, dir))
+            except:
+                continue
             mean = np.mean(ep_rets)
             if mean > best_mean:
                 best_mean = mean
@@ -171,4 +273,4 @@ def plot_pendulum():
         plt.savefig(figpath)
 
 if __name__ == '__main__':
-    plot_bar()
+    plot()
