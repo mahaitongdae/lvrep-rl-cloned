@@ -57,7 +57,7 @@ def eval(log_path, ):
     agent.device = torch.device("cpu")
     # agent.critic = critic
 
-    _, _, _, ep_rets = eval_policy(agent, eval_env, eval_episodes=10)
+    _, _, _, ep_rets = eval_policy(agent, eval_env, eval_episodes=50)
 
     return ep_rets
 

@@ -20,7 +20,7 @@ from envs.env_helper import *
 ENV_CONFIG = {'sin_input': True,              # fixed
               'reward_exponential': True,    # fixed
               'reward_scale': 1.,             # further tune
-              'reward_type': 'energy',        # control different envs
+              'reward_type': 'lqr',        # control different envs
               'theta_cal': 'sin_cos',         # fixed
               'noisy': False,                 # todo:depreciated
               'noise_scale': 0.               # should be same with sigma
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     env = env_creator_quad2d(ENV_CONFIG)
   elif args.env == 'Pendubot-v0':
     eval_config = ENV_CONFIG.copy()
-    eval_config.update({'reward_scale': 1., 'eval': True, 'reward_type': 'energy', })
+    eval_config.update({'reward_scale': 1., 'eval': True,}) #  'reward_type': 'energy',
     print(eval_config)
     eval_env = env_creator_pendubot(eval_config)
     ENV_CONFIG.update({'reward_scale': 3.})
