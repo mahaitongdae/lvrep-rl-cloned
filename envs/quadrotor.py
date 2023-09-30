@@ -34,8 +34,12 @@ class Quadrotor2D(gymnasium.Env):
             self.sigma = None
 
     def preprocess_action(self, action):
-        action = 0.075 * action + 0.075 # map from -1, 1 to 0.0 - 0.3
+        action = 0.075 * action + 0.075 # map from -1, 1 to 0.0 - 0.15
         # print(action)
+        return action
+
+    def get_normalized_action(self, force):
+        action = (force - 0.075) / 0.075
         return action
 
     def reset(
@@ -110,6 +114,21 @@ class Quadrotor2D(gymnasium.Env):
     def get_obs(self):
         return self.state
 
+    def get_energy_based_control(self, Tstable = 0.0, p_t = 0.1, ke = 1., kx = 1.):
+        m = self.m
+        Iyy = self.Iyy
+        dt = self.dt
+        g = self.g
+        x, xdot, z, zdot, th, thdot = self.state
+        total_T = Tstable + p_t * (z - 0.5)
+        F = kx * xdot + (ke * m * g + kx) * zdot
+        T_diff = - np.sqrt(2) * (thdot ** 2 + F) / (ke * thdot)
+        T2 = (total_T + T_diff) / 2
+        T1 = (total_T - T_diff) / 2
+        action = np.clip(np.array([T1, T2]), 0., 0.15)
+        return self.get_normalized_action(action)
+
+
 if __name__ == '__main__':
     from gymnasium.envs.registration import register
     register('Quadrotor2D-v2', Quadrotor2D, max_episode_steps=10)
@@ -118,7 +137,8 @@ if __name__ == '__main__':
     print(env.action_space)
     env.reset()
     for i in range(20):
-        print(env.step(np.array([-1, 1])))
+        env.step(np.array([-1, 1]))
+        print(env.get_energy_based_control())
 
 
 
