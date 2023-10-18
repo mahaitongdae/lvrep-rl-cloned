@@ -132,13 +132,19 @@ class Quadrotor2D(gymnasium.Env):
 if __name__ == '__main__':
     from gymnasium.envs.registration import register
     register('Quadrotor2D-v2', Quadrotor2D, max_episode_steps=10)
-    env = gymnasium.make('Quadrotor2D-v2')
+    env = gymnasium.make('Quadrotor2D-v2', noisy=True, noise_scale=1.)
     print(env.observation_space)
     print(env.action_space)
-    env.reset()
-    for i in range(20):
-        env.step(np.array([-1, 1]))
-        print(env.get_energy_based_control())
+    rets = []
+    for i in range(50):
+        ret = 0.
+        env.reset()
+        for i in range(200):
+            _, rew, _, _, _ = env.step(env.get_energy_based_control())
+            ret += rew
+        rets.append(ret)
+
+    print(np.mean(rets), np.std(rets))
 
 
 
