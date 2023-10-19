@@ -93,14 +93,20 @@ class noisyPendulumEnv(gym.Env):
         "render_fps": 30,
     }
 
-    def __init__(self, render_mode: Optional[str] = None, g=10.0,sigma = 0.0,
-        max_episode_steps = 200,euler = False):
+    def __init__(self,
+                 render_mode: Optional[str] = None,
+                 g = 10.0,
+                 sigma = 0.0,
+                 max_episode_steps = 200,
+                 euler = False,
+                 m = 1.0,
+                 l = 1.0):
         self.max_speed = 8
         self.max_torque = 2.0
         self.dt = 0.05
         self.g = g
-        self.m = 1.0
-        self.l = 1.0
+        self.m = m
+        self.l = l
         self.sigma = sigma
         self.max_episode_steps = max_episode_steps
         self.euler = euler

@@ -301,11 +301,11 @@ class RFVCritic(RLNetwork):
 #buffer: if not None, use samples from buffer to compute nystrom features
 class nystromVCritic(RLNetwork):
     def __init__(self,
-                 s_dim=3,
-                 s_low=np.array([-1, -1, -8]),
+                 s_dim = 3,
+                 s_low = np.array([-1, -1, -8]),
                  feat_num=256,
                  sigma=0.0,
-                 buffer=None,
+                 buffer = None,
                  learn_rf = False,
                  **kwargs):
         super().__init__()
@@ -443,10 +443,6 @@ class RFSACAgent(SACAgent):
             learn_rf = False,
             use_nystrom = False,
             replay_buffer = None,
-            # feature_tau=0.001,
-            # feature_dim=256, # latent feature dim
-            # use_feature_target=True, 
-            # extra_feature_steps=1,
             **kwargs
             ):
 
@@ -462,40 +458,7 @@ class RFSACAgent(SACAgent):
             auto_entropy_tuning=auto_entropy_tuning,
             hidden_dim=hidden_dim,
         )
-        # self.feature_dim = feature_dim
-        # self.feature_tau = feature_tau
-        # self.use_feature_target = use_feature_target
-        # self.extra_feature_steps = extra_feature_steps
 
-        # self.encoder = Encoder(state_dim=state_dim, 
-        #       action_dim=action_dim, feature_dim=feature_dim).to(device)
-        # self.decoder = Decoder(state_dim=state_dim,
-        #       feature_dim=feature_dim).to(device)
-        # self.f = GaussianFeature(state_dim=state_dim, 
-        #       action_dim=action_dim, feature_dim=feature_dim).to(device)
-        
-        # if use_feature_target:
-        #   self.f_target = copy.deepcopy(self.f)
-        # self.feature_optimizer = torch.optim.Adam(
-        #   list(self.encoder.parameters()) + list(self.decoder.parameters()) + list(self.f.parameters()),
-        #   lr=lr)
-
-        # self.critic = RFCritic().to(device)
-        # self.rfQcritic = RFQCritic().to(device)
-        # self.rfQcritic_target = copy.deepcopy(self.rfQcritic)
-        # self.critic_target = copy.deepcopy(self.critic)
-        # self.critic_optimizer = torch.optim.Adam(
-        #   self.critic.parameters(), lr=lr, betas=[0.9, 0.999])
-        # self.rfQcritic_optimizer = torch.optim.Adam(
-        #   self.rfQcritic.parameters(), lr=lr, betas=[0.9, 0.999])
-
-        # self.critic = DoubleQCritic(
-        #   obs_dim = state_dim,
-        #   action_dim = action_dim,
-        #   hidden_dim = hidden_dim,
-        #   hidden_depth = 2,
-        #   ).to(device)
-        # self.critic = RFQCritic().to(device)
         if use_nystrom == False: #use RF
             self.critic = RFVCritic(s_dim=state_dim, sigma = sigma, rf_num = rf_num, learn_rf = learn_rf, **kwargs).to(device)
         else: #use nystrom
@@ -534,58 +497,6 @@ class RFSACAgent(SACAgent):
                                                   lr = 1e-4)
         self.learn_rf = learn_rf
 
-
-
-    # def feature_step(self, batch):
-    #   """
-    #   Feature learning step
-
-    #   KL between two gaussian p1 and p2:
-
-    #   log sigma_2 - log sigma_1 + sigma_1^2 (mu_1 - mu_2)^2 / 2 sigma_2^2 - 0.5
-    #   """
-    #   # ML loss
-    #   z = self.encoder.sample(
-    #       batch.state, batch.action, batch.next_state)
-    #   x, r = self.decoder(z)
-    #   s_loss = 0.5 * F.mse_loss(x, batch.next_state)
-    #   r_loss = 0.5 * F.mse_loss(r, batch.reward)
-    #   ml_loss = r_loss + s_loss
-
-    #   # KL loss
-    #   mean1, log_std1 = self.encoder(
-    #       batch.state, batch.action, batch.next_state)
-    #   mean2, log_std2 = self.f(batch.state, batch.action)
-    #   var1 = (2 * log_std1).exp()
-    #   var2 = (2 * log_std2).exp()
-    #   kl_loss = log_std2 - log_std1 + 0.5 * (var1 + (mean1-mean2)**2) / var2 - 0.5
-        
-    #   loss = (ml_loss + kl_loss).mean()
-
-    #   self.feature_optimizer.zero_grad()
-    #   loss.backward()
-    #   self.feature_optimizer.step()
-
-    #   return {
-    #       'vae_loss': loss.item(),
-    #       'ml_loss': ml_loss.mean().item(),
-    #       'kl_loss': kl_loss.mean().item(),
-    #       's_loss': s_loss.mean().item(),
-    #       'r_loss': r_loss.mean().item()
-    #   }
-
-    #inputs are tensors
-    # def get_reward(self, states,action):
-    #     th = torch.atan2(states[:,1],states[:,0]) #1 is sin, 0 is cosine 
-    #     thdot = states[:,2]
-    #     action = torch.reshape(action, (action.shape[0],))
-    #     # print("th shape", th.shape)
-    #     # print("thdot shape", thdot.shape)
-    #     # print('action shape', action.shape)
-    #     th = self.angle_normalize(th)
-    #     reward = -(th**2 + 0.1* thdot**2 + 0.01*action**2)
-    #     return torch.reshape(reward,(reward.shape[0],1))
-
     def angle_normalize(self,th):
         return((th + np.pi) % (2 * np.pi)) -np.pi
     
@@ -620,13 +531,6 @@ class RFSACAgent(SACAgent):
 
 
     def quadrotor_f_star_6d(self, states, action, m=0.027, g=10.0, Iyy=1.4e-5, dt=0.0167):
-        # dot_states = torch.empty_like(states)
-        # dot_states[:, 0] = states[:, 1]
-        # dot_states[:, 1] = 1 / m * torch.multiply(torch.sum(action, dim=1), torch.sin(states[:, 4]))
-        # dot_states[:, 2] = states[:, 3]
-        # dot_states[:, 3] = 1 / m * torch.multiply(torch.sum(action, dim=1), torch.cos(states[:, 4])) - g
-        # dot_states[:, 4] = states[:, 5]
-        # dot_states[:, 5] = 1 / 2 / Iyy * (action[:, 1] - action[:, 0])
         action = self.__quad_action_preprocess(action)
         def dot_states(states):
             dot_states = torch.vstack([states[:, 1],
@@ -907,18 +811,6 @@ class RFSACAgent(SACAgent):
         dist = self.actor(batch.state)
         action = dist.rsample()
         log_prob = dist.log_prob(action).sum(-1, keepdim=True)
-        # if self.use_feature_target:
-        #   mean, log_std = self.f_target(batch.state, action)
-        # else:
-        #   mean, log_std = self.f(batch.state, action)
-        # q1, q2 = self.critic(mean, log_std)
-        # q = torch.min(q1, q2)
-        # q = self.discount * self.critic(batch.next_state) + batch.reward 
-        # q = batch.reward 
-        # q1,q2 = self.rfQcritic(batch.state,batch.action)
-        # q1,q2 = self.critic(batch.state,action) #not batch.action!!!
-        # q = torch.min(q1, q2)
-        # q = q1 #try not using q1, q1
         reward = self.get_reward(batch.state,action) #use reward in q-fn
         q1,q2 = self.critic(self.dynamics(batch.state,action))
         q = self.discount * torch.min(q1,q2) + reward
@@ -955,12 +847,6 @@ class RFSACAgent(SACAgent):
             dist = self.actor(next_state)
             next_action = dist.rsample()
             next_action_log_pi = dist.log_prob(next_action).sum(-1, keepdim=True)
-            # if self.use_feature_target:
-            #   mean, log_std = self.f_target(state, action)
-            #   next_mean, next_log_std = self.f_target(next_state, next_action)
-            # else:
-            #   mean, log_std = self.f(state, action)
-            #   next_mean, next_log_std = self.f(next_state, next_action)
             next_q1, next_q2 = self.critic_target(self.dynamics(next_state,next_action))
             next_q = torch.min(next_q1,next_q2)-  self.alpha * next_action_log_pi
             next_reward = self.get_reward(next_state,next_action) #reward for new s,a
@@ -1016,15 +902,6 @@ class RFSACAgent(SACAgent):
         """
         self.steps += 1
 
-        # # Feature step
-        # for _ in range(self.extra_feature_steps+1):
-        #   batch = buffer.sample(batch_size)
-        #   feature_info = self.feature_step(batch)
-
-        #   # Update the feature network if needed
-        #   if self.use_feature_target:
-        #       self.update_feature_target()
-
         batch = buffer.sample(batch_size)
 
         # Acritic step
@@ -1038,7 +915,6 @@ class RFSACAgent(SACAgent):
         self.update_target()
 
         return {
-            # **feature_info,
             **critic_info, 
             **actor_info,
         }
