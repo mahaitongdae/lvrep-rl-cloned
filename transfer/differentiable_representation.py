@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import gymnasium
+from differentiable_dynamics import Pendulum3D
 
 
 class NystromFeatureExtractor(object):
@@ -30,7 +31,7 @@ class NystromFeatureExtractor(object):
     def random_sample_sprime_fsa(self):
         nystrom_samples = np.random.uniform(self.s_low, self.s_high, size=(self.sample_dim, self.s_dim))
         action_sample = np.random.uniform(self.a_low, self.a_high, size=(self.sample_dim, self.a_dim))
-        fsa = self.rollout_dynamics(torch.from_numpy(nystrom_samples), torch.from_numpy(action_sample))
+        fsa = self.rollout_dynamics.rollout(torch.from_numpy(nystrom_samples), torch.from_numpy(action_sample))
         fsa = fsa.clone().detach().numpy()
         sigma = self.sigma if self.sigma != 0. else 1.
         noise = np.random.normal(scale=sigma * 0.05, size=fsa.shape)  # TODO: the scale of noise
@@ -48,12 +49,13 @@ class NystromFeatureExtractor(object):
             sprime, fsa = self.random_sample_sprime_fsa()
         else:
             raise NotImplementedError
-        K_m1 = self.get_kernel_matrix_asymmetric(sprime, fsa)
+        # K_m1 = self.get_kernel_matrix_asymmetric(sprime, fsa)
+        K_m1 = self.kernel_matrix_torch(sprime, fsa)
         U, singular_vals, VT = np.linalg.svd(K_m1)
         eig_val = np.clip(singular_vals, 1e-8, np.inf)
-        self.eig_val = torch.from_numpy(eig_val)
-        self.S = torch.from_numpy(U)
-        self.nystrom_sample = torch.from_numpy(fsa)
+        self.eig_val = torch.from_numpy(eig_val).float()
+        self.S = torch.from_numpy(U).float()
+        self.nystrom_sample = torch.from_numpy(fsa).float()
 
     @staticmethod
     def kernel_matrix_torch(x1, x2):
@@ -76,10 +78,8 @@ class NystromFeatureExtractor(object):
     def get_nystrom_feature(self, input):
         # x1 = self.nystrom_sample.unsqueeze(0) - input.unsqueeze(1)
         # K_x1 = torch.exp(-torch.linalg.norm(x1, axis=2) ** 2 / 2).float()
-        K_x = self.kernel_matrix(self.nystrom_sample.unsqueeze(0), input.unsqueeze(1))
+        K_x = self.kernel_matrix_torch(input, self.nystrom_sample).float()
         phi = (K_x @ (self.S)) @ torch.diag((self.eig_val + 1e-8) ** (-0.5))
-        # phi = self.norm(phi)  # todo: the scaling matters?
-        # phi = phi.to(torch.float32)
         return phi
 
     def get_kernel_matrix_asymmetric(self, sprime, fsa):
@@ -108,6 +108,7 @@ def pendulum_3d(obs, action, g=10.0, m=1., l=1., max_a=2., max_speed=8., dt=0.05
 
 
 def test_numpy_torch_kernel_matrix():
+    pendulum_3d = Pendulum3D()
     env = gymnasium.make('Pendulum-v1')
     feature_extractor = NystromFeatureExtractor(env)
     feature_extractor.set_dynamics(pendulum_3d)
@@ -118,13 +119,15 @@ def test_numpy_torch_kernel_matrix():
 
 
 def test_feature_extractor():
+    pendulum_3d = Pendulum3D(g=120., m=10.,)
     env = gymnasium.make('Pendulum-v1')
     feature_extractor = NystromFeatureExtractor(env)
     feature_extractor.set_dynamics(pendulum_3d)
     feature_extractor.sample_and_decompose()
     phi = feature_extractor.get_nystrom_feature(
         torch.reshape(torch.from_numpy(env.observation_space.sample()), [1, -1]))
+    return phi
 
 
 if __name__ == '__main__':
-    print(test_numpy_torch_kernel_matrix())
+    print(test_feature_extractor())
