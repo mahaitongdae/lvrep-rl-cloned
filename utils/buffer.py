@@ -1,7 +1,7 @@
 import collections
 import numpy as np
 import torch
-
+from main import DEVICE
 
 
 Batch = collections.namedtuple(
@@ -27,7 +27,7 @@ class ReplayBuffer(object):
 		self.next_next_state = np.zeros((max_size,state_dim))
 		self.done = np.zeros((max_size, 1))
 
-		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		self.device = torch.device(DEVICE if torch.cuda.is_available() else "cpu")
 
 
 	def addv2(self, state, action, reward, next_state, next_action, next_reward,next_next_state, done):

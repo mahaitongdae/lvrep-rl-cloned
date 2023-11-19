@@ -176,8 +176,28 @@ def env_creator_cartpole(env_config):
 
     register(id='CartPoleContinuous-v0',
              entry_point='envs:CartPoleEnv',
-             max_episode_steps=300)
-    env = gymnasium.make('CartPoleContinuous-v0') #, render_mode='human'
+             max_episode_steps=200)
+    env = gymnasium.make('CartPoleContinuous-v0',
+                         noise_scale = env_config.get('noise_scale'),
+                         eval = env_config.get('eval')) #, render_mode='human'
+    env = TransformReward(env, lambda r: env_config.get('reward_scale') * r)
+    if env_config.get('reward_exponential'):
+        env = TransformReward(env, lambda r: np.exp(r))
+    if env_config.get('sin_input'):
+        return TransformTriangleObservationWrapper(env)
+    else:
+        return env
+
+def env_creator_cartpendulum(env_config):
+    from gymnasium.envs.registration import register
+
+    register(id='CartPendulum-v0',
+             entry_point='envs:CartPendulumEnv',
+             max_episode_steps=200)
+    env = gymnasium.make('CartPendulum-v0',
+                         noise_scale = env_config.get('noise_scale'),
+                         eval = env_config.get('eval')) #, render_mode='human'
+    env = TransformReward(env, lambda r: env_config.get('reward_scale') * r)
     if env_config.get('reward_exponential'):
         env = TransformReward(env, lambda r: np.exp(r))
     if env_config.get('sin_input'):

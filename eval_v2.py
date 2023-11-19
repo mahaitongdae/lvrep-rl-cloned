@@ -66,7 +66,9 @@ if __name__ == '__main__':
     log_paths = {'Quadrotor':{},
                  'noisy_Quadrotor':{},
                  'Pendubot':{},
-                 'noisy_Pendubot':{}}
+                 'noisy_Pendubot':{},
+                 'CartPoleContinuous':{},
+                 'noisy_CartPoleContinuous':{}}
     #### Quadrotor
     ## Nystrom
     log_paths['Quadrotor'].update({'nstrom': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/temp_good_results/rfsac_nystrom_True_rf_num_2048_sample_dim_8192/seed_0_2023-09-02-12-24-08',
@@ -79,4 +81,11 @@ if __name__ == '__main__':
     # eval(log_paths['noisy_Quadrotor']['nystrom'])
     log_paths['Pendubot'].update({'nystrom': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_0.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_2048_sample_dim_2048/seed_0_2023-09-04-09-51-42'})
     log_paths['noisy_Pendubot'].update({'nystrom': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendubot-v0_sigma_1.0_rew_scale_3.0_reward_lqr/rfsac_nystrom_True_rf_num_1024_sample_dim_4096/seed_0_2023-09-04-18-02-40'})
-    eval(log_paths['Quadrotor']['random_feature'])
+    log_paths['CartPoleContinuous'].update({
+        'random_feature':'/home/mht/PycharmProjects/lvrep-rl-cloned/log/remote_log/CartPoleContinuous-v0_sigma_0.0_rew_scale_0.5/rfsac_nystrom_False_rf_num_8192_learn_rf_False/seed_0_2023-11-14-21-51-17',
+    })
+    log_paths['noisy_CartPoleContinuous'].update({
+        'random_feature': '/home/mht/PycharmProjects/lvrep-rl-cloned/log/CartPoleContinuous-v0_sigma_1.0_rew_scale_0.5/rfsac_nystrom_False_rf_num_8192_learn_rf_False/seed_0_2023-11-15-17-27-08',
+    })
+
+    eval(log_paths['noisy_CartPoleContinuous']['random_feature'])

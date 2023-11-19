@@ -14,7 +14,7 @@ from utils.util import unpack_batch
 from networks.policy import GaussianPolicy
 from networks.vae import Encoder, Decoder, GaussianFeature
 from agent.sac.sac_agent import SACAgent
-
+# from main import DEVICE
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.autograd.set_detect_anomaly(True)
@@ -281,8 +281,8 @@ class RFVCritic(RLNetwork):
         # x1 = torch.div(x1,1./self.feature_dim)
         # x2 = torch.div(x2,1./self.feature_dim)
         # change to layer norm
-        x1 = self.norm1(x1)
-        x2 = self.norm(x2)
+        x1 = 10. * self.norm1(x1)
+        x2 = 10. * self.norm(x2)
         # print("x1 norm", torch.linalg.norm(x1,axis = 1))
         # x = torch.relu(x)
         return self.output1(x1), self.output2(x2)
@@ -378,13 +378,23 @@ class nystromVCritic(RLNetwork):
                 K_m[i,j] = kernel(samples[i,:] - samples[j,:])
         return K_m
 
+    def kernel_matrix_numpy(self, x1, x2):
+        print('start cal K')
+        dx2 = np.expand_dims(x1, axis=1) - np.expand_dims(x2,
+                                                          axis=0)  # will return the kernel matrix of k(x1, x2) with symmetric kernel.
+        if self.sigma > 0.0:
+            K_x2 = np.exp(-np.linalg.norm(dx2, axis=2) ** 2 / (2. * self.sigma ** 2))
+        else:
+            K_x2 = np.exp(-np.linalg.norm(dx2, axis=2) ** 2 / (2.))
+        return K_x2
+
 
     def forward(self, states: torch.Tensor):
         x1 = self.nystrom_samples1.unsqueeze(0) - states.unsqueeze(1)
         K_x1 = torch.exp(-torch.linalg.norm(x1,axis = 2)**2/2).float()
         phi_all1 = (K_x1 @ (self.S1)) @ torch.diag((self.eig_vals1.clone() + 1e-8) ** (-0.5))
-        phi_all1 = self.norm(phi_all1)
-        # phi_all1 = 50. * phi_all1
+        # phi_all1 = self.norm(phi_all1)
+        phi_all1 = 50. * phi_all1
         phi_all1 = phi_all1.to(torch.float32)
         return self.output1(phi_all1), self.output2(phi_all1)
 
@@ -526,6 +536,11 @@ class RFSACAgent(SACAgent):
                 self.dynamics = self.quadrotor_f_star_7d
             else:
                 self.dynamics = self.quadrotor_f_star_6d
+        elif self.dynamics_type == 'CartPendulum':
+            if self.sin_input:
+                self.dynamics = self.cart_pendulum_5d
+            else:
+                raise NotImplementedError
         else:
             raise NotImplementedError
 
@@ -798,6 +813,36 @@ class RFSACAgent(SACAgent):
 
         return new_states
 
+    def cart_pendulum_5d(self, states, action):
+        dt = 0.02
+        g, M, m, b, I, l = 10, 0.5, 0.2, 0.1, 0.006, 0.3
+        force_mag = 1.
+        new_states = torch.empty_like(states, device=device)
+        new_states[:, 0] = states[:, 0] + dt * states[:, 1]
+        costheta = states[:, -3]
+        sintheta = states[:, -2]
+        theta = torch.atan2(sintheta, costheta)
+        thdot = states[:, -1]
+        xdot = states[:, 1]
+        action = force_mag * torch.squeeze(action)
+
+        a11, a22 = M + m, I + m * l ** 2
+        a12 = m * l * costheta
+        detA = I * (M + m) + m * l ** 2 * M + m ** 2 * l ** 2 * sintheta ** 2
+        b1 = m * l * thdot ** 2 * sintheta - b * xdot + action
+        b2 = -m * g * l * sintheta
+        dxdot = (a22 * b1 - a12 * b2) / detA
+        dthdot = (-a12 * b1 + a11 * b2) / detA
+        # dx = xdot.unsqueeze(-1)
+        # dth = thdot.unsqueeze(-1)
+        new_states[:, 1] = xdot + dxdot * dt
+        new_theta = theta + dt * thdot
+        new_states[:, 2] = torch.sin(new_theta)
+        new_states[:, 3] = torch.cos(new_theta)
+        new_states[:, 4] = thdot + dt * dthdot
+        return new_states
+
+
     def _get_energy_error(self, obs, action, ke=1.5):
         assert self.dynamics_type == 'Pendubot'
         dot_theta = obs[:, -2:][:, :, np.newaxis]  # batch, 2, 1
@@ -851,9 +896,25 @@ class RFSACAgent(SACAgent):
                 reward = -(torch.sum(obs ** 2, dim=1) + torch.sum(0.01 * action ** 2, dim=1))
             else:
                 assert obs.shape[1] == 5
-                th = torch.unsqueeze(torch.atan2(obs[:, -2], obs[:, -3]), dim=1)  # -2 is sin, -3 is cos
-                obs = torch.hstack([obs[:, :-3], th, obs[:, -1:]])
-                reward = -(torch.sum(obs ** 2, dim=1) + torch.sum(0.01 * action ** 2, dim=1))
+                th = torch.atan2(obs[:, -2], obs[:, -3]) # torch.unsqueeze(, dim=1)  # -2 is sin, -3 is cos
+                th = torch.where(obs[:, -3] >= 0., th, th + torch.pi )
+                x = obs[:, 0]
+                obs_no_theta = torch.hstack([obs[:, :-3], obs[:, -1:]])
+                reward = -(torch.sum(torch.multiply(torch.tensor([0.01, 0.001, 0.001], device=device), obs_no_theta), dim=1)
+                           # + torch.sin(th) ** 2 + (torch.cos(th) - 1) ** 2
+                           + (torch.remainder(th + torch.pi, 2 * torch.pi) - torch.pi) ** 2
+                           + torch.sum(0.001 * action ** 2, dim=1)) \
+                         # - torch.where(torch.abs(x) > 5., 1000 * torch.ones_like(x), torch.zeros_like(x))
+
+        elif self.dynamics_type == 'CartPendulum':
+            if self.sin_input is False:
+                raise NotImplementedError
+            else:
+                assert obs.shape[1] == 5
+                th = torch.atan2(obs[:, -2], obs[:, -3]) # torch.unsqueeze(, dim=1)  # -2 is sin, -3 is cos
+                # th = torch.where(obs[:, -3] >= 0., th, th + torch.pi)
+                ## arctan only return [-pi/2, pi/2].
+                reward = - ((torch.remainder(th, 2 * torch.pi) - torch.pi) ** 2)
 
         elif self.dynamics_type == 'Pendubot':
             if self.sin_input:

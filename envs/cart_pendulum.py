@@ -17,7 +17,10 @@ from noisy_pend import angle_normalize
 import envs
 
 
-class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
+
+
+
+class CartPendulumEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
     """
     ## Description
 
@@ -91,17 +94,21 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         "render_fps": 50,
     }
 
+
     def __init__(self, render_mode: Optional[str] = None, task = 'swingup', noise_scale= 0., eval=False):
         """
         task : swingup or balance
         """
-        self.gravity = 9.8
-        self.masscart = 1.0
-        self.masspole = 0.1
-        self.total_mass = self.masspole + self.masscart
+        self.g = 10
+        self.M = 0.5
+        self.m = 0.2
+        self.b = 0.1
+        self.I = 0.006
+        self.l = 0.3
+        self.total_mass = self.m + self.M
         self.length = 0.5  # actually half the pole's length
-        self.polemass_length = self.masspole * self.length
-        self.force_mag = 10.0
+        self.polemass_length = self.m * self.length
+        self.force_mag = 1.
         self.tau = 0.02  # seconds between state updates
         self.kinematics_integrator = "euler"
 
@@ -143,25 +150,50 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 
         self.steps_beyond_terminated = None
 
-    def step(self, action):
-        err_msg = f"{action!r} ({type(action)}) invalid"
-        assert self.action_space.contains(action), err_msg
-        assert self.state is not None, "Call reset before using step method."
-        x, x_dot, theta, theta_dot = self.state
-        # force = self.force_mag if action == 1 else -self.force_mag # discrete action space
-        force = float(self.force_mag * action)
-        costheta = math.cos(theta)
-        sintheta = math.sin(theta)
+    def angle_normalize(self, theta):
+        return np.remainder(theta, 2 * np.pi)
 
-        # For the interested reader:
-        # https://coneural.org/florian/papers/05_cart_pole.pdf
-        temp = (
-            force + self.polemass_length * theta_dot**2 * sintheta
-        ) / self.total_mass
-        thetaacc = (self.gravity * sintheta - costheta * temp) / (
-            self.length * (4.0 / 3.0 - self.masspole * costheta**2 / self.total_mass)
-        )
-        xacc = temp - self.polemass_length * thetaacc * costheta / self.total_mass
+    def step(self, action):
+        if isinstance(action, list) or isinstance(action, np.ndarray):
+            action = action[0]
+        # err_msg = f"{action!r} ({type(action)}) invalid"
+        # assert self.action_space.contains(action), err_msg
+        # assert self.state is not None, "Call reset before using step method."
+        # x, x_dot, theta, theta_dot = self.state
+        # # force = self.force_mag if action == 1 else -self.force_mag # discrete action space
+        # force = float(self.force_mag * action)
+        # costheta = math.cos(theta)
+        # sintheta = math.sin(theta)
+        #
+        # # For the interested reader:
+        # # https://coneural.org/florian/papers/05_cart_pole.pdf
+        # temp = (
+        #     force + self.polemass_length * theta_dot**2 * sintheta
+        # ) / self.total_mass
+        # thetaacc = (self.gravity * sintheta - costheta * temp) / (
+        #     self.length * (4.0 / 3.0 - self.m * costheta ** 2 / self.total_mass)
+        # )
+        # xacc = temp - self.polemass_length * thetaacc * costheta / self.total_mass
+
+        force = self.force_mag * action
+
+        x, x_dot, theta, theta_dot = self.state
+        g, M, m, b, I, l = self.g, self.M, self.m, self.b, self.I, self.l
+        # dthdot = (-g / l * torch.sin(th + math.pi) - mu/(m*l**2) + 1/ (m * l ** 2) * ctrl)
+        # The system can be written as
+        # Az = b
+        # for z = (dxdot, dthdot) and A, b given by physics laws (A is symmetric)
+        # The following code inverts A to get the expression of z
+        a11, a22 = M + m, I + m * l ** 2
+        a12 = m * l * np.cos(theta)
+        detA = I * (M + m) + m * l ** 2 * M + m ** 2 * l ** 2 * np.sin(theta) ** 2
+        b1 = m * l * theta_dot ** 2 * np.sin(theta) - b * x_dot + force
+        b2 = -m * g * l * np.sin(theta)
+        xacc = (a22 * b1 - a12 * b2) / detA
+        thetaacc = (-a12 * b1 + a11 * b2) / detA
+        # dx = xdot.unsqueeze(-1)
+        # dth = thdot.unsqueeze(-1)
+        # dt_state = torch.stack((dx, dth, dxdot, dthdot)).view(-1)
 
         if self.kinematics_integrator == "euler":
             x = x + self.tau * x_dot
@@ -187,23 +219,11 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
             # reward = 1.0
             if self.task == 'swingup':
                 if not self.eval:
-                    reward = float(
-                                   # - 0.001 * x ** 2  - 0.001 * x_dot ** 2 -
-                                   5 * angle_normalize(theta) ** 2
-                                   # (math.sin(theta)) ** 2 - (math.cos(theta) - 1.) **2
-                                   # - 0.001 * theta_dot ** 2
-                                   # - 0.001 * force ** 2
-                                   ) # - x ** 2
+                    reward = -float(self.angle_normalize(theta) - np.pi) ** 2
                 else:
-                    reward = float(- 0.001 * x ** 2 - 0.001 * x_dot ** 2 -
-                                   angle_normalize(theta) ** 2
-                                   # (math.sin(theta)) ** 2 - (math.cos(theta) - 1.) ** 2
-                                   - 0.001 * theta_dot ** 2 - 0.001 * force ** 2)  # - x ** 2
-            elif self.task == 'balance':
-                reward = float(- 0.01 * x ** 2  - 0.001 * x_dot ** 2 -
-                               theta ** 2
-                               - 0.001 * theta_dot ** 2 - 0.001 * force ** 2) # - x ** 2
-                # for the balance, theta is constrained in a small range so we do not need to do sin and cos on reward
+                    reward = -float(self.angle_normalize(theta) - np.pi) ** 2
+            # elif self.task == 'balance':
+            #     raise NotImplementedError
             else:
                 raise NotImplementedError
         elif self.steps_beyond_terminated is None:
@@ -308,7 +328,7 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 
         pole_coords = []
         for coord in [(l, b), (l, t), (r, t), (r, b)]:
-            coord = pygame.math.Vector2(coord).rotate_rad(-x[2])
+            coord = pygame.math.Vector2(coord).rotate_rad(-(x[2] + np.pi))
             coord = (coord[0] + cartx, coord[1] + carty + axleoffset)
             pole_coords.append(coord)
         gfxdraw.aapolygon(self.surf, pole_coords, (202, 152, 101))
@@ -352,8 +372,8 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
             self.isopen = False
 
     def energy_based_controller(self, ke=5., gamma = 1.):
-        potential_energy = self.masspole * self.gravity * 0.5 * self.length * (np.cos(self.state[2]) - 1.)
-        kinematics_energy = 0.5 * (self.masspole * self.state[1] ** 2 + self.masspole * self.length ** 2 * self.state[3] ** 2 / 3)
+        potential_energy = self.m * self.gravity * 0.5 * self.length * (np.cos(self.state[2]) - 1.)
+        kinematics_energy = 0.5 * (self.m * self.state[1] ** 2 + self.m * self.length ** 2 * self.state[3] ** 2 / 3)
         spring_energy = ke / 2 * self.state[0] ** 2 # following the https://ieeexplore.ieee.org/document/6630919
         action = - 0.1 * gamma * (potential_energy + kinematics_energy + spring_energy) * self.state[1] - ke * self.state[0]
         return np.clip(action, self.action_space.low, self.action_space.high)
@@ -361,15 +381,18 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 
 def cart_pole():
     import time
-    env = CartPoleEnv(render_mode='human')
+    env = CartPendulumEnv(render_mode='human')
     print(env.reset())
     env.render()
+    import time
     for i in range(100):
-        env.step(env.action_space.sample())
+        state, _, _, _, _ = env.step(env.action_space.sample())
+        print(state[2])
+        time.sleep(0.1)
         env.render()
 
 def energy_based_swingup(noise_scale = 1.0):
-    env = CartPoleEnv(noise_scale=noise_scale)
+    env = CartPendulumEnv(noise_scale=noise_scale)
     ep_rets = []
     for i in range(50):
         env.reset(seed=i)
@@ -384,4 +407,4 @@ def energy_based_swingup(noise_scale = 1.0):
 
 
 if __name__ == '__main__':
-    energy_based_swingup()
+    cart_pole()
