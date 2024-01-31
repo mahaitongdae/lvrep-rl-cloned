@@ -50,7 +50,7 @@ def eval_policy(policy, eval_env, eval_episodes=100):
 	for i in range(eval_episodes):
 		ep_ret = 0.
 		# eval_env.seed(i)
-		state, done = eval_env.reset(seed=i), False
+		state, done = eval_env.reset(seed=i+25), False
 		# print("eval_policy state", state)
 		while not done:
 			action = policy.select_action(np.array(state))

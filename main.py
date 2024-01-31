@@ -49,8 +49,8 @@ if __name__ == "__main__":
     parser.add_argument("--extra_feature_steps", default=3, type=int)
     parser.add_argument("--sigma", default=1., type=float)  # noise for noisy environment
     parser.add_argument("--embedding_dim", default=-1, type=int)  # if -1, do not add embedding layer
-    parser.add_argument("--rf_num", default=16384, type=int)
-    parser.add_argument("--nystrom_sample_dim", default=16384, type=int,
+    parser.add_argument("--rf_num", default=8192, type=int)
+    parser.add_argument("--nystrom_sample_dim", default=8192, type=int,
                         help='sample dim, must be greater or equal rf num.')
     parser.add_argument("--learn_rf", action='store_true')
     parser.add_argument("--euler",
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     elif args.env == 'CartPendulum-v0':
         ENV_CONFIG.update({'reward_scale': 1., 'eval': True, 'reward_exponential': False})
         eval_env = env_creator_cartpendulum(ENV_CONFIG)
-        ENV_CONFIG.update({'reward_scale': 1., 'reward_exponential': ENV_CONFIG.get('reward_exponential'), 'eval': False})
+        ENV_CONFIG.update({'reward_scale': 0.3, 'reward_exponential': ENV_CONFIG.get('reward_exponential'), 'eval': False})
         env = env_creator_cartpendulum(ENV_CONFIG)
 
     # wrapper back to gym to fit the code

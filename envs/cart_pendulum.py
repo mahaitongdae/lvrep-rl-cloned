@@ -1,6 +1,6 @@
 """
 Classic cart-pole system implemented by Rich Sutton et al.
-Copied from http://incompleteideas.net/sutton/book/code/pole.c
+Copied from http://incompleteideas.net/sutton/book/code/pole.c 
 permalink: https://perma.cc/C9ZM-652R
 """
 import math
@@ -106,9 +106,9 @@ class CartPendulumEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         self.I = 0.006
         self.l = 0.3
         self.total_mass = self.m + self.M
-        self.length = 0.5  # actually half the pole's length
-        self.polemass_length = self.m * self.length
-        self.force_mag = 1.
+        # self.length = 0.5  # actually half the pole's length
+        # self.polemass_length = self.m * self.length
+        self.force_mag = 0.4
         self.tau = 0.02  # seconds between state updates
         self.kinematics_integrator = "euler"
 
@@ -199,11 +199,11 @@ class CartPendulumEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
             x = x + self.tau * x_dot
             x_dot = x_dot + self.tau * xacc
             theta = theta + self.tau * theta_dot
-            theta_dot = theta_dot + self.tau * thetaacc + self.noise_scale * self.np_random.normal(scale=1.)
+            theta_dot = theta_dot + self.tau * thetaacc + self.noise_scale * self.np_random.normal(scale=0.02)
         else:  # semi-implicit euler
             x_dot = x_dot + self.tau * xacc
             x = x + self.tau * x_dot
-            theta_dot = theta_dot + self.tau * thetaacc + self.noise_scale * self.np_random.normal(scale=1.)
+            theta_dot = theta_dot + self.tau * thetaacc + self.noise_scale * self.np_random.normal(scale=0.05)
             theta = theta + self.tau * theta_dot
 
         self.state = (x, x_dot, theta, theta_dot)

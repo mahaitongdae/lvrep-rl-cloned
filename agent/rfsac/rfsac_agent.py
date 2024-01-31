@@ -824,7 +824,7 @@ class RFSACAgent(SACAgent):
     def cart_pendulum_5d(self, states, action):
         dt = 0.02
         g, M, m, b, I, l = 10, 0.5, 0.2, 0.1, 0.006, 0.3
-        force_mag = 1.
+        force_mag = 0.4
         new_states = torch.empty_like(states, device=device)
         new_states[:, 0] = states[:, 0] + dt * states[:, 1]
         costheta = states[:, -3]
