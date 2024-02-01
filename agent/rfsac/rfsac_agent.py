@@ -246,13 +246,18 @@ class RFVCritic(RLNetwork):
         # init.uniform_(layer2.weight, -3e-4,3e-4)
         init.zeros_(layer2.bias)
         layer2.bias.requires_grad = False #weight is the only thing we update
-        self.output2= layer2
+        self.output2 = layer2
 
         self.norm1 = nn.LayerNorm(self.feature_dim)
         self.norm1.bias.requires_grad = False
 
         self.norm = nn.LayerNorm(self.feature_dim)
         self.norm.bias.requires_grad = False
+
+        self.robust_feature = kwargs.get('robust_feature', False)
+        if self.robust_feature:
+            self.pertubation_phi = nn.Parameter(torch.normal(mean=0, std=1.,size=(self.feature_dim, )))
+            self.pertubation_mu = copy.deepcopy(layer2)
 
 
     def forward(self, states: torch.Tensor):
@@ -267,8 +272,12 @@ class RFVCritic(RLNetwork):
         # x = F.relu(x)
         x1 = self.fourier1(x)
         x2 = self.fourier2(x)
-        x1 = torch.cos(x1)
-        x2 = torch.cos(x2)
+        if self.robust_feature:
+            x1 = torch.cos(x1) + self.pertubation_phi
+            x2 = torch.cos(x2) + self.pertubation_phi
+        else:
+            x1 = torch.cos(x1)
+            x2 = torch.cos(x2)
         # x1 = torch.cos(x)
         # x2 = torch.sin(x)
         # x = torch.cat([x1,x2],axis = -1)
@@ -285,8 +294,10 @@ class RFVCritic(RLNetwork):
         x2 = 10. * self.norm(x2)
         # print("x1 norm", torch.linalg.norm(x1,axis = 1))
         # x = torch.relu(x)
-        return self.output1(x1), self.output2(x2)
-        # return self.output1(x1),self.output1(x1) #just testing if the min actually helps
+        if self.robust_feature:
+            return self.output1(x1) + self.pertubation_mu(x1), self.output2(x2) + self.pertubation_mu(x2)
+        else:
+            return self.output1(x1), self.output2(x2)
 
     def get_norm(self):
         l1_norm = torch.norm(self.output1)
@@ -548,6 +559,7 @@ class RFSACAgent(SACAgent):
             self.eig_optimizer = torch.optim.Adam([self.critic.eig_vals1, self.critic.S1],
                                                   lr = 1e-4)
         self.learn_rf = learn_rf
+
 
 
 
@@ -1038,7 +1050,12 @@ class RFSACAgent(SACAgent):
         q1,q2 = self.critic(self.dynamics(state,action))
         q1_loss = F.mse_loss(target_q, q1)
         q2_loss = F.mse_loss(target_q, q2)
-        q_loss = q1_loss + q2_loss
+        if self.args.get('robust_feature', False):
+            penalty_loss = 100 * (F.relu(torch.norm(self.critic.pertubation_phi) - 3.)
+                                  + F.relu(torch.norm(self.critic.pertubation_mu.weight) - 3.))
+            q_loss = q1_loss + q2_loss + penalty_loss
+        else:
+            q_loss = q1_loss + q2_loss
 
         self.critic_optimizer.zero_grad()
         q_loss.backward()
@@ -1060,6 +1077,9 @@ class RFSACAgent(SACAgent):
             'q2': q2.mean().item(),
             'layer_norm_weights_norm': self.critic.norm.weight.norm(),
             }
+
+        if self.args.get('robust_feature', False):
+            info.update({'penalty_loss': penalty_loss.item(),})
 
         dist = {
             'td_error': (torch.min(q1, q2) - target_q).cpu().detach().clone().numpy(),
