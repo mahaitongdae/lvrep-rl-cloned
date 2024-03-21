@@ -31,7 +31,7 @@ DEVICE = "cuda"
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dir", default=1, type=int)
+    parser.add_argument("--dir", default='main', type=str)
     parser.add_argument("--alg", default="rfsac")  # Alg name (sac, vlsac)
     parser.add_argument("--env", default="CartPendulum-v0")  # Environment name
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
@@ -249,13 +249,7 @@ if __name__ == "__main__":
             if t >= args.start_timesteps:
                 info.update({'eval_len': eval_len,
                              'eval_ret': eval_ret})
-                for key, value in info.items():
-                    if 'dist' not in key:
-                        summary_writer.add_scalar(f'info/{key}', value, t + 1)
-                    else:
-                        for dist_key, dist_val in value.items():
-                            summary_writer.add_histogram(dist_key, dist_val, t + 1)
-                summary_writer.flush()
+
 
             print('Step {}. Steps per sec: {:.4g}.'.format(t + 1, steps_per_sec))
 
@@ -263,15 +257,24 @@ if __name__ == "__main__":
                 best_actor = agent.actor.state_dict()
                 best_critic = agent.critic.state_dict()
 
+                # save best actor/best critic
+                torch.save(best_actor, log_path + "/best_actor.pth")
+                torch.save(best_critic, log_path + "/best_critic.pth")
+
             best_eval_reward = max(evaluations)
+
+        if (t + 1) % 500 == 0:
+            for key, value in info.items():
+                if 'dist' not in key:
+                    summary_writer.add_scalar(f'info/{key}', value, t + 1)
+                else:
+                    for dist_key, dist_val in value.items():
+                        summary_writer.add_histogram(dist_key, dist_val, t + 1)
+            summary_writer.flush()
 
     summary_writer.close()
 
     print('Total time cost {:.4g}s.'.format(timer.time_cost()))
-
-    # save best actor/best critic
-    torch.save(best_actor, log_path + "/actor.pth")
-    torch.save(best_critic, log_path + "/critic.pth")
 
     torch.save(agent.actor.state_dict(), log_path + "/actor_last.pth")
     torch.save(agent.critic.state_dict(), log_path + "/critic_last.pth")

@@ -2,12 +2,12 @@ import copy
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torch.distributions import Normal 
+from torch.distributions import Normal
 import os
 
 import torch.nn.init as init
 import numpy as np
-from utils import util 
+from utils import util
 
 # from utils.util import unpack_batch, RunningMeanStd
 from utils.util import unpack_batch
@@ -15,60 +15,59 @@ from networks.policy import GaussianPolicy
 from networks.vae import Encoder, Decoder, GaussianFeature
 from agent.sac.sac_agent import SACAgent
 # from main import DEVICE
+from gym.envs.classic_control.pendulum import DEFAULT_X, DEFAULT_Y
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.autograd.set_detect_anomaly(True)
+
 
 class Critic(nn.Module):
     """
     Critic with random fourier features
     """
-    def __init__(
-        self,
-        feature_dim,
-        num_noise=20, 
-        hidden_dim=256,
-        ):
 
+    def __init__(
+            self,
+            feature_dim,
+            num_noise=20,
+            hidden_dim=256,
+    ):
         super().__init__()
         self.num_noise = num_noise
         self.noise = torch.randn(
             [self.num_noise, feature_dim], requires_grad=False, device=device)
 
         # Q1
-        self.l1 = nn.Linear(feature_dim, hidden_dim) # random feature
+        self.l1 = nn.Linear(feature_dim, hidden_dim)  # random feature
         self.l2 = nn.Linear(hidden_dim, hidden_dim)
         self.l3 = nn.Linear(hidden_dim, 1)
 
         # Q2
-        self.l4 = nn.Linear(feature_dim, hidden_dim) # random feature
+        self.l4 = nn.Linear(feature_dim, hidden_dim)  # random feature
         self.l5 = nn.Linear(hidden_dim, hidden_dim)
         self.l6 = nn.Linear(hidden_dim, 1)
-
 
     def forward(self, mean, log_std):
         """
         """
         std = log_std.exp()
-        batch_size, d = mean.shape 
-    
+        batch_size, d = mean.shape
+
         x = mean[:, None, :] + std[:, None, :] * self.noise
         x = x.reshape(-1, d)
 
-        q1 = F.elu(self.l1(x)) #F.relu(self.l1(x))
+        q1 = F.elu(self.l1(x))  # F.relu(self.l1(x))
         q1 = q1.reshape([batch_size, self.num_noise, -1]).mean(dim=1)
-        q1 = F.elu(self.l2(q1)) #F.relu(self.l2(q1))
+        q1 = F.elu(self.l2(q1))  # F.relu(self.l2(q1))
         q1 = self.l3(q1)
 
-        q2 = F.elu(self.l4(x)) #F.relu(self.l4(x))
+        q2 = F.elu(self.l4(x))  # F.relu(self.l4(x))
         q2 = q2.reshape([batch_size, self.num_noise, -1]).mean(dim=1)
-        q2 = F.elu(self.l5(q2)) #F.relu(self.l5(q2))
+        q2 = F.elu(self.l5(q2))  # F.relu(self.l5(q2))
         # q2 = self.l3(q2) #is this wrong?
         q2 = self.l6(q2)
 
         return q1, q2
-
-
 
 
 class RLNetwork(nn.Module):
@@ -78,6 +77,7 @@ class RLNetwork(nn.Module):
     Parameters of a main neural network is periodically copied to a target neural network. This RLNetwork has a
     method called soft_update that implements this copying.
     """
+
     def __init__(self):
         super(RLNetwork, self).__init__()
         self.layers = []
@@ -101,8 +101,8 @@ class RLNetwork(nn.Module):
 
         params1 = self.parameters()
         params2 = target_nn.parameters()
-        
-        #bug? 
+
+        # bug?
         for p1, p2 in zip(params1, params2):
             new_params = update_rate * p1.data + (1. - update_rate) * p2.data
             p1.data.copy_(new_params)
@@ -113,52 +113,70 @@ class RLNetwork(nn.Module):
         optimizer.step()
 
 
-
-
-
-#currently hardcoding sa_dim
-#this is a  Q function
+# currently hardcoding sa_dim
+# this is a  Q function
 class RFQCritic(RLNetwork):
-    def __init__(self, sa_dim = 4, embedding_dim = 4, n_neurons = 256):
+    def __init__(self, sa_dim=4, embedding_dim=4, rf_num=256, sigma=0.0, learn_rf=False, **kwargs):
         super().__init__()
         self.n_layers = 1
-        self.feature_dim = n_neurons
+        self.feature_dim = rf_num
 
-        self.embed = nn.Linear(sa_dim, embedding_dim)
+        self.sigma = sigma
+
+        if embedding_dim != -1:
+            self.embed = nn.Linear(sa_dim, embedding_dim)
+        else:  # we don't add embed in this case
+            embedding_dim = sa_dim
+            self.embed = nn.Linear(sa_dim, sa_dim)
+            init.eye_(self.embed.weight)
+            init.zeros_(self.embed.bias)
+            self.embed.weight.requires_grad = False
+            self.embed.bias.requires_grad = False
 
         # fourier_feats1 = nn.Linear(sa_dim, n_neurons)
-        fourier_feats1 = nn.Linear(embedding_dim,n_neurons)
-        init.normal_(fourier_feats1.weight)
-        init.uniform_(fourier_feats1.bias, 0,2*np.pi)
+        fourier_feats1 = nn.Linear(embedding_dim, self.feature_dim)
+        # fourier_feats1 = nn.Linear(s_dim,n_neurons)
+        if self.sigma > 0:
+            init.normal_(fourier_feats1.weight, std=1. / self.sigma)
+            # pass
+        else:
+            init.normal_(fourier_feats1.weight)
+        init.uniform_(fourier_feats1.bias, 0, 2 * np.pi)
         # init.zeros_(fourier_feats.bias)
-        fourier_feats1.weight.requires_grad = False
-        fourier_feats1.bias.requires_grad = False
-        self.fourier1 = fourier_feats1 #unnormalized, no cosine/sine yet
+        fourier_feats1.weight.requires_grad = learn_rf
+        fourier_feats1.bias.requires_grad = learn_rf
+        self.fourier1 = fourier_feats1  # unnormalized, no cosine/sine yet
 
-
-
-        # fourier_feats2 = nn.Linear(sa_dim, n_neurons)
-        fourier_feats2 = nn.Linear(embedding_dim,n_neurons)
-        init.normal_(fourier_feats2.weight)
-        init.uniform_(fourier_feats2.bias, 0,2*np.pi)
-        fourier_feats2.weight.requires_grad = False
-        fourier_feats2.bias.requires_grad = False
+        fourier_feats2 = nn.Linear(embedding_dim, self.feature_dim)
+        # fourier_feats2 = nn.Linear(s_dim,n_neurons)
+        if self.sigma > 0:
+            init.normal_(fourier_feats2.weight, std=1. / self.sigma)
+            # pass
+        else:
+            init.normal_(fourier_feats2.weight)
+        init.uniform_(fourier_feats2.bias, 0, 2 * np.pi)
+        fourier_feats2.weight.requires_grad = learn_rf
+        fourier_feats2.bias.requires_grad = learn_rf
         self.fourier2 = fourier_feats2
 
-        layer1 = nn.Linear( n_neurons, 1) #try default scaling
+        layer1 = nn.Linear(self.feature_dim, 1)  # try default scaling
         # init.uniform_(layer1.weight, -3e-3,3e-3) #weight is the only thing we update
         init.zeros_(layer1.bias)
-        layer1.bias.requires_grad = False #weight is the only thing we update
+        layer1.bias.requires_grad = False  # weight is the only thing we update
         self.output1 = layer1
 
-
-        layer2 = nn.Linear( n_neurons, 1) #try default scaling
-        # init.uniform_(layer2.weight, -3e-3,3e-3) 
+        layer2 = nn.Linear(self.feature_dim, 1)  # try default scaling
+        # init.uniform_(layer2.weight, -3e-3,3e-3)
         # init.uniform_(layer2.weight, -3e-4,3e-4)
         init.zeros_(layer2.bias)
-        layer2.bias.requires_grad = False #weight is the only thing we update
-        self.output2= layer2
+        layer2.bias.requires_grad = False  # weight is the only thing we update
+        self.output2 = layer2
 
+        self.norm1 = nn.LayerNorm(self.feature_dim)
+        self.norm1.bias.requires_grad = False
+
+        self.norm = nn.LayerNorm(self.feature_dim)
+        self.norm.bias.requires_grad = False
 
     def forward(self, states: torch.Tensor, actions: torch.Tensor):
         x = torch.cat([states,actions],axis = -1)
@@ -178,8 +196,10 @@ class RFQCritic(RLNetwork):
         # x2 = torch.sin(x)
         # x = torch.cat([x1,x2],axis = -1)
         # x = torch.div(x,1./np.sqrt(2 * self.feature_dim))
-        x1 = torch.div(x1,1./np.sqrt(self.feature_dim)) #why was I multiplyigng?
-        x2 = torch.div(x2,1./np.sqrt(self.feature_dim))
+        # x1 = torch.div(x1,1./np.sqrt(self.feature_dim)) #why was I multiplyigng?
+        # x2 = torch.div(x2,1./np.sqrt(self.feature_dim))
+        x1 = 10. * self.norm1(x1)
+        x2 = 10. * self.norm(x2)
         return self.output1(x1), self.output2(x2)
 
 
@@ -189,7 +209,7 @@ class RFQCritic(RLNetwork):
 #currently hardcoding s_dim
 #this is a  V function
 class RFVCritic(RLNetwork):
-    def __init__(self, s_dim = 3, embedding_dim = -1, rf_num = 256,sigma = 0.0, learn_rf = False, **kwargs):
+    def __init__(self, s_dim=3, embedding_dim=-1, rf_num=256, sigma=0.0, learn_rf=False, **kwargs):
         super().__init__()
         self.n_layers = 1
         self.feature_dim = rf_num
@@ -198,62 +218,58 @@ class RFVCritic(RLNetwork):
 
         if embedding_dim != -1:
             self.embed = nn.Linear(s_dim, embedding_dim)
-        else: #we don't add embed in this case
+        else:  # we don't add embed in this case
             embedding_dim = s_dim
-            self.embed = nn.Linear(s_dim,s_dim)
+            self.embed = nn.Linear(s_dim, s_dim)
             init.eye_(self.embed.weight)
             init.zeros_(self.embed.bias)
             self.embed.weight.requires_grad = False
             self.embed.bias.requires_grad = False
 
         # fourier_feats1 = nn.Linear(sa_dim, n_neurons)
-        fourier_feats1 = nn.Linear(embedding_dim,self.feature_dim)
+        fourier_feats1 = nn.Linear(embedding_dim, self.feature_dim)
         # fourier_feats1 = nn.Linear(s_dim,n_neurons)
         if self.sigma > 0:
-            init.normal_(fourier_feats1.weight, std = 1./self.sigma)
+            init.normal_(fourier_feats1.weight, std=1. / self.sigma)
             # pass
         else:
             init.normal_(fourier_feats1.weight)
-        init.uniform_(fourier_feats1.bias, 0,2*np.pi)
+        init.uniform_(fourier_feats1.bias, 0, 2 * np.pi)
         # init.zeros_(fourier_feats.bias)
         fourier_feats1.weight.requires_grad = learn_rf
         fourier_feats1.bias.requires_grad = learn_rf
-        self.fourier1 = fourier_feats1 #unnormalized, no cosine/sine yet
-
-
+        self.fourier1 = fourier_feats1  # unnormalized, no cosine/sine yet
 
         fourier_feats2 = nn.Linear(embedding_dim, self.feature_dim)
         # fourier_feats2 = nn.Linear(s_dim,n_neurons)
         if self.sigma > 0:
-            init.normal_(fourier_feats2.weight, std = 1./self.sigma)
+            init.normal_(fourier_feats2.weight, std=1. / self.sigma)
             # pass
         else:
             init.normal_(fourier_feats2.weight)
-        init.uniform_(fourier_feats2.bias, 0,2*np.pi)
+        init.uniform_(fourier_feats2.bias, 0, 2 * np.pi)
         fourier_feats2.weight.requires_grad = learn_rf
         fourier_feats2.bias.requires_grad = learn_rf
         self.fourier2 = fourier_feats2
 
-        layer1 = nn.Linear( self.feature_dim, 1) #try default scaling
+        layer1 = nn.Linear(self.feature_dim, 1)  # try default scaling
         # init.uniform_(layer1.weight, -3e-3,3e-3) #weight is the only thing we update
         init.zeros_(layer1.bias)
-        layer1.bias.requires_grad = False #weight is the only thing we update
+        layer1.bias.requires_grad = False  # weight is the only thing we update
         self.output1 = layer1
 
-
-        layer2 = nn.Linear( self.feature_dim, 1) #try default scaling
+        layer2 = nn.Linear(self.feature_dim, 1)  # try default scaling
         # init.uniform_(layer2.weight, -3e-3,3e-3) 
         # init.uniform_(layer2.weight, -3e-4,3e-4)
         init.zeros_(layer2.bias)
-        layer2.bias.requires_grad = False #weight is the only thing we update
-        self.output2= layer2
+        layer2.bias.requires_grad = False  # weight is the only thing we update
+        self.output2 = layer2
 
         self.norm1 = nn.LayerNorm(self.feature_dim)
         self.norm1.bias.requires_grad = False
 
         self.norm = nn.LayerNorm(self.feature_dim)
         self.norm.bias.requires_grad = False
-
 
     def forward(self, states: torch.Tensor):
         x = states
@@ -306,7 +322,7 @@ class nystromVCritic(RLNetwork):
                  feat_num=256,
                  sigma=0.0,
                  buffer=None,
-                 learn_rf = False,
+                 learn_rf=False,
                  **kwargs):
         super().__init__()
         self.n_layers = 1
@@ -341,7 +357,8 @@ class nystromVCritic(RLNetwork):
             K_m1 = self.make_K(self.nystrom_samples1, self.kernel)
             print('start eig')
 
-            [eig_vals1, S1] = np.linalg.eig(K_m1)  # numpy linalg eig doesn't produce negative eigenvalues... (unlike torch)
+            [eig_vals1, S1] = np.linalg.eig(
+                K_m1)  # numpy linalg eig doesn't produce negative eigenvalues... (unlike torch)
 
             # truncate top k eigens
             argsort = np.argsort(eig_vals1)[::-1]
@@ -353,7 +370,7 @@ class nystromVCritic(RLNetwork):
             self.nystrom_samples1 = torch.from_numpy(self.nystrom_samples1).to(device)
         else:
             self.nystrom_samples1 = torch.zeros((self.sample_dim, self.s_dim))
-            self.eig_vals1 = torch.ones([self.feature_dim,])
+            self.eig_vals1 = torch.ones([self.feature_dim, ])
             self.S1 = torch.zeros([self.s_dim, self.feature_dim])
 
         layer1 = nn.Linear(self.feature_dim, 1)  # try default scaling
@@ -369,13 +386,13 @@ class nystromVCritic(RLNetwork):
         self.norm = nn.LayerNorm(self.feature_dim)
         self.norm.bias.requires_grad = False
 
-    def make_K(self, samples,kernel):
+    def make_K(self, samples, kernel):
         print('start cal K')
-        m,d = samples.shape
-        K_m = np.empty((m,m))
+        m, d = samples.shape
+        K_m = np.empty((m, m))
         for i in np.arange(m):
             for j in np.arange(m):
-                K_m[i,j] = kernel(samples[i,:] - samples[j,:])
+                K_m[i, j] = kernel(samples[i, :] - samples[j, :])
         return K_m
 
     def kernel_matrix_numpy(self, x1, x2):
@@ -388,16 +405,14 @@ class nystromVCritic(RLNetwork):
             K_x2 = np.exp(-np.linalg.norm(dx2, axis=2) ** 2 / (2.))
         return K_x2
 
-
     def forward(self, states: torch.Tensor):
         x1 = self.nystrom_samples1.unsqueeze(0) - states.unsqueeze(1)
-        K_x1 = torch.exp(-torch.linalg.norm(x1,axis = 2)**2/2).float()
+        K_x1 = torch.exp(-torch.linalg.norm(x1, axis=2) ** 2 / 2).float()
         phi_all1 = (K_x1 @ (self.S1)) @ torch.diag((self.eig_vals1.clone() + 1e-8) ** (-0.5))
         # phi_all1 = self.norm(phi_all1)
         phi_all1 = 50. * phi_all1
         phi_all1 = phi_all1.to(torch.float32)
         return self.output1(phi_all1), self.output2(phi_all1)
-
 
     def get_norm(self):
         l1_norm = torch.norm(self.output1)
@@ -406,59 +421,54 @@ class nystromVCritic(RLNetwork):
 
 
 class DoubleQCritic(nn.Module):
-  """Critic network, employes double Q-learning."""
-  def __init__(self, obs_dim, action_dim, hidden_dim, hidden_depth):
-    super().__init__()
+    """Critic network, employes double Q-learning."""
 
-    self.Q1 = util.mlp(obs_dim + action_dim, hidden_dim, 1, hidden_depth)
-    self.Q2 = util.mlp(obs_dim + action_dim, hidden_dim, 1, hidden_depth)
+    def __init__(self, obs_dim, action_dim, hidden_dim, hidden_depth):
+        super().__init__()
 
-    self.outputs = dict()
-    self.apply(util.weight_init)
+        self.Q1 = util.mlp(obs_dim + action_dim, hidden_dim, 1, hidden_depth)
+        self.Q2 = util.mlp(obs_dim + action_dim, hidden_dim, 1, hidden_depth)
 
-  def forward(self, obs, action):
-    assert obs.size(0) == action.size(0)
+        self.outputs = dict()
+        self.apply(util.weight_init)
 
-    obs_action = torch.cat([obs, action], dim=-1)
-    q1 = self.Q1(obs_action)
-    q2 = self.Q2(obs_action)
+    def forward(self, obs, action):
+        assert obs.size(0) == action.size(0)
 
-    self.outputs['q1'] = q1
-    self.outputs['q2'] = q2
+        obs_action = torch.cat([obs, action], dim=-1)
+        q1 = self.Q1(obs_action)
+        q2 = self.Q2(obs_action)
 
-    return q1, q2
+        self.outputs['q1'] = q1
+        self.outputs['q2'] = q2
+
+        return q1, q2
 
 
 class RFSACAgent(SACAgent):
     """
     SAC with random features
     """
+
     def __init__(
-            self, 
-            state_dim, 
-            action_dim, 
-            action_space, 
-            # lr=1e-3,
-            # lr = 5e-4,
-            # lr = 3e-4,
-            lr = 3e-4,
-            discount=0.99, 
+            self,
+            state_dim,
+            action_dim,
+            action_space,
+            lr=3e-4,
+            discount=0.99,
             target_update_period=2,
             tau=0.005,
             alpha=0.1,
             auto_entropy_tuning=True,
             hidden_dim=256,
-            sigma = 0.0,
-            rf_num = 256,
-            learn_rf = False,
-            use_nystrom = False,
-            replay_buffer = None,
-            # feature_tau=0.001,
-            # feature_dim=256, # latent feature dim
-            # use_feature_target=True, 
-            # extra_feature_steps=1,
+            sigma=0.0,
+            rf_num=256,
+            learn_rf=False,
+            use_nystrom=False,
+            replay_buffer=None,
             **kwargs
-            ):
+    ):
 
         super().__init__(
             state_dim=state_dim,
@@ -483,7 +493,7 @@ class RFSACAgent(SACAgent):
         #       feature_dim=feature_dim).to(device)
         # self.f = GaussianFeature(state_dim=state_dim, 
         #       action_dim=action_dim, feature_dim=feature_dim).to(device)
-        
+
         # if use_feature_target:
         #   self.f_target = copy.deepcopy(self.f)
         # self.feature_optimizer = torch.optim.Adam(
@@ -506,11 +516,12 @@ class RFSACAgent(SACAgent):
         #   hidden_depth = 2,
         #   ).to(device)
         # self.critic = RFQCritic().to(device)
-        if use_nystrom == False: #use RF
-            self.critic = RFVCritic(s_dim=state_dim, sigma = sigma, rf_num = rf_num, learn_rf = learn_rf, **kwargs).to(device)
-        else: #use nystrom
+        if use_nystrom == False:  # use RF
+            self.critic = RFVCritic(s_dim=state_dim, sigma=sigma, rf_num=rf_num, learn_rf=learn_rf, **kwargs).to(device)
+        else:  # use nystrom
             feat_num = rf_num
-            self.critic = nystromVCritic(sigma = sigma, feat_num = feat_num, buffer = replay_buffer, learn_rf = learn_rf,  **kwargs).to(device)
+            self.critic = nystromVCritic(sigma=sigma, feat_num=feat_num, buffer=replay_buffer, learn_rf=learn_rf,
+                                         **kwargs).to(device)
         # self.critic = Critic().to(device)
         self.critic_target = copy.deepcopy(self.critic)
         self.critic_optimizer = torch.optim.Adam(
@@ -546,10 +557,8 @@ class RFSACAgent(SACAgent):
 
         if learn_rf and use_nystrom:
             self.eig_optimizer = torch.optim.Adam([self.critic.eig_vals1, self.critic.S1],
-                                                  lr = 1e-4)
+                                                  lr=1e-4)
         self.learn_rf = learn_rf
-
-
 
     # def feature_step(self, batch):
     #   """
@@ -574,7 +583,7 @@ class RFSACAgent(SACAgent):
     #   var1 = (2 * log_std1).exp()
     #   var2 = (2 * log_std2).exp()
     #   kl_loss = log_std2 - log_std1 + 0.5 * (var1 + (mean1-mean2)**2) / var2 - 0.5
-        
+
     #   loss = (ml_loss + kl_loss).mean()
 
     #   self.feature_optimizer.zero_grad()
@@ -589,7 +598,7 @@ class RFSACAgent(SACAgent):
     #       'r_loss': r_loss.mean().item()
     #   }
 
-    #inputs are tensors
+    # inputs are tensors
     # def get_reward(self, states,action):
     #     th = torch.atan2(states[:,1],states[:,0]) #1 is sin, 0 is cosine 
     #     thdot = states[:,2]
@@ -601,30 +610,30 @@ class RFSACAgent(SACAgent):
     #     reward = -(th**2 + 0.1* thdot**2 + 0.01*action**2)
     #     return torch.reshape(reward,(reward.shape[0],1))
 
-    def angle_normalize(self,th):
-        return((th + np.pi) % (2 * np.pi)) -np.pi
-    
-    def f_star_2d(self,states,action,g = 10.0,m = 1.,l=1.,max_a = 2.,max_speed = 8.,dt = 0.05):
-        th = torch.atan2(states[:,1],states[:,0]) #1 is sin, 0 is cosine 
-        thdot = states[:,2]
+    def angle_normalize(self, th):
+        return ((th + np.pi) % (2 * np.pi)) - np.pi
+
+    def f_star_2d(self, states, action, g=10.0, m=1., l=1., max_a=2., max_speed=8., dt=0.05):
+        th = torch.atan2(states[:, 1], states[:, 0])  # 1 is sin, 0 is cosine
+        thdot = states[:, 2]
         action = torch.reshape(action, (action.shape[0],))
-        u = torch.clip(action,-max_a,max_a)
-        newthdot = thdot +(3. * g / (2 * l) * torch.sin(th) + 3.0 / (m * l**2) * u) * dt
-        newthdot = torch.clip(newthdot, -max_speed,max_speed)
+        u = torch.clip(action, -max_a, max_a)
+        newthdot = thdot + (3. * g / (2 * l) * torch.sin(th) + 3.0 / (m * l ** 2) * u) * dt
+        newthdot = torch.clip(newthdot, -max_speed, max_speed)
         newth = th + newthdot * dt
-        new_states = torch.empty((states.shape[0],2))
-        new_states[:,0] = self.angle_normalize(newth)
-        new_states[:,1] = newthdot
+        new_states = torch.empty((states.shape[0], 2))
+        new_states[:, 0] = self.angle_normalize(newth)
+        new_states[:, 1] = newthdot
         return new_states
 
-    #this returns cos(th), sin(th), thdot
-    def f_star_3d(self,states,action,g = 10.0,m = 1.,l = 1.,max_a = 2.,max_speed = 8.,dt = 0.05):
-        th = torch.atan2(states[:,1],states[:,0]) #1 is sin, 0 is cosine 
-        thdot = states[:,2]
+    # this returns cos(th), sin(th), thdot
+    def f_star_3d(self, states, action, g=10.0, m=1., l=1., max_a=2., max_speed=8., dt=0.05):
+        th = torch.atan2(states[:, 1], states[:, 0])  # 1 is sin, 0 is cosine
+        thdot = states[:, 2]
         action = torch.reshape(action, (action.shape[0],))
-        u = torch.clip(action,-max_a,max_a)
-        newthdot = thdot +(3. * g / (2 * l) * torch.sin(th) + 3.0 / (m * l**2) * u) * dt
-        newthdot = torch.clip(newthdot, -max_speed,max_speed)
+        u = torch.clip(action, -max_a, max_a)
+        newthdot = thdot + (3. * g / (2 * l) * torch.sin(th) + 3.0 / (m * l ** 2) * u) * dt
+        newthdot = torch.clip(newthdot, -max_speed, max_speed)
         newth = th + newthdot * dt
         return torch.vstack([torch.cos(newth), torch.sin(newth), newthdot]).T
 
@@ -632,7 +641,6 @@ class RFSACAgent(SACAgent):
         action = 0.075 * action + 0.075  # map from -1, 1 to 0.0 - 0.15
         # print(action)
         return action
-
 
     def quadrotor_f_star_6d(self, states, action, m=0.027, g=10.0, Iyy=1.4e-5, dt=0.0167):
         # dot_states = torch.empty_like(states)
@@ -643,14 +651,15 @@ class RFSACAgent(SACAgent):
         # dot_states[:, 4] = states[:, 5]
         # dot_states[:, 5] = 1 / 2 / Iyy * (action[:, 1] - action[:, 0])
         action = self.__quad_action_preprocess(action)
+
         def dot_states(states):
             dot_states = torch.vstack([states[:, 1],
-                                 1 / m * torch.multiply(torch.sum(action, dim=1), torch.sin(states[:, 4])),
-                                 states[:, 3],
-                                 1 / m * torch.multiply(torch.sum(action, dim=1), torch.cos(states[:, 4])) - g,
-                                 states[:, 5],
-                                 1 / 2 / Iyy * (action[:, 1] - action[:, 0]) * 0.025
-                                 ]).T
+                                       1 / m * torch.multiply(torch.sum(action, dim=1), torch.sin(states[:, 4])),
+                                       states[:, 3],
+                                       1 / m * torch.multiply(torch.sum(action, dim=1), torch.cos(states[:, 4])) - g,
+                                       states[:, 5],
+                                       1 / 2 / Iyy * (action[:, 1] - action[:, 0]) * 0.025
+                                       ]).T
             return dot_states
 
         k1 = dot_states(states)
@@ -663,7 +672,7 @@ class RFSACAgent(SACAgent):
     def quadrotor_f_star_7d(self, states, action, m=0.027, g=10.0, Iyy=1.4e-5, dt=0.0167):
         action = self.__quad_action_preprocess(action)
         theta = torch.atan2(states[:, -2], states[:, -3])
-        state_6d = torch.concat([states[:,:-3], torch.reshape(theta, [-1, 1]), states[:, -1:]], dim=1)
+        state_6d = torch.concat([states[:, :-3], torch.reshape(theta, [-1, 1]), states[:, -1:]], dim=1)
         new_states = self.quadrotor_f_star_6d(state_6d, action)
         new_theta = new_states[:, -2]
         new_cos = torch.reshape(torch.cos(new_theta), [-1, 1])
@@ -707,7 +716,7 @@ class RFSACAgent(SACAgent):
         new_states[:, 3] = theta_dot + dt * thetaacc
         return new_states
 
-    def cartpole_f_5d(self, states, action,):
+    def cartpole_f_5d(self, states, action, ):
         """
 
         :param states: # x, x_dot, sin_theta, cos_theta, theta_dot
@@ -792,7 +801,6 @@ class RFSACAgent(SACAgent):
         mass_matrix[:, 1, 0] = - m21
         mass_matrix[:, 1, 1] = m11
 
-
         # mass_matrix = np.array([[m11, m12],
         #                         [m21, m22]])
 
@@ -815,7 +823,8 @@ class RFSACAgent(SACAgent):
 
         action = torch.hstack([action, torch.zeros_like(action)])[:, :, np.newaxis]
         acc = torch.reciprocal(m11 * m22 - m21 ** 2 + 1e-8) * mass_inv @ (action -
-                                                                torch.matmul(c_matrix, states[:, -2:][:, :, np.newaxis]) - g_vec)
+                                                                          torch.matmul(c_matrix, states[:, -2:][:, :,
+                                                                                                 np.newaxis]) - g_vec)
         new_states[:, 4] = theta1_dot + dt * torch.squeeze(acc[:, 0])
         new_states[:, 5] = theta2_dot + dt * torch.squeeze(acc[:, 1])
 
@@ -849,7 +858,6 @@ class RFSACAgent(SACAgent):
         new_states[:, 3] = torch.cos(new_theta)
         new_states[:, 4] = thdot + dt * dthdot
         return new_states
-
 
     def _get_energy_error(self, obs, action, ke=1.5):
         assert self.dynamics_type == 'Pendubot'
@@ -887,8 +895,8 @@ class RFSACAgent(SACAgent):
             if self.sin_input is False:
                 assert obs.shape[1] == 6
                 state_error = obs - stabilizing_target
-                reward = -(torch.sum( torch.multiply(torch.tensor([1., 0., 1., 0., 0., 0.], device=device),
-                                                     state_error ** 2), dim=1) ) # + torch.sum(0.1 * action ** 2, dim=1)
+                reward = -(torch.sum(torch.multiply(torch.tensor([1., 0., 1., 0., 0., 0.], device=device),
+                                                    state_error ** 2), dim=1))  # + torch.sum(0.1 * action ** 2, dim=1)
                 # if self.args.get('dynamics_parameters').get('reward_exponential'):
                 #     reward = torch.exp(reward)
             else:
@@ -897,29 +905,30 @@ class RFSACAgent(SACAgent):
                 obs = torch.hstack([obs[:, :4], th, obs[:, -1:]])
                 state_error = obs - stabilizing_target
                 reward = -(torch.sum(torch.multiply(torch.tensor([1., 0., 1., 0., 0., 0.], device=device),
-                                                    state_error ** 2), dim=1) ) # + torch.sum(0.1 * action ** 2, dim=1)
+                                                    state_error ** 2), dim=1))  # + torch.sum(0.1 * action ** 2, dim=1)
 
         elif self.dynamics_type == 'CartPoleContinuous':
             if self.sin_input is False:
                 reward = -(torch.sum(obs ** 2, dim=1) + torch.sum(0.01 * action ** 2, dim=1))
             else:
                 assert obs.shape[1] == 5
-                th = torch.atan2(obs[:, -2], obs[:, -3]) # torch.unsqueeze(, dim=1)  # -2 is sin, -3 is cos
-                th = torch.where(obs[:, -3] >= 0., th, th + torch.pi )
+                th = torch.atan2(obs[:, -2], obs[:, -3])  # torch.unsqueeze(, dim=1)  # -2 is sin, -3 is cos
+                th = torch.where(obs[:, -3] >= 0., th, th + torch.pi)
                 x = obs[:, 0]
                 obs_no_theta = torch.hstack([obs[:, :-3], obs[:, -1:]])
-                reward = -(torch.sum(torch.multiply(torch.tensor([0.01, 0.001, 0.001], device=device), obs_no_theta), dim=1)
+                reward = -(torch.sum(torch.multiply(torch.tensor([0.01, 0.001, 0.001], device=device), obs_no_theta),
+                                     dim=1)
                            # + torch.sin(th) ** 2 + (torch.cos(th) - 1) ** 2
                            + (torch.remainder(th + torch.pi, 2 * torch.pi) - torch.pi) ** 2
                            + torch.sum(0.001 * action ** 2, dim=1)) \
-                         # - torch.where(torch.abs(x) > 5., 1000 * torch.ones_like(x), torch.zeros_like(x))
+                    # - torch.where(torch.abs(x) > 5., 1000 * torch.ones_like(x), torch.zeros_like(x))
 
         elif self.dynamics_type == 'CartPendulum':
             if self.sin_input is False:
                 raise NotImplementedError
             else:
                 assert obs.shape[1] == 5
-                th = torch.atan2(obs[:, -2], obs[:, -3]) # torch.unsqueeze(, dim=1)  # -2 is sin, -3 is cos
+                th = torch.atan2(obs[:, -2], obs[:, -3])  # torch.unsqueeze(, dim=1)  # -2 is sin, -3 is cos
                 # th = torch.where(obs[:, -3] >= 0., th, th + torch.pi)
                 ## arctan only return [-pi/2, pi/2].
                 reward = - ((torch.remainder(th, 2 * torch.pi) - torch.pi) ** 2)
@@ -988,9 +997,9 @@ class RFSACAgent(SACAgent):
         # q1,q2 = self.critic(batch.state,action) #not batch.action!!!
         # q = torch.min(q1, q2)
         # q = q1 #try not using q1, q1
-        reward = self.get_reward(batch.state,action) #use reward in q-fn
-        q1,q2 = self.critic(self.dynamics(batch.state,action))
-        q = self.discount * torch.min(q1,q2) + reward
+        reward = self.get_reward(batch.state, action)  # use reward in q-fn
+        q1, q2 = self.critic(self.dynamics(batch.state, action))
+        q = self.discount * torch.min(q1, q2) + reward
 
         actor_loss = ((self.alpha) * log_prob - q).mean()
 
@@ -1003,23 +1012,22 @@ class RFSACAgent(SACAgent):
         if self.learnable_temperature:
             self.log_alpha_optimizer.zero_grad()
             alpha_loss = (self.alpha *
-                                        (-log_prob - self.target_entropy).detach()).mean()
+                          (-log_prob - self.target_entropy).detach()).mean()
             alpha_loss.backward()
             self.log_alpha_optimizer.step()
 
-            info['alpha_loss'] = alpha_loss 
-            info['alpha'] = self.alpha 
+            info['alpha_loss'] = alpha_loss
+            info['alpha'] = self.alpha
 
         return info
-
 
     def critic_step(self, batch):
         """
         Critic update step
-        """         
+        """
         # state, action, reward, next_state, next_action, next_reward,next_next_state, done = unpack_batch(batch)
-        state,action,next_state,reward,done = unpack_batch(batch)
-        
+        state, action, next_state, reward, done = unpack_batch(batch)
+
         with torch.no_grad():
             dist = self.actor(next_state)
             next_action = dist.rsample()
@@ -1030,12 +1038,12 @@ class RFSACAgent(SACAgent):
             # else:
             #   mean, log_std = self.f(state, action)
             #   next_mean, next_log_std = self.f(next_state, next_action)
-            next_q1, next_q2 = self.critic_target(self.dynamics(next_state,next_action))
-            next_q = torch.min(next_q1,next_q2)-  self.alpha * next_action_log_pi
-            next_reward = self.get_reward(next_state,next_action) #reward for new s,a
+            next_q1, next_q2 = self.critic_target(self.dynamics(next_state, next_action))
+            next_q = torch.min(next_q1, next_q2) - self.alpha * next_action_log_pi
+            next_reward = self.get_reward(next_state, next_action)  # reward for new s,a
             target_q = next_reward + (1. - done) * self.discount * next_q
 
-        q1,q2 = self.critic(self.dynamics(state,action))
+        q1, q2 = self.critic(self.dynamics(state, action))
         q1_loss = F.mse_loss(target_q, q1)
         q2_loss = F.mse_loss(target_q, q2)
         q_loss = q1_loss + q2_loss
@@ -1059,7 +1067,7 @@ class RFSACAgent(SACAgent):
             'q1': q1.mean().item(),
             'q2': q2.mean().item(),
             'layer_norm_weights_norm': self.critic.norm.weight.norm(),
-            }
+        }
 
         dist = {
             'td_error': (torch.min(q1, q2) - target_q).cpu().detach().clone().numpy(),
