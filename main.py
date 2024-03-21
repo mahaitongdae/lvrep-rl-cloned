@@ -31,15 +31,15 @@ DEVICE = "cuda"
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dir", default=1, type=int)
-    parser.add_argument("--alg", default="rfsac")  # Alg name (sac, vlsac)
-    parser.add_argument("--env", default="CartPendulum-v0")  # Environment name
+    parser.add_argument("--dir", default='try_evaluate_density', type=str)
+    parser.add_argument("--alg", default="density")  # Alg name (sac, vlsac)
+    parser.add_argument("--env", default="Pendulum-v1")  # Environment name
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
-    parser.add_argument("--start_timesteps", default=5e3, type=float)  # Time steps initial random policy is used
+    parser.add_argument("--start_timesteps", default=10, type=float)  # Time steps initial random policy is used
     parser.add_argument("--eval_freq", default=5000, type=int)  # How often (time steps) we evaluate
     parser.add_argument("--max_timesteps", default=20e4, type=float)  # Max time steps to run environment
     parser.add_argument("--expl_noise", default=0.1)  # Std of Gaussian exploration noise
-    parser.add_argument("--batch_size", default=1024, type=int)  # Batch size for both actor and critic
+    parser.add_argument("--batch_size", default=256, type=int)  # Batch size for both actor and critic
     parser.add_argument("--hidden_dim", default=256, type=int)  # Network hidden dims
     parser.add_argument("--feature_dim", default=256, type=int)  # Latent feature dim
     parser.add_argument("--discount", default=0.99)  # Discount factor
@@ -47,9 +47,9 @@ if __name__ == "__main__":
     parser.add_argument("--learn_bonus", action="store_true")  # Save model and optimizer parameters
     parser.add_argument("--save_model", action="store_true")  # Save model and optimizer parameters
     parser.add_argument("--extra_feature_steps", default=3, type=int)
-    parser.add_argument("--sigma", default=1., type=float)  # noise for noisy environment
+    parser.add_argument("--sigma", default=0., type=float)  # noise for noisy environment
     parser.add_argument("--embedding_dim", default=-1, type=int)  # if -1, do not add embedding layer
-    parser.add_argument("--rf_num", default=8192, type=int)
+    parser.add_argument("--rf_num", default=512, type=int)
     parser.add_argument("--nystrom_sample_dim", default=8192, type=int,
                         help='sample dim, must be greater or equal rf num.')
     parser.add_argument("--learn_rf", action='store_true')
@@ -126,10 +126,10 @@ if __name__ == "__main__":
         alg_name = f'{args.alg}_nystrom_{use_nystrom}_rf_num_{args.rf_num}_learn_rf_{args.learn_rf}'
         if use_nystrom:
             alg_name = alg_name + f'_sample_dim_{args.nystrom_sample_dim}'
-    exp_name = f'seed_{args.seed}_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}'
+    # exp_name = f'seed_{args.seed}_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}'
 
     # setup log
-    log_path = f'log/{env_name}/{alg_name}/{exp_name}'
+    log_path = f'log/{env_name}/{alg_name}/{args.dir}/{args.seed}'
     summary_writer = SummaryWriter(log_path + "/summary_files")
 
     # set seeds
@@ -180,6 +180,8 @@ if __name__ == "__main__":
         agent = vlsac_agent.VLSACAgent(**kwargs)
     elif args.alg == 'rfsac':
         agent = rfsac_agent.RFSACAgent(**kwargs)
+    elif args.alg == 'density':
+        agent = rfsac_agent.DensityConstrainedLagrangianAgent(**kwargs)
 
     replay_buffer = buffer.ReplayBuffer(state_dim, action_dim)
 
@@ -249,13 +251,7 @@ if __name__ == "__main__":
             if t >= args.start_timesteps:
                 info.update({'eval_len': eval_len,
                              'eval_ret': eval_ret})
-                for key, value in info.items():
-                    if 'dist' not in key:
-                        summary_writer.add_scalar(f'info/{key}', value, t + 1)
-                    else:
-                        for dist_key, dist_val in value.items():
-                            summary_writer.add_histogram(dist_key, dist_val, t + 1)
-                summary_writer.flush()
+
 
             print('Step {}. Steps per sec: {:.4g}.'.format(t + 1, steps_per_sec))
 
@@ -263,18 +259,33 @@ if __name__ == "__main__":
                 best_actor = agent.actor.state_dict()
                 best_critic = agent.critic.state_dict()
 
+                # save best actor/best critic
+                torch.save(best_actor, log_path + "/best_actor.pth")
+                torch.save(best_critic, log_path + "/best_critic.pth")
+                if args.alg == 'density':
+                    best_density = agent.density.state_dict()
+                    torch.save(best_density, log_path + '/best_density.pth')
+
             best_eval_reward = max(evaluations)
+
+        if (t + 1) % 500 == 0:
+            for key, value in info.items():
+                if 'dist' not in key:
+                    summary_writer.add_scalar(f'info/{key}', value, t + 1)
+                else:
+                    for dist_key, dist_val in value.items():
+                        summary_writer.add_histogram(dist_key, dist_val, t + 1)
+            summary_writer.flush()
 
     summary_writer.close()
 
     print('Total time cost {:.4g}s.'.format(timer.time_cost()))
 
-    # save best actor/best critic
-    torch.save(best_actor, log_path + "/actor.pth")
-    torch.save(best_critic, log_path + "/critic.pth")
-
     torch.save(agent.actor.state_dict(), log_path + "/actor_last.pth")
     torch.save(agent.critic.state_dict(), log_path + "/critic_last.pth")
+
+    if args.alg == 'density':
+        torch.save(agent.density, log_path + "density_last.pth")
 
     # save parameters
     # kwargs.update({"action_space": None}) # action space might not be serializable

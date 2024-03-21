@@ -1,6 +1,6 @@
 import gymnasium
 import numpy as np
-from gymnasium.wrappers import TransformReward
+from gymnasium.wrappers import TransformReward, RescaleAction
 import gym
 from gym.wrappers import TransformReward as TransformRewardGym
 
@@ -163,6 +163,7 @@ def env_creator_quad2d(env_config):
 
 def env_creator_pendulum(env_config):
     env = gymnasium.make('Pendulum-v1')
+    env = RescaleAction(env, min_action=-1., max_action=1.)
     if env_config.get('reward_exponential'):
         env = TransformReward(env, lambda r: np.exp(env_config.get('reward_scale') * r))
     else:
