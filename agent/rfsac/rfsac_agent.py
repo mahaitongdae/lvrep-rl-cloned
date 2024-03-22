@@ -311,6 +311,42 @@ class DensityCritic(RFVCritic):
         else:
             return F.relu(x1), F.relu(x2)
 
+class Multiplier(RLNetwork):
+    """
+    critic for density using random feature. Only differences might be we need to enforce integral constraints.
+    """
+
+    def __init__(self, sa_dim=3, constraint_num=1, hidden_dim = 256, statewise=True,  **kwargs):
+        """
+        log_prob: if the output is log probability.
+        """
+        super().__init__()
+        if statewise:
+            self.l1 = nn.Linear(sa_dim, hidden_dim)
+            self.l2 = nn.Linear(hidden_dim, hidden_dim)
+            self.output = nn.Linear(hidden_dim, constraint_num)
+            init.orthogonal_(self.l1.weight)
+            init.orthogonal_(self.l2.weight)
+            init.orthogonal_(self.output.weight)
+        else:
+            multiplier = torch.tensor(1.0, requires_grad=True)
+            self.multiplier = nn.Parameter(multiplier)
+        self.statewise = statewise
+
+
+    def forward(self, states: torch.Tensor):
+        x = states
+        x = self.l1(x)
+        x = F.elu(x)
+        x = self.l2(x)
+        x = F.elu(x)
+        x = self.output(x)
+        x = F.softplus(x)
+        return x
+
+    def get_scalar_multiplier(self):
+        assert (not self.statewise)
+        return torch.clip(self.multiplier, min=0.0, max=50.0)
 
 # currently hardcoding s_dim
 # this is a  V function
@@ -1159,19 +1195,18 @@ class DensityConstrainedLagrangianAgent(RFSACAgent):
             **kwargs
         )
 
-        self.multiplier = util.mlp(input_dim=state_dim,
-                                   hidden_dim=hidden_dim,
-                                   output_dim=1,
-                                   hidden_depth=2,
-                                   output_mod=nn.Softplus())
+        self.multiplier = Multiplier(sa_dim=state_dim, constraint_num=1, statewise=False)
         self.multiplier_optimizer = torch.optim.Adam(self.multiplier.parameters(),
                                                      lr,
                                                      betas=[0.9, 0.999])
 
-        self.density = DensityCritic(s_dim=state_dim, sigma=sigma, rf_num=rf_num, learn_rf=learn_rf, **kwargs).to(
-            device)
+        self.density = DensityCritic(s_dim=state_dim, sigma=sigma, rf_num=rf_num, learn_rf=learn_rf, log_prob=True,
+                                     **kwargs).to(device)
         self.density_optimizer = torch.optim.Adam(self.density.parameters(), lr, betas=[0.9, 0.999])
         self.density_target = copy.deepcopy(self.density)
+        self.target_distribution = torch.distributions.multivariate_normal.MultivariateNormal(torch.tensor([1., 0., 0.]).to(device),
+                                                                                              torch.diag(torch.tensor([0.1, 0.1, 0.05])).to(device))
+        self.distribution_threshold = 0.1
 
     def density_critic_step(self, batch, alg='td'):
         """
@@ -1187,7 +1222,7 @@ class DensityConstrainedLagrangianAgent(RFSACAgent):
                 density1, density2 = self.density_target(state)
                 if self.density.log_prob:
                     density1, density2 = torch.exp(density1), torch.exp(density2)
-                initial_density_state = self.get_initial_density(state)
+                initial_density_state = self.get_initial_density(state).unsqueeze(1)
                 action_dist = self.actor(state)
                 action_log_prob = action_dist.log_prob(action).sum(-1, keepdim=True)
                 action_prob = torch.exp(action_log_prob)
@@ -1271,15 +1306,21 @@ class DensityConstrainedLagrangianAgent(RFSACAgent):
 
         density_info = self.density_critic_step(batch)
 
-        # Update the frozen target models
-        self.update_target()
-
-        return {
+        info = {
             # **feature_info,
             **critic_info,
             **actor_info,
-            **density_info
+            **density_info,
         }
+
+        if self.steps % 3 == 0:
+            multiplier_info = self.update_multiplier(batch)
+            info.update(multiplier_info)
+
+        # Update the frozen target models
+        self.update_target()
+
+        return info
 
     def update_target(self):
         if self.steps % self.target_update_period == 0:
@@ -1287,6 +1328,76 @@ class DensityConstrainedLagrangianAgent(RFSACAgent):
                 target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
             for param, target_param in zip(self.density.parameters(), self.density_target.parameters()):
                 target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+
+    # def calculate_constraints(self, density, batch_state):
+    #     # KL divergence constraints by discretize approximation
+
+
+
+    def update_actor_and_alpha(self, batch):
+        """
+        Actor update step
+        """
+        # dist = self.actor(batch.state, batch.next_state)
+        dist = self.actor(batch.state)
+        action = dist.rsample()
+        log_prob = dist.log_prob(action).sum(-1, keepdim=True)
+        reward = self.get_reward(batch.state, action)  # use reward in q-fn
+        q1, q2 = self.critic(self.dynamics(batch.state, action))
+        q = self.discount * torch.min(q1, q2) + reward
+        d1, d2 = self.density(self.dynamics(batch.state, action))
+        d = torch.min(d1, d2)
+        # d = d / torch.sum(d)
+        target_dist = self.target_distribution.log_prob(batch.state)
+        kl_loss = torch.nn.KLDivLoss(log_target=True)
+        kldiv = kl_loss(d, target_dist)
+        multiplier = self.multiplier.get_scalar_multiplier()
+
+        obj_loss = ((self.alpha) * log_prob - q).mean()
+
+        actor_loss = obj_loss + multiplier * (kldiv - 0.1)
+
+        self.actor_optimizer.zero_grad()
+        actor_loss.backward()
+        self.actor_optimizer.step()
+
+        info = {'actor_loss': actor_loss.item(),
+                'obj_loss': obj_loss.item(),
+                'kldiv':kldiv.item()}
+
+        if self.learnable_temperature:
+            self.log_alpha_optimizer.zero_grad()
+            alpha_loss = (self.alpha *
+                          (-log_prob - self.target_entropy).detach()).mean()
+            alpha_loss.backward()
+            self.log_alpha_optimizer.step()
+
+            info['alpha_loss'] = alpha_loss
+            info['alpha'] = self.alpha
+
+        return info
+
+    def update_multiplier(self, batch):
+        dist = self.actor(batch.state)
+        action = dist.rsample()
+        d1, d2 = self.density(self.dynamics(batch.state, action))
+        d = torch.min(d1, d2)
+        d = d / torch.sum(d)
+        target_dist = self.target_distribution.log_prob(batch.state)
+        kl_loss = torch.nn.KLDivLoss(log_target=True)
+        kldiv = kl_loss(d, target_dist)
+        multiplier = self.multiplier.get_scalar_multiplier()
+
+        multiplier_loss = multiplier * (self.distribution_threshold - kldiv)
+
+        self.multiplier_optimizer.zero_grad()
+        multiplier_loss.backward()
+        self.multiplier_optimizer.step()
+
+        info = {'multiplier': multiplier.item(),
+                'multiplier_loss': multiplier_loss.item()}
+        return info
+
 
     def get_initial_density(self, obs):
         # uniform distribution between DEFAULT_X and DEFAULT_Y

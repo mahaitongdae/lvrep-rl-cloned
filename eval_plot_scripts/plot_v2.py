@@ -4,14 +4,14 @@ import pandas as pd
 import seaborn as sns
 import os
 import numpy as np
-from matplotlib.ticker import ScalarFormatter
+
 try:
     from tensorflow.python.training.summary_io import summary_iterator
     # we need tensorflow for extracting data from tensorboard events.
 except:
     pass
 try:
-    from eval_v2 import eval
+    from eval_plot_scripts.eval_v2 import eval
 except:
     pass
 
@@ -284,7 +284,7 @@ def plot_bar(from_data = False):
 
         total_df = pd.concat(dfs, ignore_index=True)
     else:
-        total_df = pd.read_csv('/home/mht/PycharmProjects/lvrep-rl-cloned/utils/data_plot/rf_bar_data.csv')
+        total_df = pd.read_csv('/utils/data_plot/rf_bar_data.csv')
     plt.figure(figsize=[6, 4])
     if not from_data:
         total_df.to_csv('/home/mht/PycharmProjects/lvrep-rl-cloned/utils/data_plot/noisy_nystrom_bar_data.csv')

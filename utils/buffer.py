@@ -10,6 +10,12 @@ Batch = collections.namedtuple(
 	['state', 'action', 'reward', 'next_state','done']
 	)
 
+CstrBatch = collections.namedtuple(
+	'Batch',
+	# ['state', 'action', 'reward', 'next_state', 'next_action', 'next_reward', 'next_next_state','done']
+	['state', 'action', 'reward', 'next_state','done', 'cstr']
+	)
+
 
 class ReplayBuffer(object):
 	def __init__(self, state_dim, action_dim, max_size=int(1e6)):
@@ -83,4 +89,37 @@ class ReplayBuffer(object):
 		)
 
 
+class ReplayBufferWithCstr(ReplayBuffer):
+
+	def __init__(self, state_dim, action_dim, cstr_dim, max_size=int(1e6)):
+
+		super().__init__(state_dim=state_dim, action_dim=action_dim, max_size=max_size)
+		self.cstr = np.zeros((max_size, cstr_dim))
+
+
+	def add(self, state, action,  next_state, reward, done, cstr):
+		self.state[self.ptr] = state
+		self.action[self.ptr] = action
+		self.reward[self.ptr] = reward
+		self.next_state[self.ptr] = next_state
+		self.done[self.ptr] = done
+		self.cstr[self.ptr] = cstr
+
+		self.ptr = (self.ptr + 1) % self.max_size
+		self.size = min(self.size + 1, self.max_size)
+
+	def sample(self, batch_size):
+		ind = np.random.randint(0, self.size, size=batch_size)
+
+		return CstrBatch(
+			state=torch.FloatTensor(self.state[ind]).to(self.device),
+			action=torch.FloatTensor(self.action[ind]).to(self.device),
+			reward=torch.FloatTensor(self.reward[ind]).to(self.device),
+			next_state=torch.FloatTensor(self.next_state[ind]).to(self.device),
+			# next_action=torch.FloatTensor(self.next_action[ind]).to(self.device),
+			# next_reward = torch.FloatTensor(self.next_reward[ind]).to(self.device),
+			# next_next_state = torch.FloatTensor(self.next_next_state[ind]).to(self.device),
+			done=torch.FloatTensor(self.done[ind]).to(self.device),
+			cstr=torch.FloatTensor(self.cstr[ind]).to(self.device)
+		)
 

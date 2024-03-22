@@ -37,7 +37,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--start_timesteps", default=10, type=float)  # Time steps initial random policy is used
     parser.add_argument("--eval_freq", default=5000, type=int)  # How often (time steps) we evaluate
-    parser.add_argument("--max_timesteps", default=20e4, type=float)  # Max time steps to run environment
+    parser.add_argument("--max_timesteps", default=10e4, type=float)  # Max time steps to run environment
     parser.add_argument("--expl_noise", default=0.1)  # Std of Gaussian exploration noise
     parser.add_argument("--batch_size", default=256, type=int)  # Batch size for both actor and critic
     parser.add_argument("--hidden_dim", default=256, type=int)  # Network hidden dims
@@ -80,7 +80,7 @@ if __name__ == "__main__":
         # env = noisyPendulumEnv(sigma =  sigma, euler = euler)
         # eval_env = noisyPendulumEnv(sigma = sigma, euler = euler)
         ENV_CONFIG.update({'reward_scale': 0.2, })
-        env = env_creator_pendulum(ENV_CONFIG)
+        env = env_creator_cstr_pendulum(ENV_CONFIG)
         ENV_CONFIG.update({'reward_scale': 1., })
         eval_env = env_creator_pendulum(ENV_CONFIG)
     elif args.env == 'Quadrotor2D-v2':
@@ -129,7 +129,8 @@ if __name__ == "__main__":
     # exp_name = f'seed_{args.seed}_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}'
 
     # setup log
-    log_path = f'log/{env_name}/{alg_name}/{args.dir}/{args.seed}'
+    current_path = os.path.abspath(os.path.dirname(__file__))
+    log_path = current_path + f'/log/{env_name}/{alg_name}/{args.dir}/{args.seed}'
     summary_writer = SummaryWriter(log_path + "/summary_files")
 
     # set seeds
@@ -210,7 +211,7 @@ if __name__ == "__main__":
             action = agent.select_action(state, explore=True)
 
         # Perform action
-        next_state, reward, done, _ = env.step(action)
+        next_state, reward, done, info = env.step(action)
         # print(action, next_state, reward)
         # print("next state", next_state)
         # done_bool = float(done) if episode_timesteps < max_length else 0

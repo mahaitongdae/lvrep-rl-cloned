@@ -68,6 +68,56 @@ def eval_policy(policy, eval_env, eval_episodes=100):
 	print("---------------------------------------")
 	return avg_len, avg_ret, std_ret, ep_rets
 
+def visualize_policy(policy, eval_env, seed=None):
+	"""
+	Eval a policy
+	"""
+	ep_rets = []
+	ep_len = 0
+	ep_ret = 0.
+	# eval_env.seed(i)
+	if seed is not None:
+		state, _ = eval_env.reset(seed=seed)
+		done = False
+	else:
+		state, _ = eval_env.reset(options={'x_init': 0.0, 'y_init': 0.0})
+		done = False
+	while not done:
+		action = policy.select_action(np.array(state))
+		state, reward, _, done, info = eval_env.step(action)
+		eval_env.render()
+		ep_ret += reward
+		ep_len += 1
+	eval_env.close()
+
+	return ep_ret, ep_len
+
+def get_theta_traj(policy, eval_env, seed=None):
+	"""
+	Eval a policy
+	"""
+	ep_rets = []
+	ep_len = 0
+	ep_ret = 0.
+	thetas = []
+	# eval_env.seed(i)
+	if seed is not None:
+		state, _ = eval_env.reset(seed=seed)
+		done = False
+	else:
+		state, _ = eval_env.reset(options={'x_init': 0.0, 'y_init': 0.0})
+		thetas.append(np.arctan2(state[1], state[0]))
+		done = False
+	while not done:
+		action = policy.select_action(np.array(state))
+		state, reward, _, done, info = eval_env.step(action)
+		thetas.append(np.arctan2(state[1], state[0]))
+		ep_ret += reward
+		ep_len += 1
+	eval_env.close()
+
+	return thetas
+
 
 
 def weight_init(m):

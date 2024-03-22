@@ -172,6 +172,19 @@ def env_creator_pendulum(env_config):
         env = NoisyObservationWrapper(env, noise_scale=env_config.get('noise_scale', 1), noise_add_dim=[0])
     return env
 
+def env_creator_cstr_pendulum(env_config):
+    from envs.pendulum_cstr import PendulumCstrEnv
+    from gymnasium.envs.registration import register
+    register(id='Pendulum-v2',
+             entry_point='envs:PendulumCstrEnv',
+             max_episode_steps=200)
+    env = gymnasium.make('Pendulum-v2') #  **env_config
+    env = RescaleAction(env, min_action=-1., max_action=1.)
+    # env = TransformReward(env, lambda r: env_config.get('reward_scale') * r)
+    if env_config.get('noisy'):
+        env = NoisyObservationWrapper(env, noise_scale=env_config.get('noise_scale', 1), noise_add_dim=[0])
+    return env
+
 def env_creator_cartpole(env_config):
     from gymnasium.envs.registration import register
 
