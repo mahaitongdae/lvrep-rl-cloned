@@ -80,7 +80,7 @@ def visualize_policy(policy, eval_env, seed=None):
 		state, _ = eval_env.reset(seed=seed)
 		done = False
 	else:
-		state, _ = eval_env.reset(options={'x_init': 0.0, 'y_init': 0.0})
+		state, _ = eval_env.reset() # options={'x_init': 0.0, 'y_init': 0.0}
 		done = False
 	while not done:
 		action = policy.select_action(np.array(state))

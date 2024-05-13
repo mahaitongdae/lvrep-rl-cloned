@@ -25,9 +25,9 @@ def eval(log_path, ):
                         'noise_scale': kwargs['sigma']})
     
     if env_name == "Pendulum-v1":
-        env = gymnasium.make('Pendulum-v1', render_mode='human')
+        env = gymnasium.make('Pendulum-v1', render_mode='rgb_array')
         eval_env = RescaleAction(env, min_action=-1., max_action=1.)
-        # eval_env = RecordVideo(eval_env, video_folder=log_path)
+        eval_env = RecordVideo(eval_env, video_folder=log_path)
     elif env_name == 'Quadrotor2D-v2':
         eval_env = env_creator_quad2d(eval_config)
     elif env_name == 'Pendubot-v0':
