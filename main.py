@@ -31,9 +31,10 @@ DEVICE = "cuda"
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("--notes", default='adjust_norm', type=str)
     parser.add_argument("--dir", default=1, type=int)
     parser.add_argument("--alg", default="rfsac")  # Alg name (sac, vlsac)
-    parser.add_argument("--env", default="Pendulum-v1")  # Environment name
+    parser.add_argument("--env", default="CartPendulum-v0")  # Environment name
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--start_timesteps", default=5e3, type=float)  # Time steps initial random policy is used
     parser.add_argument("--eval_freq", default=5000, type=int)  # How often (time steps) we evaluate
@@ -49,8 +50,8 @@ if __name__ == "__main__":
     parser.add_argument("--extra_feature_steps", default=3, type=int)
     parser.add_argument("--sigma", default=0., type=float)  # noise for noisy environment
     parser.add_argument("--embedding_dim", default=-1, type=int)  # if -1, do not add embedding layer
-    parser.add_argument("--rf_num", default=512, type=int)
-    parser.add_argument("--nystrom_sample_dim", default=512, type=int,
+    parser.add_argument("--rf_num", default=4096, type=int)
+    parser.add_argument("--nystrom_sample_dim", default=4096, type=int,
                         help='sample dim, must be greater or equal rf num.')
     parser.add_argument("--learn_rf", action='store_true')
     parser.add_argument("--euler",
@@ -125,10 +126,14 @@ if __name__ == "__main__":
     if args.alg == 'sac':
         alg_name = 'sac'
     else:
-        alg_name = f'{args.alg}_nystrom_{use_nystrom}_rf_num_{args.rf_num}_learn_rf_{args.learn_rf}'
+        if args.robust_feature:
+            alg_sub_name = args.alg + '_robust_True'
+        else:
+            alg_sub_name = args.alg + '_robust_False'
+        alg_name = f'{alg_sub_name}_nystrom_{use_nystrom}_rf_num_{args.rf_num}_learn_rf_{args.learn_rf}'
         if use_nystrom:
             alg_name = alg_name + f'_sample_dim_{args.nystrom_sample_dim}'
-    exp_name = f'seed_{args.seed}_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}'
+    exp_name = f'seed_{args.seed}_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}_{args.notes}'
 
     # setup log
     log_path = f'log/{env_name}/{alg_name}/{exp_name}'

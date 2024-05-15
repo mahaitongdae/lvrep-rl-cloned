@@ -257,7 +257,7 @@ class RFVCritic(RLNetwork):
         self.robust_feature = kwargs.get('robust_feature', False)
         if self.robust_feature:
             self.pertubation_phi = nn.Parameter(torch.normal(mean=0, std=1.,size=(self.feature_dim, )))
-            self.pertubation_mu = copy.deepcopy(layer2)
+            self.pertubation_w = copy.deepcopy(layer2)
 
 
     def forward(self, states: torch.Tensor):
@@ -295,7 +295,7 @@ class RFVCritic(RLNetwork):
         # print("x1 norm", torch.linalg.norm(x1,axis = 1))
         # x = torch.relu(x)
         if self.robust_feature:
-            return self.output1(x1) + self.pertubation_mu(x1), self.output2(x2) + self.pertubation_mu(x2)
+            return self.output1(x1) + self.pertubation_w(x1), self.output2(x2) + self.pertubation_w(x2)
         else:
             return self.output1(x1), self.output2(x2)
 
@@ -467,7 +467,7 @@ class RFSACAgent(SACAgent):
             # feature_tau=0.001,
             # feature_dim=256, # latent feature dim
             # use_feature_target=True, 
-            # extra_feature_steps=1,
+            extra_feature_steps=1,
             **kwargs
             ):
 
@@ -486,7 +486,7 @@ class RFSACAgent(SACAgent):
         # self.feature_dim = feature_dim
         # self.feature_tau = feature_tau
         # self.use_feature_target = use_feature_target
-        # self.extra_feature_steps = extra_feature_steps
+        self.extra_feature_steps = extra_feature_steps
 
         # self.encoder = Encoder(state_dim=state_dim, 
         #       action_dim=action_dim, feature_dim=feature_dim).to(device)
@@ -518,14 +518,28 @@ class RFSACAgent(SACAgent):
         #   ).to(device)
         # self.critic = RFQCritic().to(device)
         if use_nystrom == False: #use RF
+            self.rf_num = rf_num
             self.critic = RFVCritic(s_dim=state_dim, sigma = sigma, rf_num = rf_num, learn_rf = learn_rf, **kwargs).to(device)
         else: #use nystrom
             feat_num = rf_num
             self.critic = nystromVCritic(sigma = sigma, feat_num = feat_num, buffer = replay_buffer, learn_rf = learn_rf,  **kwargs).to(device)
         # self.critic = Critic().to(device)
         self.critic_target = copy.deepcopy(self.critic)
-        self.critic_optimizer = torch.optim.Adam(
-            self.critic.parameters(), lr=lr, betas=[0.9, 0.999])
+        self.robust_feature = kwargs.get('robust_feature', False)
+
+        # separate update targets if we have robust updates
+        if self.robust_feature:
+            self.pertubation_optimizer = torch.optim.Adam([
+                *self.critic.pertubation_w.parameters(),
+                self.critic.pertubation_phi
+            ], lr=lr, betas=[0.9, 0.999])
+            self.critic_optimizer = torch.optim.Adam([
+                *self.critic.output1.parameters(),
+                *self.critic.output2.parameters()
+            ], lr=lr, betas=[0.9, 0.999])
+        else:
+            self.critic_optimizer = torch.optim.Adam(
+                self.critic.parameters(), lr=lr, betas=[0.9, 0.999])
         self.args = kwargs
         self.dynamics_type = kwargs.get('dynamics_type')
         self.sin_input = kwargs.get('dynamics_parameters').get('sin_input')
@@ -559,6 +573,8 @@ class RFSACAgent(SACAgent):
             self.eig_optimizer = torch.optim.Adam([self.critic.eig_vals1, self.critic.S1],
                                                   lr = 1e-4)
         self.learn_rf = learn_rf
+
+
 
 
 
@@ -826,7 +842,7 @@ class RFSACAgent(SACAgent):
         g_vec[:, 1, 0] = g2
 
         action = torch.hstack([action, torch.zeros_like(action)])[:, :, np.newaxis]
-        acc = torch.reciprocal(m11 * m22 - m21 ** 2 + 1e-8) * mass_inv @ (action -
+        acc = torch.reciprocal(m11 * m22 - m21 ** 2 + 1e-8).unsqueeze(1).unsqueeze(2) * mass_inv @ (action -
                                                                 torch.matmul(c_matrix, states[:, -2:][:, :, np.newaxis]) - g_vec)
         new_states[:, 4] = theta1_dot + dt * torch.squeeze(acc[:, 0])
         new_states[:, 5] = theta2_dot + dt * torch.squeeze(acc[:, 1])
@@ -1024,6 +1040,20 @@ class RFSACAgent(SACAgent):
 
         return info
 
+    def pertubation_step(self, batch):
+        state, action, next_state, reward, done = unpack_batch(batch)
+        q1, q2 = self.critic(self.dynamics(state, action))
+        q = torch.min(q1,q2)
+        penalty_loss = 100 * (F.relu(torch.norm(self.critic.pertubation_phi) - np.sqrt(self.rf_num / 5.))
+                              + F.relu(torch.norm(self.critic.pertubation_w.weight) - np.sqrt(self.rf_num / 5.)))
+        pertubation_loss = torch.mean(q) + penalty_loss
+        self.pertubation_optimizer.zero_grad()
+        pertubation_loss.backward()
+        self.pertubation_optimizer.step()
+        info = {'pertubation_loss': pertubation_loss.item(),
+                'penalty_loss': penalty_loss.item()
+                }
+        return info
 
     def critic_step(self, batch):
         """
@@ -1050,12 +1080,12 @@ class RFSACAgent(SACAgent):
         q1,q2 = self.critic(self.dynamics(state,action))
         q1_loss = F.mse_loss(target_q, q1)
         q2_loss = F.mse_loss(target_q, q2)
-        if self.args.get('robust_feature', False):
-            penalty_loss = 100 * (F.relu(torch.norm(self.critic.pertubation_phi) - 3.)
-                                  + F.relu(torch.norm(self.critic.pertubation_mu.weight) - 3.))
-            q_loss = q1_loss + q2_loss + penalty_loss
-        else:
-            q_loss = q1_loss + q2_loss
+        # if self.args.get('robust_feature', False):
+        #     penalty_loss = 100 * (F.relu(torch.norm(self.critic.pertubation_phi) - 3.)
+        #                           + F.relu(torch.norm(self.critic.pertubation_w.weight) - 3.))
+        #     q_loss = q1_loss + q2_loss + penalty_loss
+        # else:
+        q_loss = q1_loss + q2_loss
 
         self.critic_optimizer.zero_grad()
         q_loss.backward()
@@ -1078,8 +1108,8 @@ class RFSACAgent(SACAgent):
             'layer_norm_weights_norm': self.critic.norm.weight.norm(),
             }
 
-        if self.args.get('robust_feature', False):
-            info.update({'penalty_loss': penalty_loss.item(),})
+        # if self.args.get('robust_feature', False):
+        #     info.update({'penalty_loss': penalty_loss.item(),})
 
         dist = {
             'td_error': (torch.min(q1, q2) - target_q).cpu().detach().clone().numpy(),
@@ -1105,7 +1135,7 @@ class RFSACAgent(SACAgent):
         """
         self.steps += 1
 
-        # # Feature step
+        # Feature step
         # for _ in range(self.extra_feature_steps+1):
         #   batch = buffer.sample(batch_size)
         #   feature_info = self.feature_step(batch)
@@ -1115,6 +1145,9 @@ class RFSACAgent(SACAgent):
         #       self.update_feature_target()
 
         batch = buffer.sample(batch_size)
+
+        if self.robust_feature and self.steps % 5 == 0:
+            pertubation_info = self.pertubation_step(batch)
 
         # Acritic step
         critic_info = self.critic_step(batch)
@@ -1126,11 +1159,16 @@ class RFSACAgent(SACAgent):
         # Update the frozen target models
         self.update_target()
 
-        return {
+        infos = {
             # **feature_info,
-            **critic_info, 
+            **critic_info,
             **actor_info,
         }
+
+        if self.robust_feature and self.steps % 5 == 0:
+            infos.update({**pertubation_info})
+
+        return infos
 
 
     

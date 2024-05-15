@@ -78,5 +78,5 @@ if __name__ == '__main__':
                  'noisy_CartPoleContinuous':{},
                  'CartPendulum': {},
                  'noisy_CartPendulum':{}}
-    eval_robust('/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendulum-v1_sigma_0.0_rew_scale_1.0/rfsac_nystrom_False_rf_num_512_learn_rf_False/seed_0_2024-02-01-00-08-46')
+    eval_robust('/home/haitong/PycharmProjects/lvrep-rl-cloned/log/Pendulum-v1_sigma_0.0_rew_scale_1.0/rfsac_nystrom_False_rf_num_512_learn_rf_False/seed_0_2024-05-13-19-24-47_correct_norm_penalty')
     # eval_robust('/home/mht/PycharmProjects/lvrep-rl-cloned/log/Pendulum-v1_sigma_0.0_rew_scale_1.0/rfsac_nystrom_False_rf_num_512_learn_rf_False/seed_0_2024-02-01-10-45-39')

@@ -162,7 +162,8 @@ def env_creator_quad2d(env_config):
 
 
 def env_creator_pendulum(env_config):
-    env = gymnasium.make('Pendulum-v1', g = env_config.get('g', 10.0), m=env_config.get('m', 1.0))
+    # from envs.pendulum import PendulumEnvV2
+    env = gymnasium.make('Pendulum-v2', g = env_config.get('g', 10.0), m=env_config.get('m', 1.0))
     if env_config.get('reward_exponential'):
         env = TransformReward(env, lambda r: np.exp(env_config.get('reward_scale') * r))
     else:
