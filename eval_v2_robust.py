@@ -27,18 +27,20 @@ def eval_robust(log_path, robust='robust'):
     dfs = []
 
     # for g in np.linspace(10, 13, 2):
-    for m in np.linspace(0.2, 1.8, 5):
-        eval_config.update(dict(m=m))
-        if env_name == "Pendulum-v1":
+    if env_name == "Pendulum-v1":
+        for m in np.linspace(0.2, 1.8, 5):
+            eval_config.update(dict(m=m))
             eval_env = env_creator_pendulum(eval_config)
+    elif env_name == 'CartPendulum-v0':
+        for m in np.linspace(0.2, 1.8, 5):
+            eval_env = env_creator_cartpendulum(eval_config)
         # elif env_name == 'Quadrotor2D-v2':
         #     eval_env = env_creator_quad2d(eval_config)
         # elif env_name == 'Pendubot-v0':
         #     eval_env = env_creator_pendubot(eval_config)
         # elif env_name == 'CartPoleContinuous-v0':
         #     eval_env = env_creator_cartpole(eval_config)
-        # elif env_name == 'CartPendulum-v0':
-        #     eval_env = env_creator_cartpendulum(eval_config)
+
         else:
             raise NotImplementedError
         eval_env = Gymnasium2GymWrapper(eval_env)

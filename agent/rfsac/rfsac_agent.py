@@ -1044,14 +1044,25 @@ class RFSACAgent(SACAgent):
         state, action, next_state, reward, done = unpack_batch(batch)
         q1, q2 = self.critic(self.dynamics(state, action))
         q = torch.min(q1,q2)
-        penalty_loss = 100 * (F.relu(torch.norm(self.critic.pertubation_phi) - np.sqrt(self.rf_num / 5.))
-                              + F.relu(torch.norm(self.critic.pertubation_w.weight) - np.sqrt(self.rf_num / 5.)))
-        pertubation_loss = torch.mean(q) + penalty_loss
+        # penalty_loss = 100 * (F.relu(torch.norm(self.critic.pertubation_phi) - np.sqrt(self.rf_num / 5.))
+        #                       + F.relu(torch.norm(self.critic.pertubation_w.weight) - np.sqrt(self.rf_num / 5.)))
+
+
+        pertubation_loss = torch.mean(q) #3 + penalty_loss
         self.pertubation_optimizer.zero_grad()
         pertubation_loss.backward()
         self.pertubation_optimizer.step()
+        phi_norm = torch.norm(self.critic.pertubation_phi).item()
+        w_norm = torch.norm(self.critic.pertubation_w.weight).item()
+        if phi_norm > self.args.get('robust_radius'):
+            print('assign phi')
+            self.critic.pertubation_phi = nn.Parameter(1 / phi_norm * self.args.get('robust_radius') * self.critic.pertubation_phi )
+        if w_norm > self.args.get('robust_radius'):
+            print('assign w')
+            self.critic.pertubation_w.weight = nn.Parameter(1 / w_norm * self.args.get('robust_radius') * self.critic.pertubation_w.weight)
         info = {'pertubation_loss': pertubation_loss.item(),
-                'penalty_loss': penalty_loss.item()
+                'phi_norm': phi_norm,
+                'w_norm': w_norm
                 }
         return info
 

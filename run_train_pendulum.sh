@@ -6,10 +6,12 @@
 for ALG in rfsac; do
   for SIGMA in 0.0; do
     for RF_NUM in 512; do
-      for SEED in 1 2 3 4; do
+      for SEED in 1 2; do
         for LR in 3e-4; do
-          python main.py --use_random_feature --critic_lr $LR --alg $ALG --env Pendulum-v1 --sigma $SIGMA --max_timesteps 80000 --rf_num $RF_NUM --seed $SEED
-          python main.py --use_random_feature --robust_feature --critic_lr $LR --alg $ALG --env Pendulum-v1 --sigma $SIGMA --max_timesteps 80000 --rf_num $RF_NUM --seed $SEED
+          for R in 1.0 5.0 10.0 do
+#          python main.py --use_random_feature --critic_lr $LR --alg $ALG --env Pendulum-v1 --sigma $SIGMA --max_timesteps 80000 --rf_num $RF_NUM --seed $SEED
+            python main.py --use_random_feature --robust_feature --robust_radius $R --critic_lr $LR --alg $ALG --env Pendulum-v1 --sigma $SIGMA --max_timesteps 80000 --rf_num $RF_NUM --seed $SEED
+          done
         done
       done
     done
