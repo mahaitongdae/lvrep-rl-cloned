@@ -37,6 +37,7 @@ class PendubotEnv(gym.Env):
                  reward_type='lqr', # lqr or energy
                  theta_cal='sin_cos',
                  render_mode: Optional[str] = None,
+                 m = 1.0,
                  **kwargs):
         # set task
         self.task = task
@@ -81,11 +82,11 @@ class PendubotEnv(gym.Env):
         # self.d3 = self.m2 * self.L1 * self.l2
         # self.d4 = self.m1 * self.l1 + self.m2 * self.L1
         # self.d5 = self.m2 * self.l2
-        self.d1 = 0.089252
-        self.d2 = 0.027630
-        self.d3 = 0.023502
-        self.d4 = 0.011204
-        self.d5 = 0.002938
+        self.d1 = 0.089252 * m
+        self.d2 = 0.027630 * m
+        self.d3 = 0.023502 * m
+        self.d4 = 0.011204 * m
+        self.d5 = 0.002938 * m
 
         # precompute the jacobian of the dynamics
         # self.jacobian = self._jacobian()
@@ -243,11 +244,13 @@ class PendubotEnv(gym.Env):
         pos = vec[:self.n_coords]
         vel = vec[self.n_coords:-1]
         state = vec[:-1]
-        Minv = self._Minv(pos)
+        # Minv = self._Minv(pos)
+        M = self._M(pos)
         B = self._B()
         C = self._C(state)
         G = self._G(pos)
-        acc = np.dot(Minv, np.dot(B, force) - np.dot(C, vel.reshape((self.n_coords, 1))) - G)
+        # acc = np.dot(Minv, np.dot(B, force) - np.dot(C, vel.reshape((self.n_coords, 1))) - G)
+        acc = np.linalg.solve(M, np.dot(B, force) - np.dot(C, vel.reshape((self.n_coords, 1))) - G)
         return np.append(vel, acc.flatten())
 
     def _F(self, vec):
