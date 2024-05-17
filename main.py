@@ -34,7 +34,7 @@ if __name__ == "__main__":
     parser.add_argument("--notes", default='adjust_norm', type=str)
     parser.add_argument("--dir", default=1, type=int)
     parser.add_argument("--alg", default="rfsac")  # Alg name (sac, vlsac)
-    parser.add_argument("--env", default="Pendulum-v1")  # Environment name
+    parser.add_argument("--env", default="Pendubot-v0")  # Environment name
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--start_timesteps", default=5e3, type=float)  # Time steps initial random policy is used
     parser.add_argument("--eval_freq", default=5000, type=int)  # How often (time steps) we evaluate
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     parser.add_argument("--no_reward_exponential", dest='reward_exponential', action='store_false')
     parser.add_argument("--critic_lr", type=float, default=3e-4)
     parser.set_defaults(use_nystrom=False)
-    parser.set_defaults(robust_feature=True)
+    parser.set_defaults(robust_feature=False)
     parser.set_defaults(euler=False)
     parser.set_defaults(learn_rf=False)  # if want to add these, just add --use_nystrom to the scripts.
     parser.set_defaults(reward_exponential=ENV_CONFIG['reward_exponential'])
@@ -134,7 +134,7 @@ if __name__ == "__main__":
         alg_name = f'{alg_sub_name}_nystrom_{use_nystrom}_rf_num_{args.rf_num}_learn_rf_{args.learn_rf}'
         if use_nystrom:
             alg_name = alg_name + f'_sample_dim_{args.nystrom_sample_dim}'
-    exp_name = f'seed_{args.seed}_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}_{args.notes}'
+    exp_name = f'seed_{args.seed}_radius_{args.robust_radius}_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}_{args.notes}'
 
     # setup log
     log_path = f'log/{env_name}/{alg_name}/{exp_name}'
@@ -204,11 +204,12 @@ if __name__ == "__main__":
     best_eval_reward = -1e6
     best_actor = None
     best_critic = None
+    data_dumped = False
 
     for t in range(int(args.max_timesteps)):
 
         episode_timesteps += 1
-
+        data_dumped = False
         # Select action randomly or according to policy
         if t < args.start_timesteps:
             action = env.action_space.sample()
@@ -247,6 +248,18 @@ if __name__ == "__main__":
             episode_reward = 0
             episode_timesteps = 0
             episode_num += 1
+
+        # dump data
+
+        if (t + 1) % 10 == 0 and t >= args.start_timesteps:
+            for key, value in info.items():
+                if 'dist' not in key:
+                    summary_writer.add_scalar(f'info/{key}', value, t + 1)
+                else:
+                    for dist_key, dist_val in value.items():
+                        summary_writer.add_histogram(dist_key, dist_val, t + 1)
+            summary_writer.flush()
+            data_dumped = True
 
         # Evaluate episode
         if (t + 1) % args.eval_freq == 0:

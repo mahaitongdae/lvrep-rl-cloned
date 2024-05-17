@@ -842,7 +842,7 @@ class RFSACAgent(SACAgent):
         g_vec[:, 1, 0] = g2
 
         action = torch.hstack([action, torch.zeros_like(action)])[:, :, np.newaxis]
-        acc = torch.reciprocal(m11 * m22 - m21 ** 2 + 1e-8).unsqueeze(1).unsqueeze(2) * mass_inv @ (action -
+        acc = torch.reciprocal(m11 * m22 - m21 ** 2 + 1e-6).unsqueeze(1).unsqueeze(2) * mass_inv @ (action -
                                                                 torch.matmul(c_matrix, states[:, -2:][:, :, np.newaxis]) - g_vec)
         new_states[:, 4] = theta1_dot + dt * torch.squeeze(acc[:, 0])
         new_states[:, 5] = theta2_dot + dt * torch.squeeze(acc[:, 1])

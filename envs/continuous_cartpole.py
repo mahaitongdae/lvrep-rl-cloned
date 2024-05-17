@@ -91,13 +91,13 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         "render_fps": 50,
     }
 
-    def __init__(self, render_mode: Optional[str] = None, task = 'swingup', noise_scale= 0., eval=False):
+    def __init__(self, render_mode: Optional[str] = None, task = 'swingup', noise_scale= 0., eval=False, m = 0.1):
         """
         task : swingup or balance
         """
         self.gravity = 9.8
         self.masscart = 1.0
-        self.masspole = 0.1
+        self.masspole = m
         self.total_mass = self.masspole + self.masscart
         self.length = 0.5  # actually half the pole's length
         self.polemass_length = self.masspole * self.length

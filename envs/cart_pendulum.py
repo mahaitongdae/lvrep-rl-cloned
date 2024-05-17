@@ -95,13 +95,13 @@ class CartPendulumEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
     }
 
 
-    def __init__(self, render_mode: Optional[str] = None, task = 'swingup', noise_scale= 0., eval=False):
+    def __init__(self, render_mode: Optional[str] = None, task = 'swingup', noise_scale= 0., eval=False, m=0.2):
         """
         task : swingup or balance
         """
         self.g = 10
         self.M = 0.5
-        self.m = 0.2
+        self.m = m
         self.b = 0.1
         self.I = 0.006
         self.l = 0.3
