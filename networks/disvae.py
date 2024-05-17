@@ -3,9 +3,6 @@ from torch import nn
 from torch.nn import functional as F
 import torch.distributions as td 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
 class Encoder(nn.Module):
   """
   Discrete encoder

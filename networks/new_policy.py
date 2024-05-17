@@ -96,6 +96,7 @@ class GaussianPolicy(nn.Module):
 		action_dim,
 		action_space,
 		hidden_dim=256,
+		device=torch.device('cpu')
 	):
 		super(GaussianPolicy, self).__init__()
 

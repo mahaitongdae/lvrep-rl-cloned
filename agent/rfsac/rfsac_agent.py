@@ -16,7 +16,7 @@ from networks.vae import Encoder, Decoder, GaussianFeature
 from agent.sac.sac_agent import SACAgent
 # from main import DEVICE
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.autograd.set_detect_anomaly(True)
 
 class Critic(nn.Module):
@@ -28,12 +28,14 @@ class Critic(nn.Module):
         feature_dim,
         num_noise=20, 
         hidden_dim=256,
+        device=torch.device('cpu')
         ):
 
         super().__init__()
+        self.device = device
         self.num_noise = num_noise
         self.noise = torch.randn(
-            [self.num_noise, feature_dim], requires_grad=False, device=device)
+            [self.num_noise, feature_dim], requires_grad=False, device=self.device)
 
         # Q1
         self.l1 = nn.Linear(feature_dim, hidden_dim) # random feature
@@ -359,9 +361,9 @@ class nystromVCritic(RLNetwork):
             eig_vals1 = eig_vals1[argsort]
             S1 = S1[:, argsort]
             eig_vals1 = np.clip(eig_vals1, 1e-8, np.inf)[:self.feature_dim]
-            self.eig_vals1 = torch.from_numpy(eig_vals1).float().to(device)
-            self.S1 = torch.from_numpy(S1[:, :self.feature_dim]).float().to(device)
-            self.nystrom_samples1 = torch.from_numpy(self.nystrom_samples1).to(device)
+            self.eig_vals1 = torch.from_numpy(eig_vals1).float().to(self.device)
+            self.S1 = torch.from_numpy(S1[:, :self.feature_dim]).float().to(self.device)
+            self.nystrom_samples1 = torch.from_numpy(self.nystrom_samples1).to(self.device)
         else:
             self.nystrom_samples1 = torch.zeros((self.sample_dim, self.s_dim))
             self.eig_vals1 = torch.ones([self.feature_dim,])
@@ -482,6 +484,7 @@ class RFSACAgent(SACAgent):
             target_update_period=target_update_period,
             auto_entropy_tuning=auto_entropy_tuning,
             hidden_dim=hidden_dim,
+            **kwargs
         )
         # self.feature_dim = feature_dim
         # self.feature_tau = feature_tau
@@ -517,12 +520,13 @@ class RFSACAgent(SACAgent):
         #   hidden_depth = 2,
         #   ).to(device)
         # self.critic = RFQCritic().to(device)
+
         if use_nystrom == False: #use RF
             self.rf_num = rf_num
-            self.critic = RFVCritic(s_dim=state_dim, sigma = sigma, rf_num = rf_num, learn_rf = learn_rf, **kwargs).to(device)
+            self.critic = RFVCritic(s_dim=state_dim, sigma = sigma, rf_num = rf_num, learn_rf = learn_rf, **kwargs).to(self.device)
         else: #use nystrom
             feat_num = rf_num
-            self.critic = nystromVCritic(sigma = sigma, feat_num = feat_num, buffer = replay_buffer, learn_rf = learn_rf,  **kwargs).to(device)
+            self.critic = nystromVCritic(sigma = sigma, feat_num = feat_num, buffer = replay_buffer, learn_rf = learn_rf,  **kwargs).to(self.device)
         # self.critic = Critic().to(device)
         self.critic_target = copy.deepcopy(self.critic)
         self.robust_feature = kwargs.get('robust_feature', False)
@@ -713,7 +717,7 @@ class RFSACAgent(SACAgent):
         polemass_length = masspole * length
         dt = 0.02
         gravity = 9.81
-        new_states = torch.empty_like(states, device=device)
+        new_states = torch.empty_like(states, device=self.device)
         new_states[:, 0] = states[:, 0] + dt * states[:, 1]
         new_states[:, 2] = states[:, 2] + dt * states[:, 3]
         theta = states[:, 2]
@@ -749,7 +753,7 @@ class RFSACAgent(SACAgent):
         polemass_length = masspole * length
         dt = 0.02
         gravity = 9.81
-        new_states = torch.empty_like(states, device=device)
+        new_states = torch.empty_like(states, device=self.device)
         new_states[:, 0] = states[:, 0] + dt * states[:, 1]
         costheta = states[:, -3]
         sintheta = states[:, -2]
@@ -778,7 +782,7 @@ class RFSACAgent(SACAgent):
 
     def pendubot_f_6d(self, states, action):
         dt = 0.05
-        new_states = torch.empty_like(states, device=device)
+        new_states = torch.empty_like(states, device=self.device)
         cos_theta1, sin_theta1 = states[:, 0], states[:, 1]
         cos_theta2, sin_theta2 = states[:, 2], states[:, 3]
         theta1_dot, theta2_dot = states[:, 4], states[:, 5]
@@ -806,7 +810,7 @@ class RFSACAgent(SACAgent):
         # m12 = d2 + d3 * torch.cos(theta2)
         m22 = d2
 
-        mass_matrix = torch.empty((states.shape[0], 2, 2), device=device)
+        mass_matrix = torch.empty((states.shape[0], 2, 2), device=self.device)
         mass_matrix[:, 0, 0] = m11
         mass_matrix[:, 0, 1] = m21
         mass_matrix[:, 1, 0] = m21
@@ -814,7 +818,7 @@ class RFSACAgent(SACAgent):
 
         self.mass_matrix = mass_matrix
 
-        # mass_inv = torch.empty_like(mass_matrix, device=device)
+        # mass_inv = torch.empty_like(mass_matrix, device=self.device)
         # mass_matrix[:, 0, 0] = m22
         # mass_matrix[:, 0, 1] = - m21
         # mass_matrix[:, 1, 0] = - m21
@@ -824,7 +828,7 @@ class RFSACAgent(SACAgent):
         # mass_matrix = np.array([[m11, m12],
         #                         [m21, m22]])
 
-        c_matrix = torch.empty((states.shape[0], 2, 2), device=device)
+        c_matrix = torch.empty((states.shape[0], 2, 2), device=self.device)
         c11 = -1. * d3 * torch.sin(theta2) * theta2_dot
         c12 = -d3 * torch.sin(theta2) * (theta2_dot + theta1_dot)
         c21 = d3 * torch.sin(theta2) * theta1_dot
@@ -837,7 +841,7 @@ class RFSACAgent(SACAgent):
         g1 = d4 * torch.cos(theta2) * g + d5 * g * torch.cos(theta1 + theta2)
         g2 = d5 * torch.cos(theta1 + theta2) * g
 
-        g_vec = torch.empty((states.shape[0], 2, 1), device=device)
+        g_vec = torch.empty((states.shape[0], 2, 1), device=self.device)
         g_vec[:, 0, 0] = g1
         g_vec[:, 1, 0] = g2
 
@@ -855,7 +859,7 @@ class RFSACAgent(SACAgent):
         dt = 0.02
         g, M, m, b, I, l = 10, 0.5, 0.2, 0.1, 0.006, 0.3
         force_mag = 0.4
-        new_states = torch.empty_like(states, device=device)
+        new_states = torch.empty_like(states, device=self.device)
         new_states[:, 0] = states[:, 0] + dt * states[:, 1]
         costheta = states[:, -3]
         sintheta = states[:, -2]
@@ -911,13 +915,13 @@ class RFSACAgent(SACAgent):
         elif self.dynamics_type == 'Quadrotor2D':
             if isinstance(self.args.get('dynamics_parameters').get('stabilizing_target'), list):
                 stabilizing_target = torch.tensor(self.args.get('dynamics_parameters').get('stabilizing_target'),
-                                                  device=device)
+                                                  device=self.device)
             else:
-                stabilizing_target = self.args.get('dynamics_parameters').get('stabilizing_target').to(device)
+                stabilizing_target = self.args.get('dynamics_parameters').get('stabilizing_target').to(self.device)
             if self.sin_input is False:
                 assert obs.shape[1] == 6
                 state_error = obs - stabilizing_target
-                reward = -(torch.sum( torch.multiply(torch.tensor([1., 0., 1., 0., 0., 0.], device=device),
+                reward = -(torch.sum( torch.multiply(torch.tensor([1., 0., 1., 0., 0., 0.], device=self.device),
                                                      state_error ** 2), dim=1) ) # + torch.sum(0.1 * action ** 2, dim=1)
                 # if self.args.get('dynamics_parameters').get('reward_exponential'):
                 #     reward = torch.exp(reward)
@@ -926,7 +930,7 @@ class RFSACAgent(SACAgent):
                 th = torch.unsqueeze(torch.atan2(obs[:, -2], obs[:, -3]), dim=1)  # -2 is sin, -3 is cos
                 obs = torch.hstack([obs[:, :4], th, obs[:, -1:]])
                 state_error = obs - stabilizing_target
-                reward = -(torch.sum(torch.multiply(torch.tensor([1., 0., 1., 0., 0., 0.], device=device),
+                reward = -(torch.sum(torch.multiply(torch.tensor([1., 0., 1., 0., 0., 0.], device=self.device),
                                                     state_error ** 2), dim=1) ) # + torch.sum(0.1 * action ** 2, dim=1)
 
         elif self.dynamics_type == 'CartPoleContinuous':
@@ -938,7 +942,7 @@ class RFSACAgent(SACAgent):
                 th = torch.where(obs[:, -3] >= 0., th, th + torch.pi )
                 x = obs[:, 0]
                 obs_no_theta = torch.hstack([obs[:, :-3], obs[:, -1:]])
-                reward = -(torch.sum(torch.multiply(torch.tensor([0.01, 0.001, 0.001], device=device), obs_no_theta), dim=1)
+                reward = -(torch.sum(torch.multiply(torch.tensor([0.01, 0.001, 0.001], device=self.device), obs_no_theta), dim=1)
                            # + torch.sin(th) ** 2 + (torch.cos(th) - 1) ** 2
                            + (torch.remainder(th + torch.pi, 2 * torch.pi) - torch.pi) ** 2
                            + torch.sum(0.001 * action ** 2, dim=1)) \

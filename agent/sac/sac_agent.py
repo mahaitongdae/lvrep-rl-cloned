@@ -9,7 +9,7 @@ from utils import util
 from agent.sac.critic import DoubleQCritic
 from agent.sac.actor import DiagGaussianActor
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #
 
 
 class SACAgent(object):
@@ -33,7 +33,11 @@ class SACAgent(object):
 
 		self.steps = 0
 
-		self.device = device 
+		if torch.cuda.is_available():
+			device = torch.device(kwargs.get('device', 'cpu'))
+		else:
+			device = torch.device('cpu')
+		self.device = device
 		self.action_range = [
 			float(action_space.low.min()),
 			float(action_space.high.max())

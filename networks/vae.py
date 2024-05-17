@@ -3,9 +3,6 @@ from torch import nn
 from torch.nn import functional as F
 from torch.distributions import Normal 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
 

@@ -31,25 +31,29 @@ DEVICE = "cuda"
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
+    # Names and pipelines
     parser.add_argument("--notes", default='adjust_norm', type=str)
     parser.add_argument("--dir", default=1, type=int)
-    parser.add_argument("--alg", default="rfsac")  # Alg name (sac, vlsac)
-    parser.add_argument("--env", default="Pendubot-v0")  # Environment name
-    parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
-    parser.add_argument("--start_timesteps", default=5e3, type=float)  # Time steps initial random policy is used
+    parser.add_argument("--device", default='cuda', type=str, help='device, either cpu or cuda')
+    parser.add_argument("--save_model", action="store_true")  # Save model and optimizer parameters
     parser.add_argument("--eval_freq", default=5000, type=int)  # How often (time steps) we evaluate
     parser.add_argument("--max_timesteps", default=10e4, type=float)  # Max time steps to run environment
-    parser.add_argument("--expl_noise", default=0.1)  # Std of Gaussian exploration noise
-    parser.add_argument("--batch_size", default=256, type=int)  # Batch size for both actor and critic
-    parser.add_argument("--hidden_dim", default=256, type=int)  # Network hidden dims
-    parser.add_argument("--feature_dim", default=256, type=int)  # Latent feature dim
-    parser.add_argument("--discount", default=0.99)  # Discount factor
-    parser.add_argument("--tau", default=0.005)  # Target network update rate
-    parser.add_argument("--learn_bonus", action="store_true")  # Save model and optimizer parameters
-    parser.add_argument("--save_model", action="store_true")  # Save model and optimizer parameters
-    parser.add_argument("--extra_feature_steps", default=3, type=int)
+    parser.add_argument("--start_timesteps", default=5e3, type=float)  # Time steps initial random policy is used
+    parser.add_argument("--alg", default="rfsac")  # Alg name (sac, vlsac)
     parser.add_argument("--sigma", default=0., type=float)  # noise for noisy environment
     parser.add_argument("--embedding_dim", default=-1, type=int)  # if -1, do not add embedding layer
+
+    # envs
+    parser.add_argument("--env", default="Pendulum-v1")  # Environment name
+    parser.add_argument("--reward_exponential", action='store_true')
+    parser.add_argument("--no_reward_exponential", dest='reward_exponential', action='store_false')
+    parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
+
+    # models
+    parser.add_argument("--hidden_dim", default=256, type=int)  # Network hidden dims
+    parser.add_argument("--feature_dim", default=256, type=int)  # Latent feature dim
+
+    # ALGORITHMS
     parser.add_argument("--rf_num", default=512, type=int)
     parser.add_argument("--nystrom_sample_dim", default=512, type=int,
                         help='sample dim, must be greater or equal rf num.')
@@ -60,16 +64,24 @@ if __name__ == "__main__":
     parser.add_argument("--robust_feature", action='store_true')
     parser.add_argument("--robust_radius", default=1.0, type=float)
     parser.add_argument("--use_random_feature", dest='use_nystrom', action='store_false')
-    parser.add_argument("--reward_exponential", action='store_true')
-    parser.add_argument("--no_reward_exponential", dest='reward_exponential', action='store_false')
-    parser.add_argument("--critic_lr", type=float, default=3e-4)
+    parser.add_argument("--learn_bonus", action="store_true")  # Save model and optimizer parameters
+    parser.add_argument("--extra_feature_steps", default=3, type=int)
     parser.set_defaults(use_nystrom=False)
     parser.set_defaults(robust_feature=False)
     parser.set_defaults(euler=False)
     parser.set_defaults(learn_rf=False)  # if want to add these, just add --use_nystrom to the scripts.
     parser.set_defaults(reward_exponential=ENV_CONFIG['reward_exponential'])
+
+
+    # SAC parameters
+    parser.add_argument("--expl_noise", default=0.1)  # Std of Gaussian exploration noise
+    parser.add_argument("--batch_size", default=256, type=int)  # Batch size for both actor and critic
+    parser.add_argument("--discount", default=0.99)  # Discount factor
+    parser.add_argument("--tau", default=0.005)  # Target network update rate
+
+    parser.add_argument("--critic_lr", type=float, default=3e-4)
+
     args = parser.parse_args()
-    print(args.reward_exponential)
 
     sigma = args.sigma
     euler = True if args.euler == True else False
