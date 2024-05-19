@@ -35,7 +35,7 @@ def eval_robust(log_path, robust='robust'):
     # elif env_name == 'CartPoleContinuous-v0':
     #     eval_env = env_creator_cartpole(eval_config)
     elif env_name == 'CartPendulum-v0':
-        m_list = np.linspace(0.04, 0.36, 5)
+        m_list = [0.2, 0.4,0.8,1.0,1.5]
     else:
         raise ValueError('Unknown env name')
 

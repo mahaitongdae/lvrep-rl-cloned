@@ -34,7 +34,7 @@ if __name__ == "__main__":
     # Names and pipelines
     parser.add_argument("--notes", default='adjust_norm', type=str)
     parser.add_argument("--dir", default=1, type=int)
-    parser.add_argument("--device", default='cuda', type=str, help='device, either cpu or cuda')
+    parser.add_argument("--device", default='cpu', type=str, help='device, either cpu or cuda')
     parser.add_argument("--save_model", action="store_true")  # Save model and optimizer parameters
     parser.add_argument("--eval_freq", default=5000, type=int)  # How often (time steps) we evaluate
     parser.add_argument("--max_timesteps", default=10e4, type=float)  # Max time steps to run environment
@@ -201,7 +201,7 @@ if __name__ == "__main__":
     elif args.alg == 'rfsac':
         agent = rfsac_agent.RFSACAgent(**kwargs)
 
-    replay_buffer = buffer.ReplayBuffer(state_dim, action_dim)
+    replay_buffer = buffer.ReplayBuffer(state_dim, action_dim, device=torch.device(args.device))
 
     # Evaluate untrained policy
     evaluations = [] # util.eval_policy(agent, eval_env)[1]
