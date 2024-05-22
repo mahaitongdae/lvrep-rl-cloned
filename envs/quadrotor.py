@@ -19,7 +19,8 @@ class Quadrotor2D(gymnasium.Env):
         super(Quadrotor2D, self).__init__()
         self.eval = eval
         self.sin_input = sin_input
-        self.m = 0.027
+        m = kwargs.get('m', 1.0)
+        self.m = 0.027 * m
         self.action_space = gymnasium.spaces.Box(-1 * np.ones([2,]), np.ones([2,]))
         obs_low = np.array([-2., -np.inf, -0.05, -np.inf, -1.4835298, -np.inf ], dtype=float)
         obs_high = np.array([2., np.inf, 3., np.inf, 1.4835298, np.inf ], dtype=float)

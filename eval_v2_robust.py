@@ -28,8 +28,8 @@ def eval_robust(log_path, robust='robust'):
     if env_name == "Pendulum-v1":
         m_list = np.linspace(0.2, 1.8, 5)
 
-    # elif env_name == 'Quadrotor2D-v2':
-    #     eval_env = env_creator_quad2d(eval_config)
+    elif env_name == 'Quadrotor2D-v2':
+        m_list = np.linspace(0.2, 1.8, 5)
     elif env_name == 'Pendubot-v0':
         m_list = np.linspace(0.2, 1.8, 5)
     # elif env_name == 'CartPoleContinuous-v0':
@@ -44,8 +44,8 @@ def eval_robust(log_path, robust='robust'):
         eval_config.update(dict(m=m))
         if env_name == "Pendulum-v1":
             eval_env = env_creator_pendulum(eval_config)
-        # elif env_name == 'Quadrotor2D-v2':
-        #     eval_env = env_creator_quad2d(eval_config)
+        elif env_name == 'Quadrotor2D-v2':
+            eval_env = env_creator_quad2d(eval_config)
         elif env_name == 'Pendubot-v0':
             eval_env = env_creator_pendubot(eval_config)
         # elif env_name == 'CartPoleContinuous-v0':
