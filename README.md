@@ -1,17 +1,37 @@
-# lvrep-rl modified by Zhaolin
+# Stochastic Nonlinear Control via Finite-dimensional Spectral Dynamic Embedding
 
-To train an agent, use the main.py file (alternatively, the run_train.sh file). To evaluate an agent, use the eval.py file (alternatively, the run_eval.sh file).
+This is the implementation of [Stochastic nonlinear control via finite-dimensional spectral dynamic embedding](https://arxiv.org/abs/2304.03907). A short version of this paper has shown up in [CDC 2023](https://ieeexplore.ieee.org/abstract/document/10383842).
 
-The rfsac agent is the random fourier feature + SAC agent. The V critic network used by the rfsac agent is the RFVCritic critic in agent.rfsac.rfsac_agent file. The remaining elements of the agent (i.e. the actor) is an SAC actor.
+## Installation
+```bash
+# in your virtual/conda environments
+pip install -r requirements.txt
+```
 
-TODOS:
+## Sample scripts of running experiments
+- Random feature
+  ```bash
+  python main.py --use_random_feature --no_reward_exponential --critic_lr 3e-4 --alg rfsac --env Pendubot-v0 --sigma 1.0 --max_timesteps 150000 --rf_num 8192 --seed 0
+  ```
+- Nystrom feature
+  ```bash
+  python main.py --use_nystrom --no_reward_exponential --critic_lr 3e-4 --alg rfsac --env Pendubot-v0 --sigma 1.0 --max_timesteps 150000 --rf_num 8192 --nystrom_sample_dim 2048 --seed 0
+  ```
+  Please refer to `run_train_$ENV.sh` for more training scripts and recommended hyperparameters.
 
-- [ ] Pendubot Nystrom still use Layernorm, not compatible with Quadrotor2d.
-- [ ] Quad2D RF uses slightly higher critic lr, 1e-3.
+## Baselines
 
-## Experimental Results:
-### 2D Drones:
-- Nystrom: /home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/temp_good_results/rfsac_nystrom_True_rf_num_2048_sample_dim_8192/seed_0_2023-09-02-12-24-08
-  - top 2048 over 8192 sample dim
-  - other can see temp good results dir
-- RF:
+The code for iLQR is found in the branch iLQC. Please use test_main.py in that branch to train and evaluate iLQR on the pendulum swingup problem.
+
+The code for Koopman control is found in the branch DeepKoopman. Please use the Learn_Koopman_with_KlinearEig.py file in the train folder of that branch to train a new Koopman dynamics model; for evaluation, please use the og_eval_mpc.py file in the control folder of that branch.
+
+## Citations
+```
+@article{ren2023stochastic,
+      title={Stochastic Nonlinear Control via Finite-dimensional Spectral Dynamic Embedding}, 
+      author={Tongzheng Ren and Zhaolin Ren and Haitong Ma and Na Li and Bo Dai},
+      year={2023},
+      eprint={2304.03907},
+      archivePrefix={arXiv}
+}
+```
