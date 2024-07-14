@@ -31,8 +31,9 @@ DEVICE = "cuda"
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("--device", default='mps', type=str)
     parser.add_argument("--dir", default='main', type=str)
-    parser.add_argument("--alg", default="rfsac")  # Alg name (sac, vlsac)
+    parser.add_argument("--alg", default="sac")  # Alg name (sac, vlsac)
     parser.add_argument("--env", default="CartPendulum-v0")  # Environment name
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--start_timesteps", default=5e3, type=float)  # Time steps initial random policy is used
@@ -181,7 +182,7 @@ if __name__ == "__main__":
     elif args.alg == 'rfsac':
         agent = rfsac_agent.RFSACAgent(**kwargs)
 
-    replay_buffer = buffer.ReplayBuffer(state_dim, action_dim)
+    replay_buffer = buffer.ReplayBuffer(state_dim, action_dim, device=args.device)
 
     # Evaluate untrained policy
     evaluations = [] # util.eval_policy(agent, eval_env)[1]

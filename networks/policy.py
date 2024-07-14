@@ -7,9 +7,6 @@ import numpy as np
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
 epsilon = 1e-6
-# from main import DEVICE
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class GaussianPolicy(nn.Module):
 	"""
@@ -21,8 +18,10 @@ class GaussianPolicy(nn.Module):
 		action_dim,
 		action_space,
 		hidden_dim=256,
+		device='cpu'
 	):
 		super(GaussianPolicy, self).__init__()
+		device = torch.device(device)
 
 		self.l1 = nn.Linear(state_dim, hidden_dim)
 		self.l2 = nn.Linear(hidden_dim, hidden_dim)

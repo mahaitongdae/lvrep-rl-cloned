@@ -9,8 +9,6 @@ from utils import util
 from agent.sac.critic import DoubleQCritic
 from agent.sac.actor import DiagGaussianActor
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #
-
 
 class SACAgent(object):
 	"""
@@ -28,12 +26,13 @@ class SACAgent(object):
 			alpha=0.1,
 			auto_entropy_tuning=True,
 			hidden_dim=1024,
+			device='cpu',
 			**kwargs
 			):
 
 		self.steps = 0
 
-		self.device = device 
+		self.device = torch.device(device)
 		self.action_range = [
 			float(action_space.low.min()),
 			float(action_space.high.max())
@@ -64,7 +63,7 @@ class SACAgent(object):
 			hidden_depth=2,
 			log_std_bounds=[-5., 2.], 
 		).to(self.device)
-		self.log_alpha = torch.tensor(np.log(alpha)).to(self.device)
+		self.log_alpha = torch.tensor(np.log(alpha)).float().to(self.device)
 		self.log_alpha.requires_grad = True
 		self.target_entropy = -action_dim
 		
