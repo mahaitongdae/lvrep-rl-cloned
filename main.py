@@ -10,7 +10,6 @@ from tensorboardX import SummaryWriter
 
 from utils import util, buffer
 from agent.sac import sac_agent
-from agent.vlsac import vlsac_agent
 from agent.rfsac import rfsac_agent
 from datetime import datetime
 
@@ -34,7 +33,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", default='mps', type=str)
     parser.add_argument("--dir", default='main', type=str)
     parser.add_argument("--alg", default="sac")  # Alg name (sac, vlsac)
-    parser.add_argument("--env", default="CartPendulum-v0")  # Environment name
+    parser.add_argument("--env", default="Articulate-v0")  # Environment name
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--start_timesteps", default=5e3, type=float)  # Time steps initial random policy is used
     parser.add_argument("--eval_freq", default=5000, type=int)  # How often (time steps) we evaluate
@@ -107,6 +106,10 @@ if __name__ == "__main__":
         eval_env = env_creator_cartpendulum(ENV_CONFIG)
         ENV_CONFIG.update({'reward_scale': 0.3, 'reward_exponential': ENV_CONFIG.get('reward_exponential'), 'eval': False})
         env = env_creator_cartpendulum(ENV_CONFIG)
+    elif args.env == 'Articulate-v0':
+        ENV_CONFIG.update({'reward_scale': 1., 'reward_exponential': False})
+        eval_env = env_creator_articulate(ENV_CONFIG)
+        env = env_creator_articulate(ENV_CONFIG)
 
     # wrapper back to gym to fit the code
     env = Gymnasium2GymWrapper(env)
@@ -209,7 +212,7 @@ if __name__ == "__main__":
             action = agent.select_action(state, explore=True)
 
         # Perform action
-        next_state, reward, done, _ = env.step(action)
+        next_state, reward, done, rollout_info = env.step(action)
         # print(action, next_state, reward)
         # print("next state", next_state)
         # done_bool = float(done) if episode_timesteps < max_length else 0
@@ -221,18 +224,13 @@ if __name__ == "__main__":
         episode_reward += reward
         info = {}
 
-        # Train agent after collecting sufficient data
-        # if use_nystrom == True and t == args.start_timesteps:  # init nystrom at the step training begins
-        #     kwargs["replay_buffer"] = replay_buffer
-            # agent = rfsac_agent.RFSACAgent(**kwargs)  # reinit agent is not ideal, temp fix
-
         if t >= args.start_timesteps:
             info = agent.train(replay_buffer, batch_size=args.batch_size)
 
         if done:
             # +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
             print(
-                f"Total T: {t + 1} Episode Num: {episode_num + 1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f} use_nystrom:{use_nystrom} rf_num:{args.rf_num} seed:{args.seed}")
+                f"Total T: {t + 1} Episode Num: {episode_num + 1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f} Info: {rollout_info}")
             # Reset environment
             info.update({'ep_len': episode_timesteps})
             state, done = env.reset(), False

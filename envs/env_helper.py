@@ -230,6 +230,18 @@ def env_creator_pendubot(env_config):
     else:
         return env
 
+def env_creator_articulate(env_config):
+    from gymnasium.envs.registration import register
+    reward_scale = env_config.get('reward_scale')
+    register(id='Articulate-v0',
+             entry_point='envs:ArticulateParking',
+             max_episode_steps=500)
+    env = gymnasium.make('Articulate-v0',)
+    env = TransformReward(env, lambda r: reward_scale * r)
+    if env_config.get('reward_exponential'):
+        env = TransformReward(env, lambda r: np.exp(r))
+    return env
+
 
 if __name__ == '__main__':
     from main import ENV_CONFIG
