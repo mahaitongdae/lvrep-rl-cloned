@@ -236,7 +236,10 @@ def env_creator_articulate(env_config):
     register(id='Articulate-v0',
              entry_point='envs:ArticulateParking',
              max_episode_steps=500)
-    env = gymnasium.make('Articulate-v0',)
+    if env_config.get('render', False):
+        env = gymnasium.make('Articulate-v0',render_mode = 'human')
+    else:
+        env = gymnasium.make('Articulate-v0')
     env = TransformReward(env, lambda r: reward_scale * r)
     if env_config.get('reward_exponential'):
         env = TransformReward(env, lambda r: np.exp(r))

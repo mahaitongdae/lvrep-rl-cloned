@@ -134,8 +134,11 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         self.state[-2] = np.clip(self.state[-2], - self.v_max, self.v_max)
         self.state[-1] = np.clip(self.state[-1], - self.delta_max, self.delta_max)
 
+
     def step(self, action):
         info = {}
+
+        self.dynamics_step(action)
 
         terminated, done_info = self.get_done()
         info.update(done_info)
@@ -147,7 +150,6 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 
 
         elif self.steps_beyond_terminated is None:
-            # Pole just fell!
             self.steps_beyond_terminated = 0
             reward = -100.0
         else:
@@ -275,8 +277,9 @@ def test_env():
     env.render()
     import time
     for i in range(100):
-        state, _, _, _, _ = env.step(env.action_space.sample())
-        print(state[2])
+        action = env.action_space.sample()
+        state, _, _, _, _ = env.step(action)
+        print(state[2], action)
         # time.sleep(0.1)
         env.render()
 

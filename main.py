@@ -30,7 +30,7 @@ DEVICE = "cuda"
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--device", default='mps', type=str)
+    parser.add_argument("--device", default='cpu', type=str)
     parser.add_argument("--dir", default='main', type=str)
     parser.add_argument("--alg", default="sac")  # Alg name (sac, vlsac)
     parser.add_argument("--env", default="Articulate-v0")  # Environment name
@@ -107,8 +107,9 @@ if __name__ == "__main__":
         ENV_CONFIG.update({'reward_scale': 0.3, 'reward_exponential': ENV_CONFIG.get('reward_exponential'), 'eval': False})
         env = env_creator_cartpendulum(ENV_CONFIG)
     elif args.env == 'Articulate-v0':
-        ENV_CONFIG.update({'reward_scale': 1., 'reward_exponential': False})
+        ENV_CONFIG.update({'reward_exponential': False, 'render': False})
         eval_env = env_creator_articulate(ENV_CONFIG)
+        ENV_CONFIG.update({'reward_exponential': False, 'render': False})
         env = env_creator_articulate(ENV_CONFIG)
 
     # wrapper back to gym to fit the code
@@ -178,10 +179,6 @@ if __name__ == "__main__":
     # Initialize policy
     if args.alg == "sac":
         agent = sac_agent.SACAgent(**kwargs)
-    elif args.alg == 'vlsac':
-        kwargs['extra_feature_steps'] = args.extra_feature_steps
-        kwargs['feature_dim'] = args.feature_dim
-        agent = vlsac_agent.VLSACAgent(**kwargs)
     elif args.alg == 'rfsac':
         agent = rfsac_agent.RFSACAgent(**kwargs)
 
@@ -213,12 +210,7 @@ if __name__ == "__main__":
 
         # Perform action
         next_state, reward, done, rollout_info = env.step(action)
-        # print(action, next_state, reward)
-        # print("next state", next_state)
-        # done_bool = float(done) if episode_timesteps < max_length else 0
-
         replay_buffer.add(state, action, next_state, reward, done)
-
         prev_state = np.copy(state)
         state = next_state
         episode_reward += reward

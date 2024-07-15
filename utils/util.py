@@ -57,6 +57,7 @@ def eval_policy(policy, eval_env, eval_episodes=100):
 			state, reward, done, _ = eval_env.step(action)
 			ep_ret += reward
 			avg_len += 1
+			eval_env.render()
 		ep_rets.append(ep_ret)
 
 	avg_ret = np.mean(ep_rets)
