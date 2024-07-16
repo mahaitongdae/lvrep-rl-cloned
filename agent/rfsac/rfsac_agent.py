@@ -517,6 +517,7 @@ class RFSACAgent(SACAgent):
             target_update_period=target_update_period,
             auto_entropy_tuning=auto_entropy_tuning,
             hidden_dim=hidden_dim,
+            **kwargs
         )
         # self.feature_dim = feature_dim
         # self.feature_tau = feature_tau

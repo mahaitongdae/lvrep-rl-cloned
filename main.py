@@ -31,6 +31,7 @@ DEVICE = "cuda"
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("--device", default='cuda', type=str)
     parser.add_argument("--dir", default='try_evaluate_density', type=str)
     parser.add_argument("--alg", default="density")  # Alg name (sac, vlsac)
     parser.add_argument("--env", default="Pendulum-v1")  # Environment name
@@ -184,7 +185,7 @@ if __name__ == "__main__":
     elif args.alg == 'density':
         agent = rfsac_agent.DensityConstrainedLagrangianAgent(**kwargs)
 
-    replay_buffer = buffer.ReplayBuffer(state_dim, action_dim)
+    replay_buffer = buffer.ReplayBuffer(state_dim, action_dim, device=args.device)
 
     # Evaluate untrained policy
     evaluations = [] # util.eval_policy(agent, eval_env)[1]
@@ -211,11 +212,7 @@ if __name__ == "__main__":
             action = agent.select_action(state, explore=True)
 
         # Perform action
-        next_state, reward, done, info = env.step(action)
-        # print(action, next_state, reward)
-        # print("next state", next_state)
-        # done_bool = float(done) if episode_timesteps < max_length else 0
-
+        next_state, reward, done, rollout_info = env.step(action)
         replay_buffer.add(state, action, next_state, reward, done)
 
         prev_state = np.copy(state)
@@ -223,18 +220,13 @@ if __name__ == "__main__":
         episode_reward += reward
         info = {}
 
-        # Train agent after collecting sufficient data
-        # if use_nystrom == True and t == args.start_timesteps:  # init nystrom at the step training begins
-        #     kwargs["replay_buffer"] = replay_buffer
-            # agent = rfsac_agent.RFSACAgent(**kwargs)  # reinit agent is not ideal, temp fix
-
         if t >= args.start_timesteps:
             info = agent.train(replay_buffer, batch_size=args.batch_size)
 
         if done:
             # +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
             print(
-                f"Total T: {t + 1} Episode Num: {episode_num + 1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f} use_nystrom:{use_nystrom} rf_num:{args.rf_num} seed:{args.seed}")
+                f"Total T: {t + 1} Episode Num: {episode_num + 1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f} Info: {rollout_info}")
             # Reset environment
             info.update({'ep_len': episode_timesteps})
             state, done = env.reset(), False
