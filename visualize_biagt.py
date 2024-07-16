@@ -45,4 +45,4 @@ def eval(log_path, ):
 
 
 if __name__ == '__main__':
-    eval("/home/haitong/PycharmProjects/lvrep-rl-cloned/log/Articulate-v0_sigma_1.0_rew_scale_1.0/sac/seed_0_2024-07-16-13-15-38")
+    eval("/home/haitong/PycharmProjects/lvrep-rl-cloned/log/Articulate-v0_sigma_1.0_rew_scale_1.0/sac/seed_0_2024-07-16-17-01-06")

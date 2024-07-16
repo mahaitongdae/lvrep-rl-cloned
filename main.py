@@ -40,8 +40,8 @@ if __name__ == "__main__":
     parser.add_argument("--max_timesteps", default=20e4, type=float)  # Max time steps to run environment
     parser.add_argument("--expl_noise", default=0.1)  # Std of Gaussian exploration noise
     parser.add_argument("--batch_size", default=1024, type=int)  # Batch size for both actor and critic
-    parser.add_argument("--hidden_dim", default=256, type=int)  # Network hidden dims
-    parser.add_argument("--feature_dim", default=256, type=int)  # Latent feature dim
+    parser.add_argument("--hidden_dim", default=512, type=int)  # Network hidden dims
+    parser.add_argument("--feature_dim", default=512, type=int)  # Latent feature dim
     parser.add_argument("--discount", default=0.99)  # Discount factor
     parser.add_argument("--tau", default=0.005)  # Target network update rate
     parser.add_argument("--learn_bonus", action="store_true")  # Save model and optimizer parameters

@@ -53,14 +53,14 @@ class SACAgent(object):
 			obs_dim=state_dim, 
 			action_dim=action_dim,
 			hidden_dim=hidden_dim,
-			hidden_depth=2,
+			hidden_depth=3,
 		).to(self.device)
 		self.critic_target.load_state_dict(self.critic.state_dict())
 		self.actor = DiagGaussianActor(
 			obs_dim=state_dim, 
 			action_dim=action_dim,
 			hidden_dim=hidden_dim,
-			hidden_depth=2,
+			hidden_depth=3,
 			log_std_bounds=[-5., 2.], 
 		).to(self.device)
 		self.log_alpha = torch.tensor(np.log(alpha)).float().to(self.device)

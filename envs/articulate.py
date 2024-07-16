@@ -192,8 +192,8 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         reset_std = np.array(
             [3.0,
              0.5,
-             np.pi / 12,
-             np.pi / 12,
+             0.0,
+             0.0,
              0.0,
              0.0
              ]
@@ -233,7 +233,7 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         vehicle_length = self.vehicle_length * scale
         vehicle_width = 0.3 * self.vehicle_length * scale
 
-        def draw_vehicle(vehicle_length, vehicle_width, state):
+        def draw_vehicle(vehicle_length, vehicle_width, state, filled = True):
             """
             state: x, y, theta
             """
@@ -245,10 +245,11 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
                 c = (c[0] + scale * state[0] + offset, c[1] + scale * state[1] + offset)
                 transformed_coords.append(c)
             gfxdraw.aapolygon(self.surf, transformed_coords, (204, 77, 77))
-            # gfxdraw.filled_polygon(self.surf, transformed_coords, (204, 77, 77))
+            if filled:
+                gfxdraw.filled_polygon(self.surf, transformed_coords, (204, 77, 77))
 
         draw_vehicle(vehicle_length, vehicle_width, self.state)
-
+        draw_vehicle(vehicle_length, vehicle_width, [0, 0, 0], filled=False)
 
         trailer_dif = (pygame.math.Vector2((self.trailer_length, 0))
                        .rotate_rad(self.state[2] + self.state[3]))
@@ -260,6 +261,7 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         trailer_length = self.trailer_length * scale
         trailer_width = 0.3 * self.vehicle_length * scale
         draw_vehicle(trailer_length, trailer_width, trailer_state)
+        draw_vehicle(trailer_length, trailer_width, [-trailer_length, 0, 0], filled=False)
 
         self.surf = pygame.transform.flip(self.surf, False, True)
         self.screen.blit(self.surf, (0, 0))
