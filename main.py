@@ -48,7 +48,7 @@ if __name__ == "__main__":
     parser.add_argument("--learn_bonus", action="store_true")  # Save model and optimizer parameters
     parser.add_argument("--save_model", action="store_true")  # Save model and optimizer parameters
     parser.add_argument("--extra_feature_steps", default=3, type=int)
-    parser.add_argument("--sigma", default=0., type=float)  # noise for noisy environment
+    parser.add_argument("--sigma", default=1., type=float)  # noise for noisy environment
     parser.add_argument("--embedding_dim", default=-1, type=int)  # if -1, do not add embedding layer
     parser.add_argument("--rf_num", default=512, type=int)
     parser.add_argument("--nystrom_sample_dim", default=8192, type=int,
@@ -83,7 +83,7 @@ if __name__ == "__main__":
         ENV_CONFIG.update({'reward_scale': 0.2, })
         env = env_creator_cstr_pendulum(ENV_CONFIG)
         ENV_CONFIG.update({'reward_scale': 1., })
-        eval_env = env_creator_pendulum(ENV_CONFIG)
+        eval_env = env_creator_cstr_pendulum(ENV_CONFIG)
     elif args.env == 'Quadrotor2D-v2':
         eval_config = ENV_CONFIG.copy()
         eval_config.update({'reward_scale': 1., 'eval': True, 'reward_exponential': False})
@@ -131,7 +131,7 @@ if __name__ == "__main__":
 
     # setup log
     current_path = os.path.abspath(os.path.dirname(__file__))
-    log_path = current_path + f'/log/{env_name}/{alg_name}/{args.dir}/{args.seed}'
+    log_path = current_path + f'/log/density/{env_name}/{alg_name}/{args.dir}/{args.seed}'
     summary_writer = SummaryWriter(log_path + "/summary_files")
 
     # set seeds
@@ -226,7 +226,8 @@ if __name__ == "__main__":
         if done:
             # +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
             print(
-                f"Total T: {t + 1} Episode Num: {episode_num + 1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f} Info: {rollout_info}")
+                f"Total T: {t + 1} Episode Num: {episode_num + 1} Episode T: {episode_timesteps}" +
+                f" Reward: {episode_reward:.3f}, KL: {info.get('kldiv'):.3f},  Info: {rollout_info}")
             # Reset environment
             info.update({'ep_len': episode_timesteps})
             state, done = env.reset(), False

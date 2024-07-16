@@ -174,6 +174,10 @@ class PendulumCstrEnv(gym.Env):
         theta, thetadot = self.state
         return np.array([np.cos(theta), np.sin(theta), thetadot], dtype=np.float32)
 
+    def get_obs(self):
+        theta, thetadot = self.state
+        return np.array([np.cos(theta), np.sin(theta), thetadot], dtype=np.float32)
+
     def get_theta(self):
         theta, _ = self.state
         return theta
