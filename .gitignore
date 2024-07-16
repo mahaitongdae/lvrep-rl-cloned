@@ -641,3 +641,13 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+agent/rfsac/__pycache__/rfsac_agent.cpython-39.pyc
+agent/rfsac/__pycache__/rfsac_agent.cpython-39.pyc
+agent/rfsac/__pycache__/rfsac_agent.cpython-39.pyc
+agent/sac/__pycache__/actor.cpython-39.pyc
+agent/sac/__pycache__/critic.cpython-39.pyc
+agent/sac/__pycache__/sac_agent.cpython-39.pyc
+networks/__pycache__/policy.cpython-39.pyc
+networks/__pycache__/vae.cpython-39.pyc
+utils/__pycache__/buffer.cpython-39.pyc
+utils/__pycache__/util.cpython-39.pyc

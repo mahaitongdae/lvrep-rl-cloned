@@ -26,6 +26,7 @@ class SACAgent(object):
 			alpha=0.1,
 			auto_entropy_tuning=True,
 			hidden_dim=1024,
+			hidden_depth=2,
 			device='cpu',
 			**kwargs
 			):
@@ -47,20 +48,20 @@ class SACAgent(object):
 			obs_dim=state_dim, 
 			action_dim=action_dim,
 			hidden_dim=hidden_dim,
-			hidden_depth=2,
+			hidden_depth=hidden_depth,
 		).to(self.device)
 		self.critic_target = DoubleQCritic(
 			obs_dim=state_dim, 
 			action_dim=action_dim,
 			hidden_dim=hidden_dim,
-			hidden_depth=3,
+			hidden_depth=hidden_depth,
 		).to(self.device)
 		self.critic_target.load_state_dict(self.critic.state_dict())
 		self.actor = DiagGaussianActor(
 			obs_dim=state_dim, 
 			action_dim=action_dim,
 			hidden_dim=hidden_dim,
-			hidden_depth=3,
+			hidden_depth=hidden_depth,
 			log_std_bounds=[-5., 2.], 
 		).to(self.device)
 		self.log_alpha = torch.tensor(np.log(alpha)).float().to(self.device)
