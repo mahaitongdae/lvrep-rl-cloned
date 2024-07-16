@@ -1258,40 +1258,8 @@ class DensityConstrainedLagrangianAgent(RFSACAgent):
             info.update({'density_critic_dist': dist})
 
             return info
-        else:
-            raise NotImplementedError
+        # elif alg == 'nce':
 
-    # def update_actor_and_alpha(self, batch):
-    #     """
-    #     Actor update step
-    #     """
-    #     # dist = self.actor(batch.state, batch.next_state)
-    #     dist = self.actor(batch.state)
-    #     action = dist.rsample()
-    #     log_prob = dist.log_prob(action).sum(-1, keepdim=True)
-    #     reward = self.get_reward(batch.state, action)  # use reward in q-fn
-    #     q1, q2 = self.critic(self.dynamics(batch.state, action))
-    #     q = self.discount * torch.min(q1, q2) + reward
-    #
-    #     actor_loss = ((self.alpha) * log_prob - q).mean()
-    #
-    #     self.actor_optimizer.zero_grad()
-    #     actor_loss.backward()
-    #     self.actor_optimizer.step()
-    #
-    #     info = {'actor_loss': actor_loss.item()}
-    #
-    #     if self.learnable_temperature:
-    #         self.log_alpha_optimizer.zero_grad()
-    #         alpha_loss = (self.alpha *
-    #                       (-log_prob - self.target_entropy).detach()).mean()
-    #         alpha_loss.backward()
-    #         self.log_alpha_optimizer.step()
-    #
-    #         info['alpha_loss'] = alpha_loss
-    #         info['alpha'] = self.alpha
-    #
-    #     return info
 
     def train(self, buffer, batch_size):
         self.steps += 1
@@ -1328,11 +1296,6 @@ class DensityConstrainedLagrangianAgent(RFSACAgent):
                 target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
             for param, target_param in zip(self.density.parameters(), self.density_target.parameters()):
                 target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
-
-    # def calculate_constraints(self, density, batch_state):
-    #     # KL divergence constraints by discretize approximation
-
-
 
     def update_actor_and_alpha(self, batch):
         """
