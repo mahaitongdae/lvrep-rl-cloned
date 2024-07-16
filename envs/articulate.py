@@ -188,13 +188,25 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
             ],
             dtype=np.float32,
         )
+
+        reset_std = np.array(
+            [3.0,
+             0.5,
+             np.pi / 12,
+             np.pi / 12,
+             0.0,
+             0.0
+             ]
+        )
         # low, high = utils.maybe_parse_reset_bounds(
         #     options,   # default low
         # )  # default high
         if options and 'state' in options.keys():
             self.state = options['state']
         else:
-            self.state = self.np_random.uniform(low=-1 * high, high=high)
+            # self.state = self.np_random.uniform(low=-1 * high, high=high)
+            self.state = self.np_random.normal(np.zeros_like(reset_std), reset_std)
+            self.state = np.clip(self.state, -high, high)
 
         if self.render_mode == "human":
             self.render()
