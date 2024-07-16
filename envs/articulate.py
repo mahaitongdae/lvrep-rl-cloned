@@ -142,7 +142,7 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 
         terminated, done_info = self.get_done()
         info.update(done_info)
-        rew_coeff = -1e-3 * np.array([1., 1., 10., 10.])
+        rew_coeff = -1e-2 * np.array([1., 1., 10., 10.])
 
         if not terminated:
             # reward = 1.0
@@ -180,11 +180,11 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         high = np.array(
             [
                 10,
-                5,
-                np.pi / 2,
+                3,
                 np.pi / 6,
-                0.6,
-                np.pi / 6
+                np.pi / 6,
+                0.0,
+                0.0
             ],
             dtype=np.float32,
         )
@@ -276,7 +276,7 @@ def test_env():
     print(env.reset())
     env.render()
     import time
-    for i in range(100):
+    for i in range(200):
         action = env.action_space.sample()
         state, _, _, _, _ = env.step(action)
         print(state[2], action)

@@ -30,7 +30,7 @@ DEVICE = "cuda"
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--device", default='cpu', type=str)
+    parser.add_argument("--device", default='cuda', type=str)
     parser.add_argument("--dir", default='main', type=str)
     parser.add_argument("--alg", default="sac")  # Alg name (sac, vlsac)
     parser.add_argument("--env", default="Articulate-v0")  # Environment name
