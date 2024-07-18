@@ -23,7 +23,13 @@ assert len(action_range[0]) == len(action_range[1]) == action_dim
 def dynamics(state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
     """
     The dynamics. Needs to be written in pytorch to enable auto differentiation.
-        
+    The input and outputs should be 2D Tensors, where the first dimension should be batch size, and the second dimension 
+    is the state. For example, the pendulum state will looks like
+    [[cos(theta), sin(theta), dot theta],
+     [cos(theta), sin(theta), dot theta],
+     ...,
+     [cos(theta), sin(theta), dot theta]
+     ]
     
     Parameters
     ----------
@@ -62,7 +68,7 @@ def rewards(state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
     action           torch.Tensor, [batch_size, action_dim]
 
     Returns
-    rewards       torch.Tensor, [batch_size, state_dim]
+    rewards       torch.Tensor, [batch_size,]
     -------
 
     """
