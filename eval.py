@@ -8,14 +8,12 @@ from tensorboardX import SummaryWriter
 
 from utils import util, buffer
 from agent.sac import sac_agent
-from agent.vlsac import vlsac_agent
 from agent.rfsac import rfsac_agent
 
 from envs.noisy_pend import noisyPendulumEnv
 
 from agent.rfsac.rfsac_agent import RFVCritic, nystromVCritic
 from agent.sac.actor import DiagGaussianActor
-from agent.rfsac.rfsac_agent import RFSACAgent
 
 
 def main(env,log_path,agent,rf_num, learn_rf, max_steps = 200, tr_seed = 0, true_state_dim = None, save_traj = False, euler = False, sigma = 0.0):

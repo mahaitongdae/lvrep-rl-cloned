@@ -3,11 +3,32 @@
 This is the implementation of [Stochastic nonlinear control via finite-dimensional spectral dynamic embedding](https://arxiv.org/abs/2304.03907). A short version of this paper has shown up in [CDC 2023](https://ieeexplore.ieee.org/abstract/document/10383842).
 
 ## Installation
-```bash
-# in your virtual/conda environments
-pip install -r requirements.txt
-```
+1. install anaconda (if you haven't) and create new environment,
+    ```shell
+    conda create -n repr-control python=3.10
+    conda activate repr-control
+    ```
+2. Install PyTorch dependencies. 
+  
+    **Windows or Linux**: 
 
+    If you have CUDA-compatible GPUs,
+    ```shell
+    conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
+    ```
+    If you don't have CUDA-compatible GPUs,
+    ```shell
+    conda install pytorch torchvision torchaudio cpuonly -c pytorch
+    ```
+   **Mac**:
+    ```shell
+    conda install pytorch::pytorch torchvision torchaudio -c pytorch
+    ```
+3. install
+
+Helpful resources: 
+- [Anaconda Get Started](https://conda.io/projects/conda/en/latest/user-guide/getting-started.html).
+- [PyTorch official instuctions](https://pytorch.org/get-started/locally/)
 ## Sample scripts of running experiments
 - Random feature
   ```bash

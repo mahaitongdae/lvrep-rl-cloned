@@ -49,6 +49,7 @@ def dynamics(state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
     newthdot = torch.clip(newthdot, -max_speed, max_speed)
     newth = th + newthdot * dt
     next_state = torch.vstack([torch.cos(newth), torch.sin(newth), newthdot]).T
+    assert next_state.shape == state.shape
     return next_state
 
 def rewards(state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:

@@ -3,14 +3,13 @@ import os
 import pickle as pkl
 
 from tensorboardX import SummaryWriter
-
-from utils import util, buffer
-from agent.sac import sac_agent
-from agent.rfsac import rfsac_agent
 from datetime import datetime
-from envs.env_helper import *
+from repr_control.utils import util, buffer
+from repr_control.agent.sac import sac_agent
+from repr_control.agent.rfsac import rfsac_agent
 from define_problem import *
 from gym.envs.registration import register
+import gym
 
 
 if __name__ == "__main__":
@@ -26,7 +25,7 @@ if __name__ == "__main__":
                         help="Number of random features. Suitable numbers for 2-dimensional system is 512, 3-dimensional 1024, etc.")
     parser.add_argument("--nystrom_sample_dim", default=8192, type=int,
                         help='The sampling dimension for nystrom critic. After sampling, take the maximum rf_num eigenvectors..')
-    parser.add_argument("--device", default='cuda', type=str,
+    parser.add_argument("--device", default='cpu', type=str,
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
 
