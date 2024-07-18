@@ -960,7 +960,11 @@ class CustomModelRFSACAgent(SACAgent):
             self.critic.parameters(), lr=lr, betas=[0.9, 0.999])
         self.args = kwargs
         self.dynamics = dynamics_fn
-        self.get_reward = rewards_fn
+        self.reward_fn = rewards_fn
+
+    def get_reward(self, state, action):
+        reward = self.reward_fn(state, action)
+        return torch.reshape(reward, (reward.shape[0], 1))
 
     def update_actor_and_alpha(self, batch):
         """
