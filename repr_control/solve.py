@@ -52,7 +52,7 @@ if __name__ == "__main__":
     exp_name = f'seed_{args.seed}_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}'
 
     # setup example_results
-    log_path = f'log/{alg_name}/{env_name}/{exp_name}'
+    log_path = f'../log/{alg_name}/{env_name}/{exp_name}'
     summary_writer = SummaryWriter(log_path + "/summary_files")
 
     # set seeds

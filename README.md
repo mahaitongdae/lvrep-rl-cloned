@@ -1,6 +1,11 @@
-# Stochastic Nonlinear Control via Finite-dimensional Spectral Dynamic Embedding
+# repr-control: A Toolbox to solve stochastic nonlinear control
 
-This is the implementation of [Stochastic nonlinear control via finite-dimensional spectral dynamic embedding](https://arxiv.org/abs/2304.03907). A short version of this paper has shown up in [CDC 2023](https://ieeexplore.ieee.org/abstract/document/10383842).
+repr-control is a toolbox to solve nonlinear stochastic control via representation learning. 
+User can simply input the **dynamics, rewards, initial distributions** of the nonlinear control problem
+and get the optimal controller parametrized by a neural network.
+
+The optimal controller is trained via Spectral Dynamics Embedding Control (SDEC) algorithm based on representation learning and reinforcement learning.
+For those interested in the details of SDEC algorithm, please check our [papers](https://arxiv.org/abs/2304.03907).
 
 ## Installation
 1. install anaconda (if you haven't) and create new environment,
@@ -55,6 +60,8 @@ Helpful resources:
    cd repr_control/scripts
    python solve.py
    ```
+   The training results will be saved in the `log/` directory.  
+
 4. Evaluate solving results
    ```shell
    python eval.py $LOG_PATH
