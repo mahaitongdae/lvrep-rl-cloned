@@ -58,7 +58,11 @@ Helpful resources:
 3. Run the training scripts
    ```shell
    cd repr_control/scripts
-   python solve.py
+   python solve.py 
+   # If you have CUDA-compatible GPUs
+   python solve.py --device cuda
+   # If on Apple mac, not sure whether it will be faster than using cpu.
+   python solve.py --device mps 
    ```
    The training results will be saved in the `repr_control/log/` directory.  
 
