@@ -18,7 +18,7 @@ class SACAgent(object):
 			self, 
 			state_dim, 
 			action_dim, 
-			action_space, 
+			action_range,
 			lr=3e-4,
 			discount=0.99, 
 			target_update_period=2,
@@ -33,10 +33,7 @@ class SACAgent(object):
 		self.steps = 0
 
 		self.device = torch.device(device)
-		self.action_range = [
-			float(action_space.low.min()),
-			float(action_space.high.max())
-		]
+		self.action_range = action_range
 		self.discount = discount 
 		self.tau = tau 
 		self.target_update_period = target_update_period
@@ -91,7 +88,8 @@ class SACAgent(object):
 		state = state.unsqueeze(0)
 		dist = self.actor(state)
 		action = dist.sample() if explore else dist.mean
-		action = action.clamp(*self.action_range)
+		action = action.clamp(torch.tensor(self.action_range[0], device=self.device),
+							  torch.tensor(self.action_range[1], device=self.device))
 		assert action.ndim == 2 and action.shape[0] == 1
 		return util.to_np(action[0])
 
