@@ -57,7 +57,7 @@ Helpful resources:
    ```
 3. Run the training scripts
    ```shell
-   cd repr_control/scripts
+   cd repr_control
    python solve.py 
    # If you have CUDA-compatible GPUs
    python solve.py --device cuda
@@ -68,10 +68,12 @@ Helpful resources:
 
 4. Evaluate solving results
    ```shell
+   cd repr_control/scripts
    python eval.py $LOG_PATH
    ```
    where `$LOG_PATH` is the path of training folder. For example,
    ```shell
+   cd repr_control/scripts
    python eval.py ../examples/example_results/rfsac/Pendulum/seed_0_2024-07-18-14-50-35
    ```   
 
