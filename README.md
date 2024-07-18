@@ -1,7 +1,7 @@
 # repr-control: A Toolbox to solve stochastic nonlinear control
 
 repr-control is a toolbox to solve nonlinear stochastic control via representation learning. 
-User can simply input the **dynamics, rewards, initial distributions** of the nonlinear control problem
+User can simply input the **dynamics, rewards, initial distributions** [sample_files](repr_control/define_problem.py) of the nonlinear control problem
 and get the optimal controller parametrized by a neural network.
 
 The optimal controller is trained via Spectral Dynamics Embedding Control (SDEC) algorithm based on representation learning and reinforcement learning.
@@ -41,7 +41,7 @@ Helpful resources:
 - [PyTorch installation](https://pytorch.org/get-started/locally/)
 
 ## Usage
-1. Define the nonlinear control problem in [define_problem.py](repr_control/scripts/define_problem.py). Following items needs to be defined:
+1. Define the nonlinear control problem in [define_problem.py](repr_control/define_problem.py). Following items needs to be defined:
    - Dynamics
    - Reward function
    - Initial distributions
@@ -60,7 +60,7 @@ Helpful resources:
    cd repr_control/scripts
    python solve.py
    ```
-   The training results will be saved in the `log/` directory.  
+   The training results will be saved in the `repr_control/log/` directory.  
 
 4. Evaluate solving results
    ```shell
