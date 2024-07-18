@@ -22,8 +22,5 @@ maintainers = [
 ]
 
 [project.urls]
-"GitHub" = "https://github.com/pypa/sampleproject"
-#"Bug Reports" = "https://github.com/pypa/sampleproject/issues"
-#"Funding" = "https://donate.pypi.org"
-#"Say Thanks!" = "http://saythanks.io/to/example"
+"GitHub" = "https://github.com/CoNGHarvard/repr_control"
 "Papers" = "https://arxiv.org/abs/2304.03907"
