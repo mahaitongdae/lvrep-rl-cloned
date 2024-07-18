@@ -24,27 +24,72 @@ This is the implementation of [Stochastic nonlinear control via finite-dimension
     ```shell
     conda install pytorch::pytorch torchvision torchaudio -c pytorch
     ```
-3. install
+3. install the toolbox
+    ```shell
+   git clone https://github.com/CoNGHarvard/repr_control.git
+   cd repr_control
+   pip install -e .
+   ```
 
 Helpful resources: 
-- [Anaconda Get Started](https://conda.io/projects/conda/en/latest/user-guide/getting-started.html).
-- [PyTorch official instuctions](https://pytorch.org/get-started/locally/)
-## Sample scripts of running experiments
-- Random feature
-  ```bash
-  python main.py --use_random_feature --no_reward_exponential --critic_lr 3e-4 --alg rfsac --env Pendubot-v0 --sigma 1.0 --max_timesteps 150000 --rf_num 8192 --seed 0
-  ```
-- Nystrom feature
-  ```bash
-  python main.py --use_nystrom --no_reward_exponential --critic_lr 3e-4 --alg rfsac --env Pendubot-v0 --sigma 1.0 --max_timesteps 150000 --rf_num 8192 --nystrom_sample_dim 2048 --seed 0
-  ```
-  Please refer to `run_train_$ENV.sh` for more training scripts and recommended hyperparameters.
+- [Anaconda environment](https://conda.io/projects/conda/en/latest/user-guide/getting-started.html)
+- [PyTorch installation](https://pytorch.org/get-started/locally/)
 
-## Baselines
+## Usage
+1. Define the nonlinear control problem in [define_problem.py](repr_control/scripts/define_problem.py). Following items needs to be defined:
+   - Dynamics
+   - Reward function
+   - Initial distributions
+   - State and action bounds
+   - Maximum rollout steps
+   - Noise level
+   
+   The current file is an example of inverted pendulum.
 
-The code for iLQR is found in the branch iLQC. Please use test_main.py in that branch to train and evaluate iLQR on the pendulum swingup problem.
+2. Testing your model
+   ```shell
+   pytest tests/test_custom_model.py
+   ```
+3. Run the training scripts
+   ```shell
+   cd repr_control/scripts
+   python solve.py
+   ```
+4. Evaluate solving results
+   ```shell
+   python eval.py $LOG_PATH
+   ```
+   where `$LOG_PATH` is the path of training folder. For example,
+   ```shell
+   python eval.py ../examples/example_results/rfsac/Pendulum/seed_0_2024-07-18-14-50-35
+   ```   
 
-The code for Koopman control is found in the branch DeepKoopman. Please use the Learn_Koopman_with_KlinearEig.py file in the train folder of that branch to train a new Koopman dynamics model; for evaluation, please use the og_eval_mpc.py file in the control folder of that branch.
+5. Get controllers to use elsewhere
+   ```python
+   import numpy as np
+   from repr_control.scripts.eval import get_controller
+   log_path = '$LOG_PATH'
+   agent = get_controller(log_path)
+   state = np.zeros([3]) # taking the pendulum as example
+   action = agent.select_action(state, explore=False)
+   ```
+   
+
+## Advanced Usage
+
+### Define training hyperparameters
+You can define training hyperparameters via adding command line arguments when running `solve.py`. For example,
+- setting max training steps:
+   ```shell
+   python solve.py --max_step 2e5
+   ```
+
+### inspect the training results using tensorboard
+
+```shell
+# during/after training
+tensorboard --logdir $LOG_PATH
+```
 
 ## Citations
 ```

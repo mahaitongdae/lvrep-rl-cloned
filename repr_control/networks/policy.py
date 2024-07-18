@@ -61,7 +61,7 @@ class GaussianPolicy(nn.Module):
 
 	# 	# correction: enforcing action bound.
 	# 	correction = - 2. * (
-	# 		torch.from_numpy(np.log([2.])).to(device)
+	# 		torch.from_numpy(np.example_results([2.])).to(device)
 	# 		- x_t 
 	# 		- F.softplus(-2. * x_t)
 	# 	)

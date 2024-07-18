@@ -4,7 +4,8 @@ import numpy as np
 # import torch
 
 from torch import nn
-from torch.nn import functional as F
+import os
+import pickle as pkl
 
 
 def unpack_batchv2(batch):
@@ -50,11 +51,13 @@ def eval_policy(policy, eval_env, eval_episodes=100):
 	for i in range(eval_episodes):
 		ep_ret = 0.
 		# eval_env.seed(i)
-		state, done = eval_env.reset(seed=i+25), False
+		state, _ = eval_env.reset(seed=i+25)
+		done = False
 		# print("eval_policy state", state)
 		while not done:
 			action = policy.select_action(np.array(state))
-			state, reward, done, _ = eval_env.step(action)
+			state, reward, terminated, truncated, _ = eval_env.step(action)
+			done = terminated or truncated
 			ep_ret += reward
 			avg_len += 1
 		ep_rets.append(ep_ret)
@@ -115,17 +118,11 @@ def to_np(t):
 	else:
 		return t.cpu().detach().numpy()
 
-def clear_data():
+def clear_data(path):
 	import pickle as pkl
-	with open('/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/temp_good_results/rfsac_nystrom_True_rf_num_2048_sample_dim_8192/seed_0_2023-09-02-12-24-08/train_params.pkl',
-			  'rb') as f:
+	with open(path, 'rb') as f:
 		a = pkl.load(f)
 		a['replay_buffer'] = None
 		print(a)
-	with open('/home/mht/PycharmProjects/lvrep-rl-cloned/log/Quadrotor2D-v2_sigma_0.0_rew_scale_10.0/temp_good_results/rfsac_nystrom_True_rf_num_2048_sample_dim_8192/seed_0_2023-09-02-12-24-08/train_params.pkl',
-			  'wb') as f:
+	with open(path, 'wb') as f:
 		pkl.dump(a, f)
-
-
-if __name__ == '__main__':
-    clear_data()

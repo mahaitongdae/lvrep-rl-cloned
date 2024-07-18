@@ -4,10 +4,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
-from utils import util
+from repr_control.utils import util
 
-from agent.sac.critic import DoubleQCritic
-from agent.sac.actor import DiagGaussianActor
+from repr_control.agent.sac.critic import DoubleQCritic
+from repr_control.agent.sac.actor import DiagGaussianActor
 
 
 class SACAgent(object):
@@ -58,7 +58,7 @@ class SACAgent(object):
 			action_dim=action_dim,
 			hidden_dim=hidden_dim,
 			hidden_depth=2,
-			log_std_bounds=[-5., 2.], 
+			log_std_bounds=[-5., 2.],
 		).to(self.device)
 		self.log_alpha = torch.tensor(np.log(alpha)).float().to(self.device)
 		self.log_alpha.requires_grad = True
@@ -84,12 +84,15 @@ class SACAgent(object):
 
 
 	def select_action(self, state, explore=False):
-		state = torch.FloatTensor(state).to(self.device)
+		if isinstance(state, list):
+			state = np.array(state)
+		assert len(state.shape) == 1
+		state = torch.from_numpy(state).to(self.device)
 		state = state.unsqueeze(0)
 		dist = self.actor(state)
 		action = dist.sample() if explore else dist.mean
-		action = action.clamp(torch.tensor(self.action_range[0], device=self.device),
-							  torch.tensor(self.action_range[1], device=self.device))
+		action = action.clamp(torch.tensor(-1, device=self.device),
+							  torch.tensor(1, device=self.device))
 		assert action.ndim == 2 and action.shape[0] == 1
 		return util.to_np(action[0])
 

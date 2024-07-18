@@ -69,7 +69,7 @@ def rewards(state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
     cos_th, sin_th, thdot = state[:, 0], state[:, 1], state[:, 2]
     th = torch.atan2(sin_th, cos_th)
     action = torch.reshape(action, (action.shape[0],))
-    reward = -(th ** 2 + 0.1 * thdot ** 2 + 0.001 * action ** 2)
+    reward = -0.3 * (th ** 2 + 0.1 * thdot ** 2 + 0.001 * action ** 2)
     return reward
 
 def initial_distribution(batch_size: int) -> torch.Tensor:

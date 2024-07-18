@@ -171,7 +171,7 @@ class GaussianPolicy(nn.Module):
 	# 	log_prob = normal.log_prob(x_t)
 
 	# 	# enforcing action bound. See Appendix C of the SAC paper
-	# 	log_prob -= torch.log((1 - y_t.pow(2)) + epsilon)
+	# 	log_prob -= torch.example_results((1 - y_t.pow(2)) + epsilon)
 	# 	log_prob = log_prob.sum(1, keepdim=True)
 	# 	mean = torch.tanh(mean) * self.action_scale + self.action_bias
 

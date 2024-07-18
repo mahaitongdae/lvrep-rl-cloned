@@ -7,9 +7,10 @@ name = "repr-control"
 version = "0.0.0-dev0"
 description = "Solving nonlinear control using representation learning."
 dependencies = [
-    "gym == 0.25.1",
+    "gymnasium",
     "tensorboardx",
     "seaborn",
+    "pytest"
 ]
 readme = "README.md"
 requires-python = ">=3.8"

@@ -8,8 +8,8 @@ from repr_control.utils import util, buffer
 from repr_control.agent.sac import sac_agent
 from repr_control.agent.rfsac import rfsac_agent
 from define_problem import *
-from gym.envs.registration import register
-import gym
+from gymnasium.envs.registration import register
+import gymnasium
 
 
 if __name__ == "__main__":
@@ -21,20 +21,20 @@ if __name__ == "__main__":
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--env", default=env_name,
                         help="Name your env/dynamics, only for folder names.")  # Alg name (sac, vlsac)
-    parser.add_argument("--rf_num", default=8192, type=int,
+    parser.add_argument("--rf_num", default=512, type=int,
                         help="Number of random features. Suitable numbers for 2-dimensional system is 512, 3-dimensional 1024, etc.")
     parser.add_argument("--nystrom_sample_dim", default=8192, type=int,
                         help='The sampling dimension for nystrom critic. After sampling, take the maximum rf_num eigenvectors..')
-    parser.add_argument("--device", default='cpu', type=str,
+    parser.add_argument("--device", default='cuda', type=str,
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
 
     ### Parameters that usually don't need to be changed.
     parser.add_argument("--dir", default='main', type=str)
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
-    parser.add_argument("--start_timesteps", default=5e3, type=float)  # Time steps initial random policy is used
+    parser.add_argument("--start_timesteps", default=25e3, type=float)  # Time steps initial random policy is used
     parser.add_argument("--eval_freq", default=5000, type=int)  # How often (time steps) we evaluate
-    parser.add_argument("--max_timesteps", default=20e4, type=float)  # Max time steps to run environment
+    parser.add_argument("--max_timesteps", default=1e5, type=float)  # Max time steps to run environment
     parser.add_argument("--batch_size", default=256, type=int)  # Batch size for both actor and critic
     parser.add_argument("--hidden_dim", default=256, type=int)  # Network hidden dims
     parser.add_argument("--feature_dim", default=256, type=int)  # Latent feature dim
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     alg_name = args.alg
     exp_name = f'seed_{args.seed}_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}'
 
-    # setup log
+    # setup example_results
     log_path = f'log/{alg_name}/{env_name}/{exp_name}'
     summary_writer = SummaryWriter(log_path + "/summary_files")
 
@@ -79,27 +79,30 @@ if __name__ == "__main__":
     replay_buffer = buffer.ReplayBuffer(state_dim, action_dim, device=args.device)
 
     register(id='custom-v0',
-             entry_point='envs:CustomEnv',
+             entry_point='repr_control.envs:CustomEnv',
              max_episode_steps=max_step)
-    env = gym.make('custom-v0',
+    env = gymnasium.make('custom-v0',
                    dynamics=dynamics,
                    rewards=rewards,
                    initial_distribution = initial_distribution,
                    state_range=state_range,
                    action_range=action_range,
                    sigma=sigma)
-    eval_env = gym.make('custom-v0',
+    eval_env = gymnasium.make('custom-v0',
                         dynamics=dynamics,
                         rewards=rewards,
                         initial_distribution = initial_distribution,
                         state_range=state_range,
                         action_range=action_range,
                         sigma=sigma)
+    env = gymnasium.wrappers.RescaleAction(env, min_action=-1, max_action=1)
+    eval_env = gymnasium.wrappers.RescaleAction(eval_env, min_action=-1, max_action=1)
 
     # Evaluate untrained policy
     evaluations = []
 
-    state, done = env.reset(), False
+    state, _ = env.reset()
+    done = False
     episode_reward = 0
     episode_timesteps = 0
     episode_num = 0
@@ -121,7 +124,8 @@ if __name__ == "__main__":
             action = agent.select_action(state, explore=True)
 
         # Perform action
-        next_state, reward, done, rollout_info = env.step(action)
+        next_state, reward, terminated, truncated, rollout_info = env.step(action)
+        done = terminated or truncated
         replay_buffer.add(state, action, next_state, reward, done)
 
         prev_state = np.copy(state)
@@ -138,7 +142,8 @@ if __name__ == "__main__":
                 f"Total T: {t + 1} Episode Num: {episode_num + 1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f} Info: {rollout_info}")
             # Reset environment
             info.update({'ep_len': episode_timesteps})
-            state, done = env.reset(), False
+            state, _ =  env.reset()
+            done = False
             # prev_state = np.copy(state)
             episode_reward = 0
             episode_timesteps = 0
