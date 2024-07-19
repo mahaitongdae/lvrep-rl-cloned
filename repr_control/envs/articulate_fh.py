@@ -11,7 +11,7 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import logger, spaces
 import pygame
-from pygame import gfxdraw
+from pygame import draw, gfxdraw
 
 
 class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
@@ -66,7 +66,7 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
                 20,
                 10,
                 np.pi,
-                np.pi / 6,
+                np.pi / 2,
                 0.6,
                 np.pi / 6,
                 25           # t, 100 steps corresponds to 5s
@@ -137,11 +137,11 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         terminated, done_info = self.get_done()
         info.update(done_info)
         if self.step_counter < self.horizon:
-            Q = -1e-3 * np.array([1., 1., 10., 10.])
+            Q = -1e-4 * np.array([1., 1., 10., 10.])
         else:
-            Q = -0.1 * np.array([100, 100, 1000, 1000,])
+            Q = -0.1 * np.array([50, 50, 100, 100,])
             truncated = True
-        R = -1 * np.array([0.1, 0.1])
+        R = -1e-3 * np.array([0.1, 0.1])
 
         if not terminated:
             # reward = 1.0
@@ -183,7 +183,7 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
                 10,
                 3,
                 np.pi / 6,
-                np.pi / 6,
+                np.pi / 12,
                 0.0,
                 0.0,
                 0.0
@@ -194,7 +194,7 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         reset_std = np.array(
             [3.0,
              0.5,
-             0.0,
+             np.pi / 12,
              0.0,
              0.0,
              0.0,
@@ -210,6 +210,7 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
             # self.state = self.np_random.uniform(low=-1 * high, high=high)
             self.state = self.np_random.normal(np.zeros_like(reset_std), reset_std)
             self.state = np.clip(self.state, -high, high)
+            self.state[3] = self.state[3] - self.state[2] # we sample theta_1 and calculate theta_1 - theta_0
 
         self.step_counter = 0
 
@@ -249,6 +250,7 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
                 c = pygame.math.Vector2(c).rotate_rad(state[2])
                 c = (c[0] + scale * state[0] + offset, c[1] + scale * state[1] + offset)
                 transformed_coords.append(c)
+            # draw.polygon(self.surf, transformed_coords, (204, 77, 77))
             gfxdraw.aapolygon(self.surf, transformed_coords, (204, 77, 77))
             if filled:
                 gfxdraw.filled_polygon(self.surf, transformed_coords, (204, 77, 77))
@@ -287,7 +289,6 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
             pygame.display.quit()
             pygame.quit()
             self.isopen = False
-
 
 def test_env():
     import time

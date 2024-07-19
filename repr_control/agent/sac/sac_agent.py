@@ -189,3 +189,95 @@ class SACAgent(object):
 			**critic_info, 
 			**actor_info,
 		}
+
+class ModelBasedSACAgent(SACAgent):
+
+
+	def __init__(self, state_dim, 
+			  action_dim, 
+			  action_range,
+			  dynamics,
+			  rewards, 
+			  initial_distribution,
+			  lr=0.0003, 
+			  discount=0.99, 
+			  target_update_period=2, 
+			  tau=0.005, alpha=0.1, 
+			  auto_entropy_tuning=True, 
+			  hidden_dim=1024, 
+			  hidden_depth=2, 
+			  device='cpu', 
+			  **kwargs):
+		super().__init__(state_dim, action_dim, action_range, lr, discount, target_update_period, tau, alpha, auto_entropy_tuning, hidden_dim, hidden_depth, device, **kwargs)
+
+		self.dynamics = dynamics
+		self.rewards = rewards
+		self.initial_dist = initial_distribution
+
+	
+	def update_actor_and_alpha(self, batch):
+		obs = batch.state 
+		log_probs = []
+		rewards = torch.zeros([obs.shape[0]])
+		for i in range(100):
+			dist = self.actor(obs)
+			action = dist.rsample()
+			log_prob = dist.log_prob(action).sum(-1, keepdim=True)
+			obs = self.dynamics(obs, action)
+			rewards += self.rewards(obs, action, i)
+			log_probs.append(log_prob)
+		actor_loss = rewards.mean()
+		log_prob_all = torch.hstack(log_probs)
+		# actor_Q1, actor_Q2 = self.critic(obs, action)
+
+		# actor_Q = torch.min(actor_Q1, actor_Q2)
+		# actor_loss = (self.alpha.detach() * log_prob - actor_Q).mean()
+
+		# optimize the actor
+		self.actor_optimizer.zero_grad()
+		actor_loss.backward()
+		self.actor_optimizer.step()
+
+		info = {'actor_loss': actor_loss.item()}
+
+		if self.learnable_temperature:
+			self.log_alpha_optimizer.zero_grad()
+			alpha_loss = (self.alpha *
+										(-log_prob_all - self.target_entropy).detach()).mean()
+			alpha_loss.backward()
+			self.log_alpha_optimizer.step()
+
+			info['alpha_loss'] = alpha_loss 
+			info['alpha'] = self.alpha 
+
+		return info 
+	
+	def train(self, buffer, batch_size):
+		"""
+		One train step
+		"""
+		self.steps += 1
+
+		batch = torch.from_numpy(self.initial_dist(batch_size)).to(self.device)
+		# Acritic step
+		# critic_info = self.critic_step(batch)
+
+		# Actor and alpha step
+		actor_info = self.update_actor_and_alpha(batch)
+
+
+		# Update the frozen target models
+		self.update_target()
+
+		return {
+			# **critic_info, 
+			**actor_info,
+		}
+
+
+def test_fh_agent_biagt():
+	from repr_control.envs.models.articulate_model import dynamics, reward, initial_distribution
+	agent = ModelBasedSACAgent(7, 2, [[-1, -1], [1, 1]], dynamics, reward, initial_distribution)
+	agent.train()
+
+# test_fh_agent_biagt()

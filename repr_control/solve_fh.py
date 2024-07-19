@@ -2,6 +2,7 @@ import argparse
 import os
 import pickle as pkl
 
+import gymnasium.wrappers.transform_reward
 from tensorboardX import SummaryWriter
 from datetime import datetime
 from repr_control.utils import util, buffer
