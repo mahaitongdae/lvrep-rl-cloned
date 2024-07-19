@@ -42,7 +42,7 @@ class Timer:
 		return sps
 
 
-def eval_policy(policy, eval_env, eval_episodes=100):
+def eval_policy(policy, eval_env, eval_episodes=100, render=False, seed=0):
 	"""
 	Eval a policy
 	"""
@@ -51,7 +51,7 @@ def eval_policy(policy, eval_env, eval_episodes=100):
 	for i in range(eval_episodes):
 		ep_ret = 0.
 		# eval_env.seed(i)
-		state, _ = eval_env.reset(seed=i+25)
+		state, _ = eval_env.reset(seed=i + seed)
 		done = False
 		# print("eval_policy state", state)
 		while not done:
@@ -60,6 +60,8 @@ def eval_policy(policy, eval_env, eval_episodes=100):
 			done = terminated or truncated
 			ep_ret += reward
 			avg_len += 1
+			if render:
+				eval_env.render()
 		ep_rets.append(ep_ret)
 
 	avg_ret = np.mean(ep_rets)

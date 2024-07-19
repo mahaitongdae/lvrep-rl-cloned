@@ -1,5 +1,10 @@
 from repr_control.agent.sac.sac_agent import SACAgent
 from repr_control.agent.rfsac.rfsac_agent import RFVCritic, nystromVCritic
+import torch
+import copy
+from repr_control.utils.util import unpack_batch
+import torch.nn.functional as F
+
 class CustomModelRFSACAgent(SACAgent):
 
     def __init__(self,
@@ -20,6 +25,7 @@ class CustomModelRFSACAgent(SACAgent):
                  learn_rf=False,
                  use_nystrom=False,
                  replay_buffer=None,
+                 device = 'cpu',
                  **kwargs
                  ):
 
@@ -34,15 +40,16 @@ class CustomModelRFSACAgent(SACAgent):
             target_update_period=target_update_period,
             auto_entropy_tuning=auto_entropy_tuning,
             hidden_dim=hidden_dim,
+            device=device,
             **kwargs
         )
 
         if use_nystrom == False:  # use RF
-            self.critic = RFVCritic(s_dim=state_dim, sigma=sigma, rf_num=rf_num, learn_rf=learn_rf, **kwargs).to(device)
+            self.critic = RFVCritic(s_dim=state_dim, sigma=sigma, rf_num=rf_num, learn_rf=learn_rf, **kwargs).to(self.device)
         else:  # use nystrom
             feat_num = rf_num
             self.critic = nystromVCritic(sigma=sigma, feat_num=feat_num, buffer=replay_buffer, learn_rf=learn_rf,
-                                         **kwargs).to(device)
+                                         **kwargs).to(self.device)
         # self.critic = Critic().to(device)
         self.critic_target = copy.deepcopy(self.critic)
         self.critic_optimizer = torch.optim.Adam(
