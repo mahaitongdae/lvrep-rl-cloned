@@ -14,13 +14,14 @@ class SACAgent(object):
 	"""
 	DDPG Agent
 	"""
+
 	def __init__(
-			self, 
-			state_dim, 
-			action_dim, 
+			self,
+			state_dim,
+			action_dim,
 			action_range,
 			lr=3e-4,
-			discount=0.99, 
+			discount=0.99,
 			target_update_period=2,
 			tau=0.005,
 			alpha=0.1,
@@ -29,33 +30,33 @@ class SACAgent(object):
 			hidden_depth=2,
 			device='cpu',
 			**kwargs
-			):
+	):
 
 		self.steps = 0
 
 		self.device = torch.device(device)
 		self.action_range = action_range
-		self.discount = discount 
-		self.tau = tau 
+		self.discount = discount
+		self.tau = tau
 		self.target_update_period = target_update_period
 		self.learnable_temperature = auto_entropy_tuning
 
 		# functions
 		self.critic = DoubleQCritic(
-			obs_dim=state_dim, 
+			obs_dim=state_dim,
 			action_dim=action_dim,
 			hidden_dim=hidden_dim,
 			hidden_depth=hidden_depth,
 		).to(self.device)
 		self.critic_target = DoubleQCritic(
-			obs_dim=state_dim, 
+			obs_dim=state_dim,
 			action_dim=action_dim,
 			hidden_dim=hidden_dim,
 			hidden_depth=hidden_depth,
 		).to(self.device)
 		self.critic_target.load_state_dict(self.critic.state_dict())
 		self.actor = DiagGaussianActor(
-			obs_dim=state_dim, 
+			obs_dim=state_dim,
 			action_dim=action_dim,
 			hidden_dim=hidden_dim,
 			hidden_depth=hidden_depth,
@@ -64,8 +65,8 @@ class SACAgent(object):
 		self.log_alpha = torch.tensor(np.log(alpha)).float().to(self.device)
 		self.log_alpha.requires_grad = True
 		self.target_entropy = -action_dim
-		
-		 # optimizers
+
+		# optimizers
 		self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),
 												lr=lr,
 												betas=[0.9, 0.999])
@@ -78,11 +79,9 @@ class SACAgent(object):
 													lr=lr,
 													betas=[0.9, 0.999])
 
-
 	@property
 	def alpha(self):
 		return self.log_alpha.exp()
-
 
 	def select_action(self, state, explore=False):
 		if isinstance(state, list):
@@ -97,12 +96,10 @@ class SACAgent(object):
 		assert action.ndim == 2 and action.shape[0] == 1
 		return util.to_np(action[0])
 
-
 	def update_target(self):
 		if self.steps % self.target_update_period == 0:
 			for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
 				target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
-
 
 	def critic_step(self, batch):
 		"""
@@ -116,14 +113,14 @@ class SACAgent(object):
 		log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
 		target_Q1, target_Q2 = self.critic_target(next_obs, next_action)
 		target_V = torch.min(target_Q1,
-													target_Q2) - self.alpha.detach() * log_prob
+							 target_Q2) - self.alpha.detach() * log_prob
 		target_Q = reward + (not_done * self.discount * target_V)
 		target_Q = target_Q.detach()
 
 		# get current Q estimates
 		current_Q1, current_Q2 = self.critic(obs, action)
 		critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
-				current_Q2, target_Q)
+			current_Q2, target_Q)
 
 		# Optimize the critic
 		self.critic_optimizer.zero_grad()
@@ -131,14 +128,13 @@ class SACAgent(object):
 		self.critic_optimizer.step()
 
 		return {
-			'q_loss': critic_loss.item(), 
+			'q_loss': critic_loss.item(),
 			'q1': current_Q1.mean().item(),
 			'q2': current_Q1.mean().item()
-			}
-
+		}
 
 	def update_actor_and_alpha(self, batch):
-		obs = batch.state 
+		obs = batch.state
 
 		dist = self.actor(obs)
 		action = dist.rsample()
@@ -158,15 +154,14 @@ class SACAgent(object):
 		if self.learnable_temperature:
 			self.log_alpha_optimizer.zero_grad()
 			alpha_loss = (self.alpha *
-										(-log_prob - self.target_entropy).detach()).mean()
+						  (-log_prob - self.target_entropy).detach()).mean()
 			alpha_loss.backward()
 			self.log_alpha_optimizer.step()
 
-			info['alpha_loss'] = alpha_loss 
-			info['alpha'] = self.alpha 
+			info['alpha_loss'] = alpha_loss
+			info['alpha'] = self.alpha
 
-		return info 
-
+		return info
 
 	def train(self, buffer, batch_size):
 		"""
@@ -181,58 +176,57 @@ class SACAgent(object):
 		# Actor and alpha step
 		actor_info = self.update_actor_and_alpha(batch)
 
-
 		# Update the frozen target models
 		self.update_target()
 
 		return {
-			**critic_info, 
+			**critic_info,
 			**actor_info,
 		}
 
+
 class ModelBasedSACAgent(SACAgent):
 
-
-	def __init__(self, state_dim, 
-			  action_dim, 
-			  action_range,
-			  dynamics,
-			  rewards, 
-			  initial_distribution,
-			  lr=0.0003, 
-			  discount=0.99, 
-			  target_update_period=2, 
-			  tau=0.005, alpha=0.1, 
-			  auto_entropy_tuning=True, 
-			  hidden_dim=1024, 
-			  hidden_depth=2, 
-			  device='cpu', 
-			  **kwargs):
-		super().__init__(state_dim, action_dim, action_range, lr, discount, target_update_period, tau, alpha, auto_entropy_tuning, hidden_dim, hidden_depth, device, **kwargs)
-
+	def __init__(self, state_dim,
+				 action_dim,
+				 action_range,
+				 dynamics,
+				 rewards,
+				 initial_distribution,
+				 horizon=250,
+				 lr=0.0003,
+				 discount=0.99,
+				 target_update_period=2,
+				 tau=0.005, alpha=0.1,
+				 auto_entropy_tuning=True,
+				 hidden_dim=1024,
+				 hidden_depth=2,
+				 device='cpu',
+				 **kwargs):
+		super().__init__(state_dim, action_dim, action_range, lr, discount, target_update_period, tau, alpha,
+						 auto_entropy_tuning, hidden_dim, hidden_depth, device, **kwargs)
+		self.horizon = horizon
 		self.dynamics = dynamics
 		self.rewards = rewards
 		self.initial_dist = initial_distribution
 
-	
 	def update_actor_and_alpha(self, batch):
-		obs = batch.state 
+		obs = batch.state
 		log_probs = []
 		rewards = torch.zeros([obs.shape[0]]).to(self.device)
-		for i in range(250):
+		for i in range(self.horizon):
 			dist = self.actor(obs)
 			action = dist.rsample()
 			log_prob = dist.log_prob(action).sum(-1, keepdim=True)
 			obs = self.dynamics(obs, action)
-			rewards += self.rewards(obs, action, i)
+			if i == self.horizon - 1:
+				rewards += self.rewards(obs, action, terminal=True)
+			else:
+				rewards += self.rewards(obs, action, terminal=False)
 			log_probs.append(log_prob)
-		final_reward = self.rewards(obs, action, 249)
+		final_reward = self.rewards(obs, action, terminal=True)
 		actor_loss = -1 * rewards.mean()
 		log_prob_all = torch.hstack(log_probs)
-		# actor_Q1, actor_Q2 = self.critic(obs, action)
-
-		# actor_Q = torch.min(actor_Q1, actor_Q2)
-		# actor_loss = (self.alpha.detach() * log_prob - actor_Q).mean()
 
 		# optimize the actor
 		self.actor_optimizer.zero_grad()
@@ -245,15 +239,15 @@ class ModelBasedSACAgent(SACAgent):
 		if self.learnable_temperature:
 			self.log_alpha_optimizer.zero_grad()
 			alpha_loss = (self.alpha *
-										(-log_prob_all - self.target_entropy).detach()).mean()
+						  (-log_prob_all - self.target_entropy).detach()).mean()
 			alpha_loss.backward()
 			self.log_alpha_optimizer.step()
 
 			info['alpha_loss'] = alpha_loss.item()
 			info['alpha'] = self.alpha.item()
 
-		return info 
-	
+		return info
+
 	def train(self, buffer, batch_size):
 		"""
 		One train step
@@ -265,19 +259,18 @@ class ModelBasedSACAgent(SACAgent):
 					  action=None,
 					  next_state=None,
 					  reward=None,
-					  done=None,)
+					  done=None, )
 		# Acritic step
 		# critic_info = self.critic_step(batch)
 
 		# Actor and alpha step
 		actor_info = self.update_actor_and_alpha(batch)
 
-
 		# Update the frozen target models
 		self.update_target()
 
 		return {
-			# **critic_info, 
+			# **critic_info,
 			**actor_info,
 		}
 
@@ -287,7 +280,8 @@ def test_fh_agent_biagt():
 	agent = ModelBasedSACAgent(7, 2, [[-1, -1], [1, 1]], dynamics, reward, initial_distribution)
 	agent.train(None, batch_size=256)
 
+
 if __name__ == '__main__':
-    test_fh_agent_biagt()
+	test_fh_agent_biagt()
 
 # test_fh_agent_biagt()

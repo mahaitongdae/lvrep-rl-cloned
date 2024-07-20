@@ -26,11 +26,17 @@ def dynamics(state, action):
     stp1 = state + ds * dt 
     return stp1
 
-def reward(state, action, i):
+def reward(state, action, terminal = False):
     x, y, th0, dth, v, delta, t = torch.unbind(state, dim=1)
     acc, delta_rate = torch.unbind(action, dim=1)
-    if i < 249:
-        reward = -1e-4 * (x ** 2 + y ** 2 + 10 * th0 ** 2 + 10 * dth ** 2 + acc ** 2 + delta_rate ** 2)
+    if terminal:
+        reward = -1e-4 * (x ** 2 + y ** 2
+                          + 10 * th0 ** 2
+                          + 10 * dth ** 2
+                          + v ** 2
+                          + delta ** 2
+                          + acc ** 2
+                          + delta_rate ** 2)
     else:
         reward = -1 * (10 * x ** 2 + 10 * y ** 2 + 100 * th0 ** 2 + 100 * dth ** 2)
     return reward
