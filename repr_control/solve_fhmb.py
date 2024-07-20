@@ -23,7 +23,7 @@ if __name__ == "__main__":
     ### parameter that
     parser.add_argument("--alg", default="sac",
                         help="The algorithm to use. rfsac or sac.")
-    parser.add_argument("--horizon", default=400, type=int,
+    parser.add_argument("--horizon", default=250, type=int,
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--env", default='parking',
                         help="Name your env/dynamics, only for folder names.")  # Alg name (sac, vlsac)

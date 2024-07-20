@@ -205,6 +205,20 @@ class ModelBasedSACAgent(SACAgent):
 				 **kwargs):
 		super().__init__(state_dim, action_dim, action_range, lr, discount, target_update_period, tau, alpha,
 						 auto_entropy_tuning, hidden_dim, hidden_depth, device, **kwargs)
+		
+		self.actor = DiagGaussianActor(
+			obs_dim=state_dim - 1,
+			action_dim=action_dim,
+			hidden_dim=hidden_dim,
+			hidden_depth=hidden_depth,
+			log_std_bounds=[-5., 2.],
+		).to(self.device)
+		self.target_entropy = -action_dim + 1
+
+		# optimizers
+		self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),
+												lr=lr,
+												betas=[0.9, 0.999])
 		self.horizon = horizon
 		self.dynamics = dynamics
 		self.rewards = rewards
@@ -215,7 +229,7 @@ class ModelBasedSACAgent(SACAgent):
 		log_probs = []
 		rewards = torch.zeros([obs.shape[0]]).to(self.device)
 		for i in range(self.horizon):
-			dist = self.actor(obs)
+			dist = self.actor(obs[:, :-1]) # no time in policy
 			action = dist.rsample()
 			log_prob = dist.log_prob(action).sum(-1, keepdim=True)
 			obs = self.dynamics(obs, action)
@@ -273,6 +287,19 @@ class ModelBasedSACAgent(SACAgent):
 			# **critic_info,
 			**actor_info,
 		}
+	
+	def select_action(self, state, explore=False):
+		if isinstance(state, list):
+			state = np.array(state)
+		assert len(state.shape) == 1
+		state = torch.from_numpy(state).to(self.device)
+		state = state.unsqueeze(0)
+		dist = self.actor(state[:, :-1])
+		action = dist.sample() if explore else dist.mean
+		action = action.clamp(torch.tensor(-1, device=self.device),
+							  torch.tensor(1, device=self.device))
+		assert action.ndim == 2 and action.shape[0] == 1
+		return util.to_np(action[0])
 
 
 def test_fh_agent_biagt():
