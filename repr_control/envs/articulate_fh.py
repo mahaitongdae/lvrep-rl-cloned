@@ -11,7 +11,8 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import logger, spaces
 import pygame
-from pygame import draw, gfxdraw
+from pygame import draw, gfxdraw, freetype
+import imageio
 
 
 class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
@@ -45,7 +46,12 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
     vehicle_width = 1.9
     v_max = 0.6
 
-    def __init__(self, render_mode: Optional[str] = None, horizon=500, noise_scale=0., eval=False):
+    def __init__(self, render_mode: Optional[str] = None,
+                 horizon=500,
+                 noise_scale=0.,
+                 eval=False,
+                 save_video=False,
+                 save_episode=1):
         """
         task : swingup or balance
         """
@@ -80,7 +86,7 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 
         self.render_mode = render_mode
 
-        self.screen_dim = 600
+        self.screen_dim = 1200
         # self.screen_height = 400
         self.screen = None
         self.clock = None
@@ -88,6 +94,11 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         self.state = None
 
         self.steps_beyond_terminated = None
+        self.save_video = save_video
+        if save_video:
+            self.frames = []
+            self.frame_count = 0
+            # self.total_frames =
 
     def angle_normalize(self, theta):
         return np.remainder(theta, 2 * np.pi)
@@ -174,6 +185,8 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
             options: Optional[dict] = None,
     ):
         super().reset(seed=seed)
+        if seed is not None:
+            self.seed = seed
         # Note that if you use custom reset bounds, it may lead to out-of-bound
         # state/observations.
         self.step_counter = 0
@@ -223,9 +236,11 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         if self.screen is None:
             pygame.init()
             pygame.display.init()
+            freetype.init()
             self.screen = pygame.display.set_mode(
                 (self.screen_dim, self.screen_dim)
             )
+
         if self.clock is None:
             self.clock = pygame.time.Clock()
 
@@ -238,8 +253,10 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 
         vehicle_length = self.vehicle_length * scale
         vehicle_width = 0.3 * self.vehicle_length * scale
+        steering_length = vehicle_length / 4
+        steering_width = vehicle_width / 6
 
-        def draw_vehicle(vehicle_length, vehicle_width, state, filled = True):
+        def draw_vehicle(vehicle_length, vehicle_width, state, filled = True, steering = None):
             """
             state: x, y, theta
             """
@@ -251,11 +268,27 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
                 c = (c[0] + scale * state[0] + offset, c[1] + scale * state[1] + offset)
                 transformed_coords.append(c)
             # draw.polygon(self.surf, transformed_coords, (204, 77, 77))
+
+
             gfxdraw.aapolygon(self.surf, transformed_coords, (204, 77, 77))
             if filled:
                 gfxdraw.filled_polygon(self.surf, transformed_coords, (204, 77, 77))
 
-        draw_vehicle(vehicle_length, vehicle_width, self.state)
+            if steering:
+                steering_x1 = 0.5 * (transformed_coords[-2][0] + transformed_coords[-1][0])
+                steering_y1 = 0.5 * (transformed_coords[-2][1] + transformed_coords[-1][1])
+                l, r, t, b = -steering_length, steering_length, steering_width / 2, - steering_width / 2
+                coords = [(l, b), (l, t), (r, t), (r, b)]
+                transformed_coords = []
+                for c in coords:
+                    c = pygame.math.Vector2(c).rotate_rad(state[2] + steering)
+                    c = (c[0] + steering_x1, c[1] + steering_y1)
+                    transformed_coords.append(c)
+                gfxdraw.aapolygon(self.surf, transformed_coords, (0,0,0))
+                # if filled:
+                gfxdraw.filled_polygon(self.surf, transformed_coords, (0,0,0))
+
+        draw_vehicle(vehicle_length, vehicle_width, self.state, steering = self.state[-2])
         draw_vehicle(vehicle_length, vehicle_width, [0, 0, 0], filled=False)
 
         trailer_dif = (pygame.math.Vector2((self.trailer_length, 0))
@@ -270,7 +303,17 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         draw_vehicle(trailer_length, trailer_width, trailer_state)
         draw_vehicle(trailer_length, trailer_width, [-trailer_length, 0, 0], filled=False)
 
+
+
         self.surf = pygame.transform.flip(self.surf, False, True)
+        text1 = f"Time: {self.state[-1]:.2f}"
+        text2 = f"Velocity: {self.state[-3]:.3f}"
+        text3 = f"Steering: {self.state[-2]:.3f}"
+        text_color = pygame.Color('dodgerblue')
+        font = freetype.SysFont("Arial", 48)
+        font.render_to(self.surf, (50, 50), text1, text_color)
+        font.render_to(self.surf, (50, 98), text2, text_color)
+        font.render_to(self.surf, (50, 146), text3, text_color)
         self.screen.blit(self.surf, (0, 0))
         if self.render_mode == "human":
             pygame.event.pump()
@@ -281,6 +324,15 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
             return np.transpose(
                 np.array(pygame.surfarray.pixels3d(self.screen)), axes=(1, 0, 2)
             )
+        if self.save_video:
+            frame = pygame.surfarray.array3d(self.surf)
+
+            # frame = np.flip(frame, axis=1)
+            frame = np.transpose(frame, (1, 0, 2))  # Transpose the frame
+            self.frames.append(frame)
+
+            self.frame_count += 1
+
 
     def close(self):
         if self.screen is not None:
@@ -289,6 +341,10 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
             pygame.display.quit()
             pygame.quit()
             self.isopen = False
+
+        if self.save_video:
+            output_filename = f'pygame_video_{self.seed}.mp4'
+            imageio.mimsave(output_filename, self.frames, fps=self.metadata["render_fps"])
 
 def test_env():
     import time
