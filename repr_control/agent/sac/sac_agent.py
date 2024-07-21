@@ -308,7 +308,7 @@ class ModelBasedDPGAgent(ModelBasedSACAgent):
 				 hidden_depth=hidden_depth,
 				 device=device,
 				 **kwargs)
-		self.actor = DeterministicActor(state_dim, action_dim, hidden_dim, hidden_depth)
+		self.actor = DeterministicActor(state_dim, action_dim, hidden_dim, hidden_depth).to(self.device)
 
 	def update_actor_and_alpha(self, batch):
 		obs = batch.state
