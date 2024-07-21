@@ -29,7 +29,7 @@ def dynamics(state, action):
 def reward(state, action, terminal = False):
     x, y, th0, dth, v, delta, t = torch.unbind(state, dim=1)
     acc, delta_rate = torch.unbind(action, dim=1)
-    if terminal:
+    if not terminal:
         reward = -1e-4 * (x ** 2 + y ** 2
                           + 10 * th0 ** 2
                           + 10 * dth ** 2

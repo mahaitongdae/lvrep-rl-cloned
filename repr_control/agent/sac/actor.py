@@ -90,3 +90,16 @@ class DiagGaussianActor(nn.Module):
 
     dist = SquashedNormal(mu, std)
     return dist
+
+class DeterministicActor(nn.Module):
+  def __init__(self, obs_dim, action_dim, hidden_dim, hidden_depth):
+    super().__init__()
+    self.trunk = util.mlp(obs_dim, hidden_dim, action_dim,
+                            hidden_depth)
+
+    self.outputs = dict()
+    self.apply(util.weight_init)
+
+  def forward(self, obs):
+    action = self.trunk(obs).tanh()
+    return action
