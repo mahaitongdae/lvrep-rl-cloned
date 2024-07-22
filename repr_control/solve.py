@@ -22,7 +22,7 @@ if __name__ == "__main__":
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--env", default=env_name,
                         help="Name your env/dynamics, only for folder names.")  # Alg name (sac, vlsac)
-    parser.add_argument("--rf_num", default=512, type=int,
+    parser.add_argument("--rf_num", default=8192, type=int,
                         help="Number of random features. Suitable numbers for 2-dimensional system is 512, 3-dimensional 1024, etc.")
     parser.add_argument("--nystrom_sample_dim", default=8192, type=int,
                         help='The sampling dimension for nystrom critic. After sampling, take the maximum rf_num eigenvectors..')
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--start_timesteps", default=25e3, type=float)  # Time steps initial random policy is used
     parser.add_argument("--eval_freq", default=5000, type=int)  # How often (time steps) we evaluate
-    parser.add_argument("--max_timesteps", default=1e5, type=float)  # Max time steps to run environment
+    parser.add_argument("--max_timesteps", default=2e5, type=float)  # Max time steps to run environment
     parser.add_argument("--batch_size", default=256, type=int)  # Batch size for both actor and critic
     parser.add_argument("--hidden_dim", default=256, type=int)  # Network hidden dims
     parser.add_argument("--feature_dim", default=256, type=int)  # Latent feature dim

@@ -52,7 +52,7 @@ def rewards(state, action, terminal = False):
     x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
     acc, delta_rate = torch.unbind(action, dim=1)
     if not terminal:
-        reward = -1 * (x ** 2 + y ** 2
+        reward = -1e-2 * (x ** 2 + y ** 2
                           + 10 * th0 ** 2
                           + 10 * dth ** 2
                           + v ** 2
