@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-state_dim = 6                       # state dimension
+state_dim = 7                       # state dimension
 action_dim = 2                      # action dimension
 state_range = [[
                 -20,
@@ -8,7 +8,8 @@ state_range = [[
                 -np.pi,
                 -np.pi / 2,
                 -0.6,
-                -np.pi / 6
+                -np.pi / 6,
+                -25           # t, 100 steps corresponds to 5s
             ],
     [
         20,
@@ -17,6 +18,7 @@ state_range = [[
         np.pi / 2,
         0.6,
         np.pi / 6,
+        25  # t, 100 steps corresponds to 5s
     ],
 ]           # low and high. We set bound on the state to ensure stable training.
 action_range = [[-1, -1], [1, 1]]          # low and high
@@ -31,7 +33,7 @@ def dynamics(state, action):
     delta_max = np.pi / 6
     dt = 0.05
 
-    x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
+    x, y, th0, dth, v, delta, t = torch.unbind(state, dim=1)
     acc = action[:, 0]
     delta_rate = action[:, 1] * delta_max / 4
     normalized_steer = torch.tan(delta) * R / l
@@ -42,14 +44,15 @@ def dynamics(state, action):
         v * normalized_steer / R,
         -1 * v * (d1 * normalized_steer + torch.sin(dth) * R) / (R * d1),
         acc,
-        delta_rate
+        delta_rate,
+        torch.ones_like(th0),
     ]).T
 
     stp1 = state + ds * dt 
     return stp1
 
 def rewards(state, action, terminal = False):
-    x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
+    x, y, th0, dth, v, delta, t = torch.unbind(state, dim=1)
     acc, delta_rate = torch.unbind(action, dim=1)
     if not terminal:
         reward = -1 * (x ** 2 + y ** 2
@@ -73,6 +76,7 @@ def initial_distribution(batch_size):
                 np.pi / 6,
                 0.0,
                 0.0,
+                0.0
             ],
             dtype=np.float32,
         )
@@ -82,6 +86,7 @@ def initial_distribution(batch_size):
             0.5,
             np.pi / 12,
             np.pi / 12,
+            0.0,
             0.0,
             0.0
             ]

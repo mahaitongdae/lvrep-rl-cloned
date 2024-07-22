@@ -10,7 +10,8 @@ dependencies = [
     "gymnasium",
     "tensorboardx",
     "seaborn",
-    "pytest"
+    "pytest",
+    "imageio[ffmpeg]"
 ]
 readme = "README.md"
 requires-python = ">=3.8"

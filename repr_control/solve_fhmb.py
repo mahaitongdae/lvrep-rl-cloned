@@ -81,11 +81,11 @@ if __name__ == "__main__":
 
     # Initialize policy
     if args.alg == "sac":
-        from repr_control.envs.models.articulate_model import dynamics, reward, initial_distribution
+        from repr_control.envs.models.articulate_model_fh import dynamics, reward, initial_distribution
 
         agent = sac_agent.ModelBasedSACAgent(7, 2, [[-1, -1], [1, 1]], dynamics, reward, initial_distribution, **kwargs)
     elif args.alg == "mbdpg":
-        from repr_control.envs.models.articulate_model import dynamics, reward, initial_distribution
+        from repr_control.envs.models.articulate_model_fh import dynamics, reward, initial_distribution
         agent = sac_agent.ModelBasedDPGAgent(7, 2, [[-1, -1], [1, 1]], dynamics, reward, initial_distribution, **kwargs)
     elif args.alg == 'rfsac':
         pass

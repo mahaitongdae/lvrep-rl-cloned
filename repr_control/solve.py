@@ -7,7 +7,8 @@ from datetime import datetime
 from repr_control.utils import util, buffer
 from repr_control.agent.sac import sac_agent
 from repr_control.agent.rfsac import rfsac_agent
-from define_problem import *
+# from define_problem import *
+from envs.models.articulate_model import *
 from gymnasium.envs.registration import register
 import gymnasium
 

@@ -376,7 +376,7 @@ class ModelBasedDPGAgent(ModelBasedSACAgent):
 
 
 def test_fh_agent_biagt():
-	from repr_control.envs.models.articulate_model import dynamics, reward, initial_distribution
+	from repr_control.envs.models.articulate_model_fh import dynamics, reward, initial_distribution
 	agent = ModelBasedSACAgent(7, 2, [[-1, -1], [1, 1]], dynamics, reward, initial_distribution)
 	agent.train(None, batch_size=256)
 

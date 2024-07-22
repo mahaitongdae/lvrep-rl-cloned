@@ -22,7 +22,7 @@ def eval(log_path, ):
 	kwargs.update({'eval': True})
 	if kwargs['alg'] == "sac":
 		# agent = sac_agent.SACAgent(**kwargs)
-		from repr_control.envs.models.articulate_model import dynamics, reward, initial_distribution
+		from repr_control.envs.models.articulate_model_fh import dynamics, reward, initial_distribution
 		agent = sac_agent.ModelBasedSACAgent(7, 2, [[-1, -1], [1, 1]], dynamics, reward, initial_distribution, **kwargs)
 
 	else:
