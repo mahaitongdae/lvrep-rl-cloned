@@ -1,0 +1,8 @@
+#version: 1.0
+shared_PH: true
+symmetric: true
+affine_qb: true
+use_residual_loss: true
+#no_obs_normalization: true
+force_feasible: true
+#batch_test: true

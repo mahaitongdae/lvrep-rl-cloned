@@ -18,17 +18,21 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     ### parameter that
-    parser.add_argument("--alg", default="rfsac",
+    parser.add_argument("--alg", default="sac",
                         help="The algorithm to use. rfsac or sac.")
-    parser.add_argument("--env", default=env_name,
+    parser.add_argument("--env", default='ArticulateInfiniteHorizon-v0',
                         help="Name your env/dynamics, only for folder names.")  # Alg name (sac, vlsac)
     parser.add_argument("--rf_num", default=8192, type=int,
                         help="Number of random features. Suitable numbers for 2-dimensional system is 512, 3-dimensional 1024, etc.")
     parser.add_argument("--nystrom_sample_dim", default=8192, type=int,
                         help='The sampling dimension for nystrom critic. After sampling, take the maximum rf_num eigenvectors..')
-    parser.add_argument("--device", default='cpu', type=str,
+    parser.add_argument("--device", default='cuda', type=str,
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
+
+    ## QP specific
+    parser.add_argument("--n_qp", type=int, default=8)
+    parser.add_argument("--m_qp", type=int, default=48)
 
     ### Parameters that usually don't need to be changed.
     parser.add_argument("--dir", default='main', type=str)
@@ -72,6 +76,8 @@ if __name__ == "__main__":
     # Initialize policy
     if args.alg == "sac":
         agent = sac_agent.SACAgent(**kwargs)
+    elif args.alg == 'qpsac':
+        agent = sac_agent.QPSACAgent(**kwargs)
     elif args.alg == 'rfsac':
         agent = rfsac_agent.CustomModelRFSACAgent(dynamics_fn = dynamics, rewards_fn = rewards, **kwargs)
     else:
@@ -79,23 +85,27 @@ if __name__ == "__main__":
 
     replay_buffer = buffer.ReplayBuffer(state_dim, action_dim, device=args.device)
 
-    register(id='custom-v0',
-             entry_point='repr_control.envs:CustomEnv',
-             max_episode_steps=max_step)
-    env = gymnasium.make('custom-v0',
-                   dynamics=dynamics,
-                   rewards=rewards,
-                   initial_distribution = initial_distribution,
-                   state_range=state_range,
-                   action_range=action_range,
-                   sigma=sigma)
-    eval_env = gymnasium.make('custom-v0',
-                        dynamics=dynamics,
-                        rewards=rewards,
-                        initial_distribution = initial_distribution,
-                        state_range=state_range,
-                        action_range=action_range,
-                        sigma=sigma)
+    if args.env == 'custom':
+        register(id='custom-v0',
+                 entry_point='repr_control.envs:CustomEnv',
+                 max_episode_steps=max_step)
+        env = gymnasium.make('custom-v0',
+                       dynamics=dynamics,
+                       rewards=rewards,
+                       initial_distribution = initial_distribution,
+                       state_range=state_range,
+                       action_range=action_range,
+                       sigma=sigma)
+        eval_env = gymnasium.make('custom-v0',
+                            dynamics=dynamics,
+                            rewards=rewards,
+                            initial_distribution = initial_distribution,
+                            state_range=state_range,
+                            action_range=action_range,
+                            sigma=sigma)
+    else:
+        env = gymnasium.make(args.env)
+        eval_env = gymnasium.make(args.env)
     env = gymnasium.wrappers.RescaleAction(env, min_action=-1, max_action=1)
     eval_env = gymnasium.wrappers.RescaleAction(eval_env, min_action=-1, max_action=1)
 

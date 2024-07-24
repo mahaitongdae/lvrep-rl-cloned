@@ -6,6 +6,7 @@ permalink: https://perma.cc/C9ZM-652R
 import math
 from typing import Optional, Union
 
+import gymnasium
 import numpy as np
 
 import gymnasium as gym
@@ -346,11 +347,156 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
             output_filename = f'pygame_video_{self.seed}.mp4'
             imageio.mimsave(output_filename, self.frames, fps=self.metadata["render_fps"])
 
+
+class ArticulateParkingInfiniteHorizon(ArticulateParking):
+    def __init__(self, render_mode: Optional[str] = None,
+                 horizon=500,
+                 noise_scale=0.,
+                 eval=False,
+                 save_video=False,
+                 save_episode=1):
+        super().__init__(render_mode,
+                         horizon,
+                         noise_scale,
+                         eval,
+                         save_video,
+                         save_episode)
+
+        high = np.array(
+            [
+                20,
+                10,
+                np.pi,
+                np.pi / 2,
+                2.0,
+                np.pi / 6,
+            ],
+            dtype=np.float32,
+        )
+        self.state_bound = high
+        self.observation_space = spaces.Box(-high, high, dtype=np.float32)
+        # self.horizon = 1e3
+
+    def reset(
+            self,
+            *,
+            seed: Optional[int] = None,
+            options: Optional[dict] = None,
+    ):
+        super().reset(seed=seed)
+        if seed is not None:
+            self.seed = seed
+        # Note that if you use custom reset bounds, it may lead to out-of-bound
+        # state/observations.
+        self.step_counter = 0
+
+        high = np.array(
+            [
+                10,
+                3,
+                np.pi / 6,
+                np.pi / 12,
+                0.0,
+                0.0,
+            ],
+            dtype=np.float32,
+        )
+
+        reset_std = np.array(
+            [3.0,
+             0.5,
+             np.pi / 12,
+             0.0,
+             0.0,
+             0.0,
+             ]
+        )
+        # low, high = utils.maybe_parse_reset_bounds(
+        #     options,   # default low
+        # )  # default high
+        if options and 'state' in options.keys():
+            self.state = options['state']
+        else:
+            # self.state = self.np_random.uniform(low=-1 * high, high=high)
+            self.state = self.np_random.normal(np.zeros_like(reset_std), reset_std)
+            self.state = np.clip(self.state, -high, high)
+            self.state[3] = self.state[3] - self.state[2] # we sample theta_1 and calculate theta_1 - theta_0
+
+        self.step_counter = 0
+
+        if self.render_mode == "human":
+            self.render()
+        return np.array(self.state, dtype=np.float32), {}
+
+    def dynamics_step(self, action):
+        ds = self.ode(self.state, action)
+        # now we assume euler
+        self.state = self.state + ds * self.dt
+        self.state[-3] = np.clip(self.state[-2], - self.v_max, self.v_max)
+        self.state[-2] = np.clip(self.state[-1], - self.delta_max, self.delta_max)
+
+    def ode(self, state, action):
+        x, y, th0, dth, v, delta = state
+        acc = action[0] * 2.0
+        delta_rate = action[1] * self.delta_max / 2
+        normalized_steer = np.tan(delta) * self.R / self.l
+
+        ds = np.array([
+            v * np.cos(th0),
+            v * np.sin(th0),
+            v * normalized_steer / self.R,
+            -1 * v * (self.d1 * normalized_steer + np.sin(dth) * self.R) / (self.R * self.d1),
+            acc,
+            delta_rate,
+        ])
+
+        return ds
+
+    def step(self, action):
+        info = {}
+
+        self.dynamics_step(action)
+        self.step_counter += 1
+        truncated = False
+        terminated, done_info = self.get_done()
+        info.update(done_info)
+        Q = -1e-4 * np.array([1., 1., 10., 10.])
+        R = -1e-3 * np.array([0.1, 0.1])
+        # if self.step_counter
+
+        if not terminated:
+            # reward = 1.0
+            reward = (np.multiply(np.square(self.state[:4]), Q).sum()
+                      + np.multiply(np.square(action), R).sum())
+
+
+        elif self.steps_beyond_terminated is None:
+            self.steps_beyond_terminated = 0
+            reward = -100.0
+        else:
+            if self.steps_beyond_terminated == 0:
+                logger.warn(
+                    "You are calling 'step()' even though this "
+                    "environment has already returned terminated = True. You "
+                    "should always call 'reset()' once you receive 'terminated = "
+                    "True' -- any further steps are undefined behavior."
+                )
+            self.steps_beyond_terminated += 1
+            reward = -100.0
+
+        if self.render_mode == "human":
+            self.render()
+        return np.array(self.state, dtype=np.float32), reward, terminated, truncated, info
+
+
+
+
 def test_env():
-    import time
-    env = ArticulateParking() #render_mode='human'
+    import repr_control.envs
+    import gymnasium
+    env = gymnasium.make('ArticulateInfiniteHorizon-v0')
     print(env.reset())
-    env.render()
+    # env.render()
     import time
     done = False
     while not done:
