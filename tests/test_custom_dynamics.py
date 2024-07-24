@@ -1,7 +1,7 @@
 from repr_control.envs.custom_env import CustomEnv
 
 def test_custom_env():
-    from repr_control.scripts.define_problem import dynamics, rewards, initial_distribution, state_range, action_range, sigma
+    from repr_control.define_problem import dynamics, rewards, initial_distribution, state_range, action_range, sigma
     env = CustomEnv(dynamics, rewards, initial_distribution, state_range, action_range, sigma)
 
     print(env.reset())

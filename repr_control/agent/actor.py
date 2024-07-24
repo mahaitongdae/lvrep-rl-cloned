@@ -90,3 +90,52 @@ class DiagGaussianActor(nn.Module):
 
     dist = SquashedNormal(mu, std)
     return dist
+
+class DeterministicActor(nn.Module):
+  def __init__(self, obs_dim, action_dim, hidden_dim, hidden_depth):
+    super().__init__()
+    self.trunk = util.mlp(obs_dim, hidden_dim, action_dim,
+                            hidden_depth)
+
+    self.outputs = dict()
+    self.apply(util.weight_init)
+
+  def forward(self, obs):
+    action = self.trunk(obs).tanh()
+    return action
+
+
+class StochasticActorFromDetStructureWrapper(nn.Module):
+  """
+  It's a simple wrapper that wraps stochastic policy to
+  """
+  def __init__(self, obs_dim, action_dim, hidden_dim, hidden_depth, log_std_bounds, det_module):
+    super().__init__()
+    self.log_std_bounds = log_std_bounds
+    self.trunk = util.mlp(obs_dim, hidden_dim, action_dim,
+                          hidden_depth)
+
+    self.outputs = dict()
+    self.apply(util.weight_init)
+    self.det_module = det_module
+    self.action_dim = action_dim
+
+  def forward(self, obs):
+    mu = self.det_module(obs)[:, :self.action_dim]
+
+    log_std = self.trunk(obs)
+    assert mu.shape == log_std.shape, "mu std shape not consistent"
+
+    # constrain log_std inside [log_std_min, log_std_max]
+    log_std = torch.tanh(log_std)
+    log_std_min, log_std_max = self.log_std_bounds
+    log_std = log_std_min + 0.5 * (log_std_max - log_std_min) * (log_std +
+                                                                  1)
+
+    std = log_std.exp()
+
+    self.outputs['mu'] = mu
+    self.outputs['std'] = std
+
+    dist = SquashedNormal(mu, std)
+    return dist

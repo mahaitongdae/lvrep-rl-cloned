@@ -5,9 +5,9 @@ import torch.nn.functional as F
 import math
 
 from repr_control.utils import util
-
-from repr_control.agent.sac.critic import DoubleQCritic
-from repr_control.agent.sac.actor import DiagGaussianActor
+from repr_control.utils.buffer import Batch
+from repr_control.agent.critic import DoubleQCritic
+from repr_control.agent.actor import DiagGaussianActor, DeterministicActor, StochasticActorFromDetStructureWrapper
 
 
 class SACAgent(object):

@@ -10,6 +10,7 @@ from repr_control.agent.rfsac import rfsac_agent
 from define_problem import *
 from gymnasium.envs.registration import register
 import gymnasium
+import yaml
 
 
 if __name__ == "__main__":
@@ -19,7 +20,7 @@ if __name__ == "__main__":
     ### parameter that
     parser.add_argument("--alg", default="rfsac",
                         help="The algorithm to use. rfsac or sac.")
-    parser.add_argument("--env", default=env_name,
+    parser.add_argument("--env", default='custom',
                         help="Name your env/dynamics, only for folder names.")  # Alg name (sac, vlsac)
     parser.add_argument("--rf_num", default=512, type=int,
                         help="Number of random features. Suitable numbers for 2-dimensional system is 512, 3-dimensional 1024, etc.")
@@ -78,23 +79,27 @@ if __name__ == "__main__":
 
     replay_buffer = buffer.ReplayBuffer(state_dim, action_dim, device=args.device)
 
-    register(id='custom-v0',
-             entry_point='repr_control.envs:CustomEnv',
-             max_episode_steps=max_step)
-    env = gymnasium.make('custom-v0',
-                   dynamics=dynamics,
-                   rewards=rewards,
-                   initial_distribution = initial_distribution,
-                   state_range=state_range,
-                   action_range=action_range,
-                   sigma=sigma)
-    eval_env = gymnasium.make('custom-v0',
-                        dynamics=dynamics,
-                        rewards=rewards,
-                        initial_distribution = initial_distribution,
-                        state_range=state_range,
-                        action_range=action_range,
-                        sigma=sigma)
+    if args.env == 'custom':
+        register(id='custom-v0',
+                 entry_point='repr_control.envs:CustomEnv',
+                 max_episode_steps=max_step)
+        env = gymnasium.make('custom-v0',
+                       dynamics=dynamics,
+                       rewards=rewards,
+                       initial_distribution = initial_distribution,
+                       state_range=state_range,
+                       action_range=action_range,
+                       sigma=sigma)
+        eval_env = gymnasium.make('custom-v0',
+                            dynamics=dynamics,
+                            rewards=rewards,
+                            initial_distribution = initial_distribution,
+                            state_range=state_range,
+                            action_range=action_range,
+                            sigma=sigma)
+    else:
+        env = gymnasium.make(args.env)
+        eval_env = gymnasium.make(args.env)
     env = gymnasium.wrappers.RescaleAction(env, min_action=-1, max_action=1)
     eval_env = gymnasium.wrappers.RescaleAction(eval_env, min_action=-1, max_action=1)
 
@@ -112,6 +117,11 @@ if __name__ == "__main__":
     best_eval_reward = -1e6
     best_actor = None
     best_critic = None
+
+    # save parameters
+    # kwargs.update({"action_space": None}) # action space might not be serializable
+    with open(os.path.join(log_path, 'train_params.yaml'), 'w') as fp:
+        yaml.dump(kwargs, fp, default_flow_style=False)
 
     for t in range(int(args.max_timesteps)):
 
@@ -188,7 +198,4 @@ if __name__ == "__main__":
     torch.save(agent.actor.state_dict(), log_path + "/actor_last.pth")
     torch.save(agent.critic.state_dict(), log_path + "/critic_last.pth")
 
-    # save parameters
-    # kwargs.update({"action_space": None}) # action space might not be serializable
-    with open(os.path.join(log_path, 'train_params.pkl'), 'wb') as fp:
-        pkl.dump(kwargs, fp)
+

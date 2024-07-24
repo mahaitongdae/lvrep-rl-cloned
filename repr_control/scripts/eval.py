@@ -5,9 +5,10 @@ from repr_control.agent.rfsac import rfsac_agent
 from repr_control.agent.sac import sac_agent
 from repr_control.agent.sac.actor import DiagGaussianActor
 from repr_control.utils.util import eval_policy
-from repr_control.scripts.define_problem import *
+from repr_control.define_problem import *
 import gymnasium
 from gymnasium.envs.registration import register
+import yaml
 
 def eval(log_path, ):
 
@@ -28,8 +29,12 @@ def eval(log_path, ):
     return ep_rets
 
 def get_controller(log_path):
-    with open(os.path.join(log_path, 'train_params.pkl'), 'rb') as f:
-        kwargs = pkl.load(f)
+    try:
+        with open(os.path.join(log_path, 'train_params.pkl'), 'rb') as f:
+            kwargs = pkl.load(f)
+    except:
+        with open(os.path.join(log_path, 'train_params.yaml'), 'r') as f:
+            kwargs = yaml.safe_load(f)
     if kwargs['alg'] == "sac":
         agent = sac_agent.SACAgent(**kwargs)
     elif kwargs['alg'] == 'rfsac':
