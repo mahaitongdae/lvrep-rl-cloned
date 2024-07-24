@@ -11,4 +11,4 @@ register('ArticulateFiniteHorizon-v0',
          max_episode_steps=500)
 register('ArticulateInfiniteHorizon-v0',
          entry_point='repr_control.envs:ArticulateParkingInfiniteHorizon',
-         max_episode_steps=500)
+         max_episode_steps=250)
