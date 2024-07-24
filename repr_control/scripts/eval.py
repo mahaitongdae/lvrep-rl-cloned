@@ -3,7 +3,7 @@ import os
 import argparse
 from repr_control.agent.rfsac import rfsac_agent
 from repr_control.agent.sac import sac_agent
-from repr_control.agent.sac.actor import DiagGaussianActor
+from repr_control.agent.actor import DiagGaussianActor
 from repr_control.utils.util import eval_policy
 from repr_control.define_problem import *
 import gymnasium

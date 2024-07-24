@@ -10,12 +10,18 @@ The optimal controller is trained via Spectral Dynamics Embedding Control (SDEC)
 For those interested in the details of SDEC algorithm, please check our [papers](https://arxiv.org/abs/2304.03907).
 
 ## Installation
-1. install anaconda (if you haven't) and create new environment,
+1. Install anaconda and git (if you haven't).
+2. Create new environment,
+   
+   **Windows** : Open Anaconda prompt:
+
+   **Mac** or **Linux** : Open Terminal:
+    
     ```shell
     conda create -n repr-control python=3.10
     conda activate repr-control
     ```
-2. Install PyTorch dependencies. 
+3. Install PyTorch dependencies. 
   
     **Windows or Linux**: 
 
@@ -31,7 +37,7 @@ For those interested in the details of SDEC algorithm, please check our [papers]
     ```shell
     conda install pytorch::pytorch torchvision torchaudio -c pytorch
     ```
-3. install the toolbox
+4. install the toolbox
     ```shell
    git clone https://github.com/CoNGHarvard/repr_control.git
    cd repr_control
@@ -55,31 +61,39 @@ Helpful resources:
 
 2. Testing your model
    ```shell
-   pytest tests/test_custom_model.py
+   pytest tests/test_custom_dynamics.py
    ```
 3. Run the training scripts
    ```shell
    cd repr_control
    python solve.py 
-   # If you have CUDA-compatible GPUs
-   python solve.py --device cuda
-   # If on Apple mac, not sure whether it will be faster than using cpu.
-   python solve.py --device mps 
    ```
+   
+   **Accelerate training with GPUs or Apple metal:**
+
+   If you have CUDA-compatible GPUs
+      ```shell
+      python solve.py --device cuda
+      ```
+   If on Apple mac
+      ```shell
+      python solve.py --device mps 
+      ```
    The training results will be saved in the `repr_control/log/` directory.  
 
 4. Evaluate solving results
    ```shell
-   cd repr_control/scripts
-   python eval.py $LOG_PATH
+   python scripts/eval.py $LOG_PATH
    ```
-   where `$LOG_PATH` is the path of training folder. For example,
+   where `$LOG_PATH` is the path of training folder. I placed a example results in the `examples` folder, you can run the following to evaluate it:
    ```shell
-   cd repr_control/scripts
-   python eval.py ../examples/example_results/rfsac/Pendulum/seed_0_2024-07-18-14-50-35
+   python scripts/eval.py ../examples/example_results/rfsac/Pendulum/seed_0_2024-07-18-14-50-35
    ```   
 
 5. Get controllers to use elsewhere
+
+   Add the following line to your python code,
+
    ```python
    import numpy as np
    from repr_control.scripts.eval import get_controller
@@ -96,7 +110,7 @@ Helpful resources:
 You can define training hyperparameters via adding command line arguments when running `solve.py`. For example,
 - setting max training steps:
    ```shell
-   python solve.py --max_step 2e5
+   python solve.py --max_timesteps 2e5
    ```
 
 ### inspect the training results using tensorboard

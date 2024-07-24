@@ -1,3 +1,4 @@
+.. _home:
 Welcome to repr-control's documentation!
 ===================================
 
@@ -18,7 +19,5 @@ Contents
 --------
 
 .. toctree::
-
    installation
    usage
-   api

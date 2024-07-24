@@ -123,7 +123,7 @@ if __name__ == "__main__":
     with open(os.path.join(log_path, 'train_params.yaml'), 'w') as fp:
         yaml.dump(kwargs, fp, default_flow_style=False)
 
-    for t in range(int(args.max_timesteps)):
+    for t in range(int(args.max_timesteps + args.start_timesteps)):
 
         episode_timesteps += 1
 

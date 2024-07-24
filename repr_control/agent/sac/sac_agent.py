@@ -86,6 +86,7 @@ class SACAgent(object):
 	def select_action(self, state, explore=False):
 		if isinstance(state, list):
 			state = np.array(state)
+		state = state.astype(np.float32)
 		assert len(state.shape) == 1
 		state = torch.from_numpy(state).to(self.device)
 		state = state.unsqueeze(0)
