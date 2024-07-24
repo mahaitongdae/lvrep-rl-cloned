@@ -11,6 +11,7 @@ from repr_control.agent.rfsac import rfsac_agent
 from envs.models.articulate_model import *
 from gymnasium.envs.registration import register
 import gymnasium
+import yaml
 
 
 if __name__ == "__main__":
@@ -39,7 +40,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--start_timesteps", default=25e3, type=float)  # Time steps initial random policy is used
     parser.add_argument("--eval_freq", default=5000, type=int)  # How often (time steps) we evaluate
-    parser.add_argument("--max_timesteps", default=2e5, type=float)  # Max time steps to run environment
+    parser.add_argument("--max_timesteps", default=3e4, type=float)  # Max time steps to run environment
     parser.add_argument("--batch_size", default=256, type=int)  # Batch size for both actor and critic
     parser.add_argument("--hidden_dim", default=256, type=int)  # Network hidden dims
     parser.add_argument("--feature_dim", default=256, type=int)  # Latent feature dim
@@ -124,6 +125,11 @@ if __name__ == "__main__":
     best_actor = None
     best_critic = None
 
+    # save parameters
+    # kwargs.update({"action_space": None}) # action space might not be serializable
+    with open(os.path.join(log_path, 'train_params.yaml'), 'w') as fp:
+        yaml.dump(kwargs, fp, default_flow_style=False)
+
     for t in range(int(args.max_timesteps)):
 
         episode_timesteps += 1
@@ -199,7 +205,4 @@ if __name__ == "__main__":
     torch.save(agent.actor.state_dict(), log_path + "/actor_last.pth")
     torch.save(agent.critic.state_dict(), log_path + "/critic_last.pth")
 
-    # save parameters
-    # kwargs.update({"action_space": None}) # action space might not be serializable
-    with open(os.path.join(log_path, 'train_params.pkl'), 'wb') as fp:
-        pkl.dump(kwargs, fp)
+

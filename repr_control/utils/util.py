@@ -49,7 +49,6 @@ def eval_policy(policy, eval_env, eval_episodes=100, render=False, seed=0):
 	ep_rets = []
 	avg_len = 0.
 	for i in range(eval_episodes):
-		print(i)
 		ep_ret = 0.
 		# eval_env.seed(i)
 		state, _ = eval_env.reset(seed=i + seed)
