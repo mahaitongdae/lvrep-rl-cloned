@@ -460,8 +460,8 @@ class ArticulateParkingInfiniteHorizon(ArticulateParking):
         truncated = False
         terminated, done_info = self.get_done()
         info.update(done_info)
-        Q = -1e-4 * np.array([1., 1., 10., 10.])
-        R = -1e-3 * np.array([0.1, 0.1])
+        Q = -1e-2 * np.array([1., 1., 10., 10.])
+        R = -1e-1 * np.array([0.1, 0.1])
         # if self.step_counter
 
         if not terminated:
