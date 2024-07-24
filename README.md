@@ -1,5 +1,7 @@
 # repr-control: A Toolbox to solve stochastic nonlinear control
 
+[![Documentation](https://img.shields.io/badge/Documentation-Online-blue)](https://repr-control.readthedocs.io/en/latest/)
+
 repr-control is a toolbox to solve nonlinear stochastic control via representation learning. 
 User can simply input the **dynamics, rewards, initial distributions** [sample_files](repr_control/define_problem.py) of the nonlinear control problem
 and get the optimal controller parametrized by a neural network.
