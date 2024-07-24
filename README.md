@@ -1,29 +1,108 @@
-# Stochastic Nonlinear Control via Finite-dimensional Spectral Dynamic Embedding
+# repr-control: A Toolbox to solve stochastic nonlinear control
 
-This is the implementation of [Stochastic nonlinear control via finite-dimensional spectral dynamic embedding](https://arxiv.org/abs/2304.03907). A short version of this paper has shown up in [CDC 2023](https://ieeexplore.ieee.org/abstract/document/10383842).
+repr-control is a toolbox to solve nonlinear stochastic control via representation learning. 
+User can simply input the **dynamics, rewards, initial distributions** [sample_files](repr_control/define_problem.py) of the nonlinear control problem
+and get the optimal controller parametrized by a neural network.
+
+The optimal controller is trained via Spectral Dynamics Embedding Control (SDEC) algorithm based on representation learning and reinforcement learning.
+For those interested in the details of SDEC algorithm, please check our [papers](https://arxiv.org/abs/2304.03907).
 
 ## Installation
-```bash
-# in your virtual/conda environments
-pip install -r requirements.txt
+1. install anaconda (if you haven't) and create new environment,
+    ```shell
+    conda create -n repr-control python=3.10
+    conda activate repr-control
+    ```
+2. Install PyTorch dependencies. 
+  
+    **Windows or Linux**: 
+
+    If you have CUDA-compatible GPUs,
+    ```shell
+    conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
+    ```
+    If you don't have CUDA-compatible GPUs,
+    ```shell
+    conda install pytorch torchvision torchaudio cpuonly -c pytorch
+    ```
+   **Mac**:
+    ```shell
+    conda install pytorch::pytorch torchvision torchaudio -c pytorch
+    ```
+3. install the toolbox
+    ```shell
+   git clone https://github.com/CoNGHarvard/repr_control.git
+   cd repr_control
+   pip install -e .
+   ```
+
+Helpful resources: 
+- [Anaconda environment](https://conda.io/projects/conda/en/latest/user-guide/getting-started.html)
+- [PyTorch installation](https://pytorch.org/get-started/locally/)
+
+## Usage
+1. Define the nonlinear control problem in [define_problem.py](repr_control/define_problem.py). Following items needs to be defined:
+   - Dynamics
+   - Reward function
+   - Initial distributions
+   - State and action bounds
+   - Maximum rollout steps
+   - Noise level
+   
+   The current file is an example of inverted pendulum.
+
+2. Testing your model
+   ```shell
+   pytest tests/test_custom_model.py
+   ```
+3. Run the training scripts
+   ```shell
+   cd repr_control
+   python solve.py 
+   # If you have CUDA-compatible GPUs
+   python solve.py --device cuda
+   # If on Apple mac, not sure whether it will be faster than using cpu.
+   python solve.py --device mps 
+   ```
+   The training results will be saved in the `repr_control/log/` directory.  
+
+4. Evaluate solving results
+   ```shell
+   cd repr_control/scripts
+   python eval.py $LOG_PATH
+   ```
+   where `$LOG_PATH` is the path of training folder. For example,
+   ```shell
+   cd repr_control/scripts
+   python eval.py ../examples/example_results/rfsac/Pendulum/seed_0_2024-07-18-14-50-35
+   ```   
+
+5. Get controllers to use elsewhere
+   ```python
+   import numpy as np
+   from repr_control.scripts.eval import get_controller
+   log_path = '$LOG_PATH'
+   agent = get_controller(log_path)
+   state = np.zeros([3]) # taking the pendulum as example
+   action = agent.select_action(state, explore=False)
+   ```
+   
+
+## Advanced Usage
+
+### Define training hyperparameters
+You can define training hyperparameters via adding command line arguments when running `solve.py`. For example,
+- setting max training steps:
+   ```shell
+   python solve.py --max_step 2e5
+   ```
+
+### inspect the training results using tensorboard
+
+```shell
+# during/after training
+tensorboard --logdir $LOG_PATH
 ```
-
-## Sample scripts of running experiments
-- Random feature
-  ```bash
-  python main.py --use_random_feature --no_reward_exponential --critic_lr 3e-4 --alg rfsac --env Pendubot-v0 --sigma 1.0 --max_timesteps 150000 --rf_num 8192 --seed 0
-  ```
-- Nystrom feature
-  ```bash
-  python main.py --use_nystrom --no_reward_exponential --critic_lr 3e-4 --alg rfsac --env Pendubot-v0 --sigma 1.0 --max_timesteps 150000 --rf_num 8192 --nystrom_sample_dim 2048 --seed 0
-  ```
-  Please refer to `run_train_$ENV.sh` for more training scripts and recommended hyperparameters.
-
-## Baselines
-
-The code for iLQR is found in the branch iLQC. Please use test_main.py in that branch to train and evaluate iLQR on the pendulum swingup problem.
-
-The code for Koopman control is found in the branch DeepKoopman. Please use the Learn_Koopman_with_KlinearEig.py file in the train folder of that branch to train a new Koopman dynamics model; for evaluation, please use the og_eval_mpc.py file in the control folder of that branch.
 
 ## Citations
 ```
