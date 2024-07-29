@@ -31,11 +31,14 @@ if __name__ == "__main__":
                              "mps if you run on apple silicon, otherwise cpu.")
 
     ### Parameters that usually don't need to be changed.
-    parser.add_argument("--dir", default='main', type=str)
-    parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
-    parser.add_argument("--start_timesteps", default=25e3, type=float)  # Time steps initial random policy is used
-    parser.add_argument("--eval_freq", default=5000, type=int)  # How often (time steps) we evaluate
-    parser.add_argument("--max_timesteps", default=1e5, type=float)  # Max time steps to run environment
+    parser.add_argument("--seed", default=0, type=int,
+                        help='random seed.')  # Sets Gym, PyTorch and Numpy seeds
+    parser.add_argument("--start_timesteps", default=25e3, type=float,
+                        help='the number of initial steps that collects data via random sampled actions.')  # Time steps initial random policy is used
+    parser.add_argument("--eval_freq", default=5000, type=int,
+                        help='number of iterations as the interval to evaluate trained policy.')  # How often (time steps) we evaluate
+    parser.add_argument("--max_timesteps", default=1e5, type=float,
+                        help='the total training time steps / iterations.')  # Max time steps to run environment
     parser.add_argument("--batch_size", default=256, type=int)  # Batch size for both actor and critic
     parser.add_argument("--hidden_dim", default=256, type=int)  # Network hidden dims
     parser.add_argument("--feature_dim", default=256, type=int)  # Latent feature dim

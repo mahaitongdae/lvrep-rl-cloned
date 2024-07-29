@@ -97,30 +97,26 @@ Define training hyperparameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The hyper parameters can be set through command line arguments, for example 
-
-- setting max training steps:
   
 .. code-block:: console
 
-   $ python solve.py --max_timesteps 2e5
+   $ python solve.py --max_timesteps 2e5 --rf_num 1024
 
-- setting random feature numbers:
-  
-.. code-block:: console
 
-   $ python solve.py --rf_num 1024
+The ``--max_timesteps 2e5`` means the total number of iterations is set to ``2e5``, and ``--rf_num 1024`` means the 
+truncated finite dimension of random features are 1024. 
 
-For all the hyperparameters can be tuned, can check
+For all the hyperparameters can be tuned, run
 
 .. code-block:: console
 
    $ python solve.py --help
    
 
-3. Evaluating the training results
+3. Monitoring and evaluating the training results
 ----------------------------------
 
-After training, the results will look like
+After training starts, the results will look like
 
 .. code-block:: console
    
@@ -142,15 +138,43 @@ Run the follwoing script to evaluate the trained results,
 
    $ python scripts/eval.py $LOG_PATH
 
-where `$LOG_PATH` is the path of folder title ``seed_SEED_DATE-TIME``
-I placed a example results in the `examples` folder, you can run the following to evaluate it:
+where `$LOG_PATH` is the path of folder title ``seed_SEED_DATE-TIME``.
+
+Monitoring the training process
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: console
+
+   $ tensorboard --logdir $LOG_PATH
+
+You can inspect the training process via tensorboard. 
+
+.. note::
+
+   Monitoring the training process is very helpful for tuning the hyperparameters. 
+   Some rules of thumb if you don't have experience playing with the RL hyper parameteters:
+   
+   - If the value loss is too large, try to scale the rewards to be smaller (or increase the learning rate).
+   - If the agent always get stuck, try to adapt the initial distriution to cover more of the state space.
+
+Evaluating the training results: 
+
+.. code-block:: console
+
+   $ python scripts/eval.py $LOG_PATH
+
+I placed a example results in the `examples` folder, you can run the following to see the results,
+
+.. code-block:: console
+
+   $ tensorboard --logdir ./examples/example_results/rfsac/Pendulum/seed_0_2024-07-18-14-50-35
 
 .. code-block:: console
 
    $ python scripts/eval.py ./examples/example_results/rfsac/Pendulum/seed_0_2024-07-18-14-50-35
 
 
-4. Use controller elsewhere.
+1. Use controller elsewhere
 ----------------------------
 
    Add the following line to your python code to load training results as a controller,
