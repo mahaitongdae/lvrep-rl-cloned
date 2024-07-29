@@ -7,35 +7,42 @@ import os
 import torch
 from repr_control.agent.rfsac import rfsac_agent
 from repr_control.agent.sac import sac_agent
-from repr_control.agent.sac.actor import DiagGaussianActor
+from repr_control.agent.actor import DiagGaussianActor
 from repr_control.utils.util import eval_policy
 import gymnasium
+import yaml
 
 def eval(log_path, ):
-	with open(os.path.join(log_path, 'train_params.pkl'), 'rb') as f:
-		kwargs = pkl.load(f)
+	try:
+		with open(os.path.join(log_path, 'train_params.pkl'), 'rb') as f:
+			kwargs = pkl.load(f)
+	except:
+		with open(os.path.join(log_path, 'train_params.yaml'), 'r') as f:
+			kwargs = yaml.safe_load(f)
 	env_name = kwargs['env']
 
+	kwargs['device'] = 'cpu'
 
-	eval_env = gymnasium.make('ArticulateFiniteHorizon-v0', render_mode='human', horizon=250, save_video=True)
+	eval_env = gymnasium.make('ArticulateInfiniteHorizon-v0', render_mode='human', horizon=250, save_video=True)
 	kwargs['action_space'] = eval_env.action_space
 	kwargs.update({'eval': True})
 	if kwargs['alg'] == "sac":
 		# agent = sac_agent.SACAgent(**kwargs)
 		from repr_control.envs.models.articulate_model_fh import dynamics, reward, initial_distribution
 		agent = sac_agent.ModelBasedSACAgent(7, 2, [[-1, -1], [1, 1]], dynamics, reward, initial_distribution, **kwargs)
-
+	elif kwargs['alg'] == 'qpsac':
+		agent = sac_agent.QPSACAgent(**kwargs)
 	else:
 		raise NotImplementedError
 
-	actor = DiagGaussianActor(obs_dim=len(eval_env.observation_space.low),
-							  action_dim=len(eval_env.action_space.low),
-							  hidden_dim=kwargs['hidden_dim'],
-							  hidden_depth=kwargs['hidden_depth'],
-							  log_std_bounds=[-5., 2.])
+	# actor = DiagGaussianActor(obs_dim=len(eval_env.observation_space.low),
+	# 						  action_dim=len(eval_env.action_space.low),
+	# 						  hidden_dim=kwargs['hidden_dim'],
+	# 						  hidden_depth=kwargs.get('hidden_depth', 2),
+	# 						  log_std_bounds=[-5., 2.])
 
-	actor.load_state_dict(torch.load(log_path+"/best_actor.pth"))
-	agent.actor = actor
+	agent.actor.load_state_dict(torch.load(log_path+"/best_actor.pth"))
+	# agent.actor = actor
 	agent.device = torch.device("cpu")
 
 	_, _, _, ep_rets = eval_biagt(agent, eval_env, eval_episodes=1, render=True, seed=6)
@@ -76,4 +83,4 @@ def eval_biagt(policy, eval_env, eval_episodes=100, render=False, seed=0):
 
 
 if __name__ == '__main__':
-	eval("/home/haitong/PycharmProjects/lvrep-rl-cloned-toolbox/repr_control/log/sac/parking/seed_0_2024-07-19-21-29-52")
+	eval("/home/haitong/PycharmProjects/lvrep-rl-cloned/repr_control/log/qpsac/Parking/seed_0_2024-07-24-09-50-39")

@@ -289,7 +289,7 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
                 # if filled:
                 gfxdraw.filled_polygon(self.surf, transformed_coords, (0,0,0))
 
-        draw_vehicle(vehicle_length, vehicle_width, self.state, steering = self.state[-2])
+        draw_vehicle(vehicle_length, vehicle_width, self.state, steering = self.state[5])
         draw_vehicle(vehicle_length, vehicle_width, [0, 0, 0], filled=False)
 
         trailer_dif = (pygame.math.Vector2((self.trailer_length, 0))
@@ -307,12 +307,12 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 
 
         self.surf = pygame.transform.flip(self.surf, False, True)
-        text1 = f"Time: {self.state[-1]:.2f}"
-        text2 = f"Velocity: {self.state[-3]:.3f}"
-        text3 = f"Steering: {self.state[-2]:.3f}"
+        # text1 = f"Time: {self.state[-1]:.2f}"
+        text2 = f"Velocity: {self.state[-2]:.3f}"
+        text3 = f"Steering: {self.state[-1]:.3f}"
         text_color = pygame.Color('dodgerblue')
         font = freetype.SysFont("Arial", 48)
-        font.render_to(self.surf, (50, 50), text1, text_color)
+        # font.render_to(self.surf, (50, 50), text1, text_color)
         font.render_to(self.surf, (50, 98), text2, text_color)
         font.render_to(self.surf, (50, 146), text3, text_color)
         self.screen.blit(self.surf, (0, 0))
@@ -432,8 +432,8 @@ class ArticulateParkingInfiniteHorizon(ArticulateParking):
         ds = self.ode(self.state, action)
         # now we assume euler
         self.state = self.state + ds * self.dt
-        self.state[-3] = np.clip(self.state[-2], - self.v_max, self.v_max)
-        self.state[-2] = np.clip(self.state[-1], - self.delta_max, self.delta_max)
+        self.state[-2] = np.clip(self.state[-2], - self.v_max, self.v_max)
+        self.state[-1] = np.clip(self.state[-1], - self.delta_max, self.delta_max)
 
     def ode(self, state, action):
         x, y, th0, dth, v, delta = state
@@ -494,7 +494,7 @@ class ArticulateParkingInfiniteHorizon(ArticulateParking):
 def test_env():
     import repr_control.envs
     import gymnasium
-    env = gymnasium.make('ArticulateInfiniteHorizon-v0')
+    env = gymnasium.make('ArticulateInfiniteHorizon-v0', render_mode = 'human')
     print(env.reset())
     # env.render()
     import time
@@ -507,7 +507,7 @@ def test_env():
         done = terminated or truncated
         print(state[-1], env.step_counter, r)
         # time.sleep(0.1)
-        # env.render()
+        env.render()
 
 
 if __name__ == '__main__':
