@@ -23,13 +23,11 @@ def eval(log_path, ):
 
 	kwargs['device'] = 'cpu'
 
-	eval_env = gymnasium.make('ArticulateInfiniteHorizon-v0', render_mode='human', horizon=250, save_video=True)
+	eval_env = gymnasium.make('ArticulateInfiniteHorizon-v0', render_mode='human', horizon=500, save_video=True)
 	kwargs['action_space'] = eval_env.action_space
 	kwargs.update({'eval': True})
 	if kwargs['alg'] == "sac":
-		# agent = sac_agent.SACAgent(**kwargs)
-		from repr_control.envs.models.articulate_model_fh import dynamics, reward, initial_distribution
-		agent = sac_agent.ModelBasedSACAgent(7, 2, [[-1, -1], [1, 1]], dynamics, reward, initial_distribution, **kwargs)
+		agent = sac_agent.SACAgent(**kwargs)
 	elif kwargs['alg'] == 'qpsac':
 		agent = sac_agent.QPSACAgent(**kwargs)
 	else:
@@ -41,11 +39,11 @@ def eval(log_path, ):
 	# 						  hidden_depth=kwargs.get('hidden_depth', 2),
 	# 						  log_std_bounds=[-5., 2.])
 
-	agent.actor.load_state_dict(torch.load(log_path+"/best_actor.pth"))
+	agent.actor.load_state_dict(torch.load(log_path+"/actor_last.pth"))
 	# agent.actor = actor
 	agent.device = torch.device("cpu")
 
-	_, _, _, ep_rets = eval_biagt(agent, eval_env, eval_episodes=1, render=True, seed=6)
+	_, _, _, ep_rets = eval_biagt(agent, eval_env, eval_episodes=1, render=True, seed=5)
 	eval_env.close()
 
 	return ep_rets
