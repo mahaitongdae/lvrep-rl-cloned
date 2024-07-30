@@ -97,6 +97,15 @@ class SACAgent(object):
 		assert action.ndim == 2 and action.shape[0] == 1
 		return util.to_np(action[0])
 
+	def batch_select_action(self, state, explore=False):
+		assert isinstance(state, torch.Tensor)
+		dist = self.actor(state)
+		action = dist.sample() if explore else dist.mean
+		action = action.clamp(torch.tensor(-1, device=self.device),
+							  torch.tensor(1, device=self.device))
+		return action
+
+
 	def update_target(self):
 		if self.steps % self.target_update_period == 0:
 			for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
@@ -171,6 +180,27 @@ class SACAgent(object):
 		self.steps += 1
 
 		batch = buffer.sample(batch_size)
+		# Acritic step
+		critic_info = self.critic_step(batch)
+
+		# Actor and alpha step
+		actor_info = self.update_actor_and_alpha(batch)
+
+		# Update the frozen target models
+		self.update_target()
+
+		return {
+			**critic_info,
+			**actor_info,
+		}
+
+	def batch_train(self, batch):
+
+		"""
+				One train step
+				"""
+		self.steps += 1
+
 		# Acritic step
 		critic_info = self.critic_step(batch)
 
