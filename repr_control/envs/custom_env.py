@@ -66,6 +66,7 @@ class CustomVecEnv(CustomEnv):
                  dynamics: Callable,
                  rewards: Callable,
                  initial_distribution: Callable,
+                 get_done: Callable,
                  state_range,
                  action_range,
                  sigma,
@@ -73,6 +74,7 @@ class CustomVecEnv(CustomEnv):
                  device='cuda',
                  max_episode_steps=None):
         super().__init__(dynamics,rewards, initial_distribution,state_range,action_range,sigma)
+        self.get_done = get_done
         self.sample_batch_size = sample_batch_size
         self.device = torch.device(device)
         self.obs_low = torch.tensor(state_range[0], device=self.device)
@@ -122,7 +124,7 @@ class CustomVecEnv(CustomEnv):
         self.state = torch.clip(noisy_next_state, self.obs_low, self.obs_high)
         reward = self.rewards(self.state, action).unsqueeze(dim=1)
         # reward = reward.squeeze().item()
-        done = False
+        done = self.get_done(self.state).unsqueeze(dim=1)
         info = {}
         self.step_counter += 1
         if self.step_counter == self.max_episode_steps:
@@ -132,8 +134,8 @@ class CustomVecEnv(CustomEnv):
         return self.state, reward, done, truncated, info
 
 def test_vec_env():
-    from repr_control.define_problem import dynamics, rewards, initial_distribution, state_range, action_range, sigma
-    env = CustomVecEnv(dynamics, rewards, initial_distribution, state_range, action_range, sigma)
+    from repr_control.envs.models.articulate_model import dynamics, rewards, initial_distribution, state_range, action_range, sigma, get_done
+    env = CustomVecEnv(dynamics, rewards, initial_distribution, get_done, state_range, action_range, sigma)
     state, _ = env.reset()
     print(state.shape, state.device)
     action = env.sample_action()
@@ -145,7 +147,7 @@ def test_vec_env():
     while not done:
         state, reward, term, trunc,  _ = env.step(env.sample_action())
         done = trunc
-        print(state.shape, state.device, reward.shape, reward.device, t)
+        print(state.shape, state.device, reward.shape, reward.device, term.shape, term.device, t)
         t += 1
 
 

@@ -84,7 +84,7 @@ def batch_eval(policy, eval_env, seed=0):
 	while not done:
 		action = policy.batch_select_action(state)
 		state, reward, terminated, truncated, _ = eval_env.step(action)
-		done = terminated or truncated
+		done = truncated
 		ep_ret += reward
 
 	avg_ret = ep_ret.mean().item()

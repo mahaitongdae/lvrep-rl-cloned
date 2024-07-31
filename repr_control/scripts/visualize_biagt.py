@@ -39,11 +39,11 @@ def eval(log_path, ):
 	# 						  hidden_depth=kwargs.get('hidden_depth', 2),
 	# 						  log_std_bounds=[-5., 2.])
 
-	agent.actor.load_state_dict(torch.load(log_path+"/actor_last.pth"))
+	agent.actor.load_state_dict(torch.load(log_path+"/best_actor.pth"))
 	# agent.actor = actor
 	agent.device = torch.device("cpu")
 
-	_, _, _, ep_rets = eval_biagt(agent, eval_env, eval_episodes=1, render=True, seed=5)
+	_, _, _, ep_rets = eval_biagt(agent, eval_env, eval_episodes=1, render=True, seed=3)
 	eval_env.close()
 
 	return ep_rets
@@ -81,4 +81,4 @@ def eval_biagt(policy, eval_env, eval_episodes=100, render=False, seed=0):
 
 
 if __name__ == '__main__':
-	eval("/home/haitong/PycharmProjects/lvrep-rl-cloned/repr_control/log/qpsac/Parking/seed_0_2024-07-24-09-50-39")
+	eval("/home/haitong/PycharmProjects/lvrep-rl-cloned/repr_control/log/sac/Parking/seed_0_2024-07-30-22-58-37")

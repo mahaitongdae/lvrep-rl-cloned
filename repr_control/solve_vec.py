@@ -45,7 +45,7 @@ if __name__ == "__main__":
     parser.add_argument("--hidden_dim", default=256, type=int)  # Network hidden dims
     parser.add_argument("--feature_dim", default=256, type=int)  # Latent feature dim
     parser.add_argument("--discount", default=0.99)  # Discount factor
-    parser.add_argument("--tau", default=0.005)  # Target network update rate
+    parser.add_argument("--tau", default=0.05)  # Target network update rate
     parser.add_argument("--embedding_dim", default=-1, type=int)  # if -1, do not add embedding layer
 
     parser.add_argument("--use_nystrom", action='store_true')
@@ -117,6 +117,7 @@ if __name__ == "__main__":
             dynamics=dynamics,
             rewards=rewards,
             initial_distribution=initial_distribution,
+            get_done=get_done,
             state_range=state_range,
             action_range=action_range,
             sigma=sigma,
@@ -126,6 +127,7 @@ if __name__ == "__main__":
             dynamics=dynamics,
             rewards=rewards,
             initial_distribution=initial_distribution,
+            get_done=get_done,
             state_range=state_range,
             action_range=action_range,
             sigma=sigma,

@@ -24,6 +24,8 @@ max_step = 250                      # maximum rollout steps per episode
 sigma = 0.0                          # noise standard deviation.
 env_name = 'Parking'
 assert len(action_range[0]) == len(action_range[1]) == action_dim
+terminal_threshold = torch.tensor([[0.3, 0.3, np.pi / 24, np.pi / 24, 0.1, np.inf]], device=torch.device('cuda'))
+
 def dynamics(state, action):
     l = 4.9276  # tractor length
     R = 8.5349  # turning radius
@@ -48,20 +50,25 @@ def dynamics(state, action):
     stp1 = state + ds * dt 
     return stp1
 
+def target_reached(state):
+
+    reached = torch.all(torch.abs(state) < terminal_threshold, dim=1)
+    return reached
+
 def rewards(state, action, terminal = False):
     x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
     acc, delta_rate = torch.unbind(action, dim=1)
-    if not terminal:
-        reward = -1e-1 * (x ** 2 + y ** 2
-                          + 10 * th0 ** 2
-                          + 10 * dth ** 2
-                          + v ** 2
-                          + delta ** 2
-                          + acc ** 2
-                          + delta_rate ** 2)
-    else:
-        reward = -1 * (10 * x ** 2 + 10 * y ** 2 + 100 * th0 ** 2 + 100 * dth ** 2)
-    return reward
+    # if not terminal:
+    reward = -1e-1 * (x ** 2 + y ** 2
+                      + 10 * th0 ** 2
+                      + 10 * dth ** 2
+                      + v ** 2
+                      + delta ** 2
+                      + acc ** 2
+                      + delta_rate ** 2)
+    reached = target_reached(state)
+    mod_reward = torch.where(reached, 100 * torch.ones_like(reward), reward)
+    return mod_reward
 
 def initial_distribution(batch_size):
 
@@ -77,18 +84,41 @@ def initial_distribution(batch_size):
             dtype=np.float32,
         )
 
-    reset_std = np.array(
-        [3.0,
-            0.5,
-            np.pi / 12,
-            np.pi / 12,
+    low = np.array(
+        [0.0,
+            0.0,
+            -np.pi / 12,
+            -np.pi / 12,
             0.0,
             0.0
             ]
     )
+
+    high = np.array(
+        [
+            8.0,
+            4.0,
+            np.pi / 12,
+            np.pi / 12,
+            0.0,
+            0.0
+        ]
+    )
     # self.state = self.np_random.uniform(low=-1 * high, high=high)
-    state = np.random.normal(np.zeros_like(reset_std), reset_std, size=(batch_size, len(high)))
+    state = np.random.uniform(low, high, size=(batch_size, len(high)))
     state = np.clip(state, -high, high)
     return torch.from_numpy(state)
 
+def get_done(state):
+    done = torch.all(torch.abs(state) < terminal_threshold, dim=1)
+    return done
 
+
+def test_custom_env():
+    # from repr_control.scripts.define_problem import dynamics, rewards, initial_distribution, state_range, action_range, sigma
+    from repr_control.envs.custom_env import CustomVecEnv
+    env = CustomVecEnv(dynamics, rewards, initial_distribution, state_range, action_range, sigma)
+
+    print(env.reset())
+    for i in range(10):
+        print(env.step(env.sample_action()))

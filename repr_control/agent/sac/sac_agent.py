@@ -80,6 +80,8 @@ class SACAgent(object):
 													lr=lr,
 													betas=[0.9, 0.999])
 
+		# self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.)
+
 	@property
 	def alpha(self):
 		return self.log_alpha.exp()
