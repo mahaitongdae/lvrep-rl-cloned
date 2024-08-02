@@ -2,7 +2,6 @@
 We adapt the code from https://github.com/denisyarats/pytorch_sac
 """
 
-
 import numpy as np
 import torch
 import math
@@ -19,7 +18,7 @@ class TanhTransform(pyd.transforms.Transform):
   bijective = True
   sign = +1
 
-  def __init__(self, cache_size=1):
+  def __init__(self, cache_size = 1):
     super().__init__(cache_size=cache_size)
 
   @staticmethod
@@ -56,20 +55,21 @@ class SquashedNormal(pyd.transformed_distribution.TransformedDistribution):
   def mean(self):
     mu = self.loc
     for tr in self.transforms:
-        mu = tr(mu)
+      mu = tr(mu)
     return mu
 
 
 class DiagGaussianActor(nn.Module):
   """torch.distributions implementation of an diagonal Gaussian policy."""
+
   def __init__(self, obs_dim, action_dim, hidden_dim, hidden_depth,
-                log_std_bounds):
+               log_std_bounds):
     super().__init__()
     # print("obs_dim: ",obs_dim)
 
     self.log_std_bounds = log_std_bounds
     self.trunk = util.mlp(obs_dim, hidden_dim, 2 * action_dim,
-                            hidden_depth)
+                          hidden_depth)
 
     self.outputs = dict()
     self.apply(util.weight_init)
@@ -81,21 +81,22 @@ class DiagGaussianActor(nn.Module):
     log_std = torch.tanh(log_std)
     log_std_min, log_std_max = self.log_std_bounds
     log_std = log_std_min + 0.5 * (log_std_max - log_std_min) * (log_std +
-                                                                  1)
+                                                                 1)
 
     std = log_std.exp()
 
-    self.outputs['mu'] = mu
-    self.outputs['std'] = std
+    self.outputs ['mu'] = mu
+    self.outputs ['std'] = std
 
     dist = SquashedNormal(mu, std)
     return dist
+
 
 class DeterministicActor(nn.Module):
   def __init__(self, obs_dim, action_dim, hidden_dim, hidden_depth):
     super().__init__()
     self.trunk = util.mlp(obs_dim, hidden_dim, action_dim,
-                            hidden_depth)
+                          hidden_depth)
 
     self.outputs = dict()
     self.apply(util.weight_init)
@@ -109,6 +110,7 @@ class StochasticActorFromDetStructureWrapper(nn.Module):
   """
   It's a simple wrapper that wraps stochastic policy to
   """
+
   def __init__(self, obs_dim, action_dim, hidden_dim, hidden_depth, log_std_bounds, det_module):
     super().__init__()
     self.log_std_bounds = log_std_bounds
@@ -121,7 +123,7 @@ class StochasticActorFromDetStructureWrapper(nn.Module):
     self.action_dim = action_dim
 
   def forward(self, obs):
-    mu = self.det_module(obs)[:, :self.action_dim]
+    mu = self.det_module(obs) [:, :self.action_dim]
 
     log_std = self.trunk(obs)
     assert mu.shape == log_std.shape, "mu std shape not consistent"
@@ -130,12 +132,12 @@ class StochasticActorFromDetStructureWrapper(nn.Module):
     log_std = torch.tanh(log_std)
     log_std_min, log_std_max = self.log_std_bounds
     log_std = log_std_min + 0.5 * (log_std_max - log_std_min) * (log_std +
-                                                                  1)
+                                                                 1)
 
     std = log_std.exp()
 
-    self.outputs['mu'] = mu
-    self.outputs['std'] = std
+    self.outputs ['mu'] = mu
+    self.outputs ['std'] = std
 
     dist = SquashedNormal(mu, std)
     return dist
