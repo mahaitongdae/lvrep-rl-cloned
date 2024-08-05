@@ -32,17 +32,23 @@ if __name__ == "__main__":
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
 
+    parser.add_argument("--supervised", action='store_true',
+                        help="add supervised learning.")
+    parser.add_argument("--supervised_datasets", type=str, default="/datasets/2024-08-02_18-25-15/15_0.763_617760.pt",)
+    parser.set_defaults(supervised=True)
+
     ### Parameters that usually don't need to be changed.
     parser.add_argument("--seed", default=0, type=int,
                         help='random seed.')  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--start_timesteps", default=0, type=float,
                         help='the number of initial steps that collects data via random sampled actions.')  # Time steps initial random policy is used
-    parser.add_argument("--eval_freq", default=250, type=int,
+    parser.add_argument("--eval_freq", default=2000, type=int,
                         help='number of iterations as the interval to evaluate trained policy.')  # How often (time steps) we evaluate
-    parser.add_argument("--max_timesteps", default=1e5, type=float,
+    parser.add_argument("--max_timesteps", default=1e4, type=float,
                         help='the total training time steps / iterations.')  # Max time steps to run environment
     parser.add_argument("--batch_size", default=1024, type=int)  # Batch size for both actor and critic
     parser.add_argument("--hidden_dim", default=256, type=int)  # Network hidden dims
+    parser.add_argument("--hidden_depth", default=3, type=int)  # Network hidden dims
     parser.add_argument("--feature_dim", default=256, type=int)  # Latent feature dim
     parser.add_argument("--discount", default=0.99)  # Discount factor
     parser.add_argument("--tau", default=0.05)  # Target network update rate
@@ -60,6 +66,7 @@ if __name__ == "__main__":
     # setup example_results
     log_path = f'log/{alg_name}/{env_name}/{exp_name}'
     summary_writer = SummaryWriter(log_path + "/summary_files")
+    print(f"Logging into {log_path}")
 
     # set seeds
     torch.manual_seed(args.seed)
@@ -82,34 +89,7 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError("Algorithm not implemented.")
 
-    # replay_buffer = buffer.ReplayBuffer(state_dim, action_dim, device=args.device)
 
-    # if args.env == 'custom':
-    #     register(id='custom-v0',
-    #              entry_point='repr_control.envs:CustomEnv',
-    #              max_episode_steps=max_step)
-    #     env = gymnasium.make('custom-v0',
-    #                    dynamics=dynamics,
-    #                    rewards=rewards,
-    #                    initial_distribution = initial_distribution,
-    #                    state_range=state_range,
-    #                    action_range=action_range,
-    #                    sigma=sigma)
-    #     eval_env = gymnasium.make('custom-v0',
-    #                         dynamics=dynamics,
-    #                         rewards=rewards,
-    #                         initial_distribution = initial_distribution,
-    #                         state_range=state_range,
-    #                         action_range=action_range,
-    #                         sigma=sigma)
-    #     env = gymnasium.wrappers.RescaleAction(env, min_action=-1, max_action=1)
-    #     eval_env = gymnasium.wrappers.RescaleAction(eval_env, min_action=-1, max_action=1)
-    # el
-    # else:
-    #     env = gymnasium.make(args.env)
-    #     eval_env = gymnasium.make(args.env)
-    #     env = gymnasium.wrappers.RescaleAction(env, min_action=-1, max_action=1)
-    #     eval_env = gymnasium.wrappers.RescaleAction(eval_env, min_action=-1, max_action=1)
     if args.env == 'custom_vec':
         from repr_control.envs.custom_env import CustomVecEnv
 
@@ -152,9 +132,25 @@ if __name__ == "__main__":
     best_critic = None
 
     # save parameters
-    # kwargs.update({"action_space": None}) # action space might not be serializable
+
     with open(os.path.join(log_path, 'train_params.yaml'), 'w') as fp:
         yaml.dump(kwargs, fp, default_flow_style=False)
+
+    if args.supervised:
+        from repr_control.datasets.datasets import SupervisedParkingDataset
+        from torch.utils.data import DataLoader
+        cur_path = os.path.dirname(__file__)
+        dataset = torch.load(cur_path + args.supervised_datasets)
+        loader = DataLoader(dataset, batch_size=256, shuffle=True)
+        for supervised_t, supervised_data in enumerate(loader):
+            info = agent.supervised_train(supervised_data)
+            for key, value in info.items():
+                summary_writer.add_scalar(f'info/{key}', value, supervised_t + 1)
+            summary_writer.flush()
+
+        actor = agent.actor.state_dict()
+        torch.save(actor, os.path.join(log_path, 'actor_after_supervised.pth'))
+
 
     for t in range(int(args.max_timesteps + args.start_timesteps)):
 
@@ -170,7 +166,6 @@ if __name__ == "__main__":
         # Perform action
         next_state, reward, terminated, truncated, rollout_info = env.step(action)
         done = truncated
-        # replay_buffer.add(state, action, next_state, reward, done)
 
         batch = Batch(
 			state=state,
@@ -185,7 +180,12 @@ if __name__ == "__main__":
         info = {}
 
         if t >= args.start_timesteps:
-            info = agent.batch_train(batch)
+            if args.supervised and t < 1000:
+                learn_policy = False
+            else:
+                learn_policy = True
+            info = agent.batch_train(batch, learn_policy=learn_policy)
+
 
         if done:
             # +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
@@ -237,5 +237,3 @@ if __name__ == "__main__":
 
     torch.save(agent.actor.state_dict(), log_path + "/actor_last.pth")
     torch.save(agent.critic.state_dict(), log_path + "/critic_last.pth")
-
-

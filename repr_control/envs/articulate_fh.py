@@ -4,6 +4,7 @@ Copied from http://incompleteideas.net/sutton/book/code/pole.c
 permalink: https://perma.cc/C9ZM-652R
 """
 import math
+import os
 from typing import Optional, Union
 
 import gymnasium
@@ -14,6 +15,7 @@ from gymnasium import logger, spaces
 import pygame
 from pygame import draw, gfxdraw, freetype
 import imageio
+from datetime import datetime
 
 
 class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
@@ -45,7 +47,7 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
     vehicle_length = 4.9276
     trailer_length = 15.8496
     vehicle_width = 1.9
-    v_max = 0.6
+    v_max = 2.0
 
     def __init__(self, render_mode: Optional[str] = None,
                  horizon=500,
@@ -66,6 +68,7 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 
 
         self.x_threshold = 2.4
+        self.seed = None
 
         # is still within bounds.
         high = np.array(
@@ -185,9 +188,12 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
             seed: Optional[int] = None,
             options: Optional[dict] = None,
     ):
-        super().reset(seed=seed)
+
         if seed is not None:
+            super().reset(seed=seed)
             self.seed = seed
+        else:
+            self.seed = None
         # Note that if you use custom reset bounds, it may lead to out-of-bound
         # state/observations.
         self.step_counter = 0
@@ -344,7 +350,12 @@ class ArticulateParking(gym.Env[np.ndarray, Union[int, np.ndarray]]):
             self.isopen = False
 
         if self.save_video:
-            output_filename = f'pygame_video_{self.seed}.mp4'
+            os.makedirs('videos', exist_ok=True)
+            now = datetime.now()
+            # Format date and time
+            formatted_now = now.strftime("%Y-%m-%d_%H-%M-%S")
+            video_name = self.seed if self.seed is not None else formatted_now
+            output_filename = f'./videos/pygame_video_{video_name}.mp4'
             imageio.mimsave(output_filename, self.frames, fps=self.metadata["render_fps"])
 
 
@@ -417,9 +428,10 @@ class ArticulateParkingInfiniteHorizon(ArticulateParking):
         if options and 'state' in options.keys():
             self.state = options['state']
         else:
-            # self.state = self.np_random.uniform(low=-1 * high, high=high)
-            self.state = self.np_random.normal(np.zeros_like(reset_std), reset_std)
-            self.state = np.clip(self.state, -high, high)
+            # self.state = self.np_random.normal(np.zeros_like(reset_std), reset_std)
+            # self.state = np.clip(self.state, -high, high)
+            self.state = np.random.uniform(low=np.array([2.0, 0.0, - np.pi / 12, 0.0, 0.0, 0.0]),
+                                           high=np.array([5.0, 3.0, np.pi / 12, 0.0 ,0.0, 0.0]))
             self.state[3] = self.state[3] - self.state[2] # we sample theta_1 and calculate theta_1 - theta_0
 
         self.step_counter = 0
@@ -486,6 +498,9 @@ class ArticulateParkingInfiniteHorizon(ArticulateParking):
 
         if self.render_mode == "human":
             self.render()
+
+        truncated = True if self.step_counter == self.horizon else False
+
         return np.array(self.state, dtype=np.float32), reward, terminated, truncated, info
 
 
