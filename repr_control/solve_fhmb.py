@@ -32,7 +32,7 @@ if __name__ == "__main__":
                         help="Number of random features. Suitable numbers for 2-dimensional system is 512, 3-dimensional 1024, etc.")
     parser.add_argument("--nystrom_sample_dim", default=8192, type=int,
                         help='The sampling dimension for nystrom critic. After sampling, take the maximum rf_num eigenvectors..')
-    parser.add_argument("--device", default='cpu', type=str,
+    parser.add_argument("--device", default='mps', type=str,
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
 
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     parser.add_argument("--start_timesteps", default=0, type=float)  # Time steps initial random policy is used
     parser.add_argument("--eval_freq", default=1000, type=int)  # How often (time steps) we evaluate
     parser.add_argument("--max_timesteps", default=2e4, type=float)  # Max time steps to run environment
-    parser.add_argument("--batch_size", default=256, type=int)  # Batch size for both actor and critic
+    parser.add_argument("--batch_size", default=1024, type=int)  # Batch size for both actor and critic
     parser.add_argument("--hidden_dim", default=256, type=int)  # Network hidden dims
     parser.add_argument("--hidden_depth", default=3, type=int)  # Latent feature dim
     parser.add_argument("--feature_dim", default=256, type=int)  # Latent feature dim
@@ -123,27 +123,27 @@ if __name__ == "__main__":
             # Reset environment
 
         # Evaluate episode
-        if (t + 1) % args.eval_freq == 0:
-            steps_per_sec = timer.steps_per_sec(t + 1)
-            eval_len, eval_ret, _, _ = util.eval_policy(agent, eval_env, eval_episodes=50)
-            evaluations.append(eval_ret)
-
-            if t >= args.start_timesteps:
-                info.update({'eval_len': eval_len,
-                             'eval_ret': eval_ret})
-
-
-            print('Step {}. Steps per sec: {:.4g}.'.format(t + 1, steps_per_sec))
-
-            if eval_ret > best_eval_reward:
-                best_actor = agent.actor.state_dict()
-                best_critic = agent.critic.state_dict()
-
-                # save best actor/best critic
-                torch.save(best_actor, log_path + "/best_actor.pth")
-                torch.save(best_critic, log_path + "/best_critic.pth")
-
-            best_eval_reward = max(evaluations)
+        # if (t + 1) % args.eval_freq == 0:
+        #     steps_per_sec = timer.steps_per_sec(t + 1)
+        #     eval_len, eval_ret, _, _ = util.eval_policy(agent, eval_env, eval_episodes=50)
+        #     evaluations.append(eval_ret)
+        #
+        #     if t >= args.start_timesteps:
+        #         info.update({'eval_len': eval_len,
+        #                      'eval_ret': eval_ret})
+        #
+        #
+        #     print('Step {}. Steps per sec: {:.4g}.'.format(t + 1, steps_per_sec))
+        #
+        #     if eval_ret > best_eval_reward:
+        #         best_actor = agent.actor.state_dict()
+        #         best_critic = agent.critic.state_dict()
+        #
+        #         # save best actor/best critic
+        #         torch.save(best_actor, log_path + "/best_actor.pth")
+        #         torch.save(best_critic, log_path + "/best_critic.pth")
+        #
+        #     best_eval_reward = max(evaluations)
 
         if (t + 1) % 50 == 0:
             for key, value in info.items():

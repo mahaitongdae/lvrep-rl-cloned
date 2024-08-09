@@ -229,7 +229,6 @@ class ModelBasedDPGAgent(ModelBasedSACAgent):
 			# log_probs.append(log_prob)
 		final_reward = self.rewards(obs, action, terminal=True)
 		actor_loss = -1 * rewards.mean()
-		# log_prob_all = torch.hstack(log_probs)
 
 		# optimize the actor
 		self.actor_optimizer.zero_grad()
@@ -238,16 +237,6 @@ class ModelBasedDPGAgent(ModelBasedSACAgent):
 
 		info = {'actor_loss': actor_loss.item(),
 				'terminal_cost': final_reward.mean().item()}
-
-		# if self.learnable_temperature:
-		# 	self.log_alpha_optimizer.zero_grad()
-		# 	alpha_loss = (self.alpha *
-		# 				  (-log_prob_all - self.target_entropy).detach()).mean()
-		# 	alpha_loss.backward()
-		# 	self.log_alpha_optimizer.step()
-		#
-		# 	info['alpha_loss'] = alpha_loss.item()
-		# 	info['alpha'] = self.alpha.item()
 
 		return info
 
@@ -263,8 +252,6 @@ class ModelBasedDPGAgent(ModelBasedSACAgent):
 					  next_state=None,
 					  reward=None,
 					  done=None, )
-		# Acritic step
-		# critic_info = self.critic_step(batch)
 
 		# Actor and alpha step
 		actor_info = self.update_actor_and_alpha(batch)

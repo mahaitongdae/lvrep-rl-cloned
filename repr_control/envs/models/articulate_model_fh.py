@@ -32,8 +32,8 @@ def dynamics(state, action):
     dt = 0.05
 
     x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
-    acc = action[:, 0]
-    delta_rate = action[:, 1] * delta_max / 4
+    acc = action[:, 0] * 2
+    delta_rate = action[:, 1] * delta_max / 2
     normalized_steer = torch.tan(delta) * R / l
 
     ds = torch.vstack([
@@ -45,20 +45,22 @@ def dynamics(state, action):
         delta_rate,
     ]).T
 
-    stp1 = state + ds * dt 
+    stp1 = state + ds * dt
+    stp1[:, -2].clip_(-2.0, 2.0)
+    stp1[:, -1].clip_(-delta_max, delta_max)
     return stp1
 
 def rewards(state, action, terminal = False):
     x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
     acc, delta_rate = torch.unbind(action, dim=1)
     if not terminal:
-        reward = -1e-2 * (x ** 2 + y ** 2
+        reward = -1e-4 * (x ** 2 + y ** 2
                           + 10 * th0 ** 2
                           + 10 * dth ** 2
                           + v ** 2
                           + delta ** 2
-                          + acc ** 2
-                          + delta_rate ** 2)
+                          + 10 * acc ** 2
+                          + 10 * delta_rate ** 2)
     else:
         reward = -1 * (10 * x ** 2 + 10 * y ** 2 + 100 * th0 ** 2 + 100 * dth ** 2)
     return reward

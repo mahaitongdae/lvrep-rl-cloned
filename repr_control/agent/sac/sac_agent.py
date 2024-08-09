@@ -8,7 +8,7 @@ from repr_control.utils import util
 from repr_control.utils.buffer import Batch
 from repr_control.agent.critic import DoubleQCritic
 from repr_control.agent.actor import DiagGaussianActor, DeterministicActor, StochasticActorFromDetStructureWrapper
-from repr_control.networks.qp.qp_unrolled_network import QPUnrolledNetwork, mlp_builder
+
 
 
 class SACAgent(object):
@@ -279,6 +279,7 @@ class QPSACAgent(SACAgent):
 			device=device,
 			**kwargs)
 		from repr_control.networks.qp import qp_default_args
+		from repr_control.networks.qp.qp_unrolled_network import QPUnrolledNetwork, mlp_builder
 		qp_default_args.update({
 						 'device': device, # device, input_size, n_qp, m_qp, qp_iter, mlp_builder,
                          'input_size': state_dim,
