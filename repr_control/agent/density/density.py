@@ -143,6 +143,11 @@ class DensityEvaluationAgent(CustomModelRFSACAgent):
 
             return info
 
+        elif alg == 'grad_td':
+
+            log_density = self.init_dist.log_prob(state)
+
+
 
     def batch_train(self, batch):
         """
