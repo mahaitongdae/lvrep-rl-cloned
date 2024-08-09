@@ -41,7 +41,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", default=0, type=int,
                         help='random seed.')  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--start_timesteps", default=0, type=float,
-                        help='the number of initial steps that collects data via random sampled actions.')  # Time steps initial random policy is used
+                        help='the number of initial steps that collects data via random saampled actions.')  # Time steps initial random policy is used
     parser.add_argument("--eval_freq", default=2000, type=int,
                         help='number of iterations as the interval to evaluate trained policy.')  # How often (time steps) we evaluate
     parser.add_argument("--max_timesteps", default=1e4, type=float,
