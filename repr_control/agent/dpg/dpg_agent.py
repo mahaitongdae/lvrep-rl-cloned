@@ -257,7 +257,7 @@ class ModelBasedDPGAgent(ModelBasedSACAgent):
 		"""
 		self.steps += 1
 
-		state = torch.from_numpy(self.initial_dist(batch_size)).float().to(self.device)
+		state = self.initial_dist(batch_size).float().to(self.device)
 		batch = Batch(state=state,
 					  action=None,
 					  next_state=None,

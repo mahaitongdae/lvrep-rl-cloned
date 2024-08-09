@@ -9,7 +9,6 @@ state_range = [[
                 -np.pi / 2,
                 -0.6,
                 -np.pi / 6,
-                -25           # t, 100 steps corresponds to 5s
             ],
     [
         20,
@@ -18,7 +17,6 @@ state_range = [[
         np.pi / 2,
         0.6,
         np.pi / 6,
-        25  # t, 100 steps corresponds to 5s
     ],
 ]           # low and high. We set bound on the state to ensure stable training.
 action_range = [[-1, -1], [1, 1]]          # low and high
@@ -33,7 +31,7 @@ def dynamics(state, action):
     delta_max = np.pi / 6
     dt = 0.05
 
-    x, y, th0, dth, v, delta, t = torch.unbind(state, dim=1)
+    x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
     acc = action[:, 0]
     delta_rate = action[:, 1] * delta_max / 4
     normalized_steer = torch.tan(delta) * R / l
@@ -45,17 +43,16 @@ def dynamics(state, action):
         -1 * v * (d1 * normalized_steer + torch.sin(dth) * R) / (R * d1),
         acc,
         delta_rate,
-        torch.ones_like(th0),
     ]).T
 
     stp1 = state + ds * dt 
     return stp1
 
 def rewards(state, action, terminal = False):
-    x, y, th0, dth, v, delta, t = torch.unbind(state, dim=1)
+    x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
     acc, delta_rate = torch.unbind(action, dim=1)
     if not terminal:
-        reward = -1 * (x ** 2 + y ** 2
+        reward = -1e-2 * (x ** 2 + y ** 2
                           + 10 * th0 ** 2
                           + 10 * dth ** 2
                           + v ** 2
@@ -68,32 +65,34 @@ def rewards(state, action, terminal = False):
 
 def initial_distribution(batch_size):
 
-    high = np.array(
-            [
-                10,
-                3,
-                np.pi / 6,
-                np.pi / 6,
-                0.0,
-                0.0,
-                0.0
-            ],
-            dtype=np.float32,
-        )
-
-    reset_std = np.array(
-        [3.0,
-            0.5,
-            np.pi / 12,
-            np.pi / 12,
-            0.0,
-            0.0,
-            0.0
-            ]
-    )
+    # high = np.array(
+    #         [
+    #             10,
+    #             3,
+    #             np.pi / 6,
+    #             np.pi / 6,
+    #             0.0,
+    #             0.0,
+    #             0.0
+    #         ],
+    #         dtype=np.float32,
+    #     )
+    #
+    # reset_std = np.array(
+    #     [3.0,
+    #         0.5,
+    #         np.pi / 12,
+    #         np.pi / 12,
+    #         0.0,
+    #         0.0,
+    #         0.0
+    #         ]
+    # )
     # self.state = self.np_random.uniform(low=-1 * high, high=high)
-    state = np.random.normal(np.zeros_like(reset_std), reset_std, size=(batch_size, len(high)))
-    state = np.clip(state, -high, high)
+    state = np.random.uniform(low=np.array([2.0, 0.0, - np.pi / 12, 0.0, 0.0, 0.0]),
+                              high=np.array([5.0, 3.0, np.pi / 12, 0.0 ,0.0, 0.0]),
+                              size=(batch_size, 6))
+    state[3] = state[3] - state[2] # we sample theta_1 and calculate theta_1 - theta_0
     return torch.from_numpy(state)
 
 

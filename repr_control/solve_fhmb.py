@@ -8,6 +8,7 @@ from datetime import datetime
 from repr_control.utils import util, buffer
 from repr_control.agent.sac import sac_agent
 from repr_control.agent.rfsac import rfsac_agent
+from repr_control.agent.dpg import dpg_agent
 # from define_problem import *
 from gymnasium.envs.registration import register
 import gymnasium
@@ -23,7 +24,7 @@ if __name__ == "__main__":
     ### parameter that
     parser.add_argument("--alg", default="mbdpg",
                         help="The algorithm to use. rfsac or sac.")
-    parser.add_argument("--horizon", default=400, type=int,
+    parser.add_argument("--horizon", default=240, type=int,
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--env", default='parking',
                         help="Name your env/dynamics, only for folder names.")  # Alg name (sac, vlsac)
@@ -67,8 +68,8 @@ if __name__ == "__main__":
     np.random.seed(args.seed)
 
     kwargs = vars(args)
-    env = gymnasium.make('ArticulateFiniteHorizon-v0', horizon = args.horizon)
-    eval_env = gymnasium.make('ArticulateFiniteHorizon-v0', horizon = args.horizon)
+    env = gymnasium.make('ArticulateInfiniteHorizon-v0', horizon = args.horizon)
+    eval_env = gymnasium.make('ArticulateInfiniteHorizon-v0', horizon = args.horizon)
     env = gymnasium.wrappers.RescaleAction(env, min_action=-1, max_action=1)
     eval_env = gymnasium.wrappers.RescaleAction(eval_env, min_action=-1, max_action=1)
     # kwargs.update({
@@ -83,10 +84,10 @@ if __name__ == "__main__":
     if args.alg == "sac":
         from repr_control.envs.models.articulate_model_fh import dynamics, reward, initial_distribution
 
-        agent = sac_agent.ModelBasedSACAgent(7, 2, [[-1, -1], [1, 1]], dynamics, reward, initial_distribution, **kwargs)
+        agent = sac_agent.ModelBasedSACAgent(6, 2, [[-1, -1], [1, 1]], dynamics, reward, initial_distribution, **kwargs)
     elif args.alg == "mbdpg":
-        from repr_control.envs.models.articulate_model_fh import dynamics, reward, initial_distribution
-        agent = sac_agent.ModelBasedDPGAgent(7, 2, [[-1, -1], [1, 1]], dynamics, reward, initial_distribution, **kwargs)
+        from repr_control.envs.models.articulate_model_fh import dynamics, rewards, initial_distribution
+        agent = dpg_agent.ModelBasedDPGAgent(6, 2, [[-1, -1], [1, 1]], dynamics, rewards, initial_distribution, **kwargs)
     elif args.alg == 'rfsac':
         pass
     else:
@@ -144,7 +145,7 @@ if __name__ == "__main__":
 
             best_eval_reward = max(evaluations)
 
-        if (t + 1) % 500 == 0:
+        if (t + 1) % 50 == 0:
             for key, value in info.items():
                 if 'dist' not in key:
                     summary_writer.add_scalar(f'info/{key}', value, t + 1)

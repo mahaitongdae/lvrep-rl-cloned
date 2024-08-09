@@ -28,14 +28,14 @@ if __name__ == "__main__":
                         help="Number of random features. Suitable numbers for 2-dimensional system is 512, 3-dimensional 1024, etc.")
     parser.add_argument("--nystrom_sample_dim", default=8192, type=int,
                         help='The sampling dimension for nystrom critic. After sampling, take the maximum rf_num eigenvectors..')
-    parser.add_argument("--device", default='cuda', type=str,
+    parser.add_argument("--device", default='cpu', type=str,
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
 
     parser.add_argument("--supervised", action='store_true',
                         help="add supervised learning.")
     parser.add_argument("--supervised_datasets", type=str, default="/datasets/2024-08-02_18-25-15/15_0.763_617760.pt",)
-    parser.set_defaults(supervised=True)
+    parser.set_defaults(supervised=False)
 
     ### Parameters that usually don't need to be changed.
     parser.add_argument("--seed", default=0, type=int,
