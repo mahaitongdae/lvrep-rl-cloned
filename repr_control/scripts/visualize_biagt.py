@@ -7,6 +7,7 @@ import os
 import torch
 from repr_control.agent.rfsac import rfsac_agent
 from repr_control.agent.sac import sac_agent
+from repr_control.agent.dpg import dpg_agent
 from repr_control.agent.actor import DiagGaussianActor
 from repr_control.utils.util import eval_policy
 import gymnasium
@@ -29,6 +30,8 @@ def eval(log_path, ):
         agent = sac_agent.SACAgent(**kwargs)
     elif kwargs['alg'] == 'qpsac':
         agent = sac_agent.QPSACAgent(**kwargs)
+    elif kwargs['alg'] == "mbdpg":
+        agent = dpg_agent.DPGAgent(state_dim=6, action_dim=2, action_range = [[-1, -1], [1, 1]], **kwargs)
     else:
         raise NotImplementedError
 
@@ -82,4 +85,4 @@ def eval_biagt(policy, eval_env, eval_episodes=100, render=False, seed=0, state=
 
 
 if __name__ == '__main__':
-    eval("/home/haitong/PycharmProjects/lvrep-rl-cloned/repr_control/log/sac/Parking/seed_0_2024-08-05-12-38-52")
+    eval("/home/haitong/PycharmProjects/lvrep-rl-cloned/repr_control/log/mbdpg/parking/seed_0_2024-08-09-23-53-29")

@@ -15,6 +15,7 @@ import gymnasium
 from repr_control.envs import ArticulateParking
 import torch
 import numpy as np
+import yaml
 
 
 if __name__ == "__main__":
@@ -32,9 +33,14 @@ if __name__ == "__main__":
                         help="Number of random features. Suitable numbers for 2-dimensional system is 512, 3-dimensional 1024, etc.")
     parser.add_argument("--nystrom_sample_dim", default=8192, type=int,
                         help='The sampling dimension for nystrom critic. After sampling, take the maximum rf_num eigenvectors..')
-    parser.add_argument("--device", default='mps', type=str,
+    parser.add_argument("--device", default='cuda', type=str,
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
+
+    parser.add_argument("--supervised", action='store_true',
+                        help="add supervised learning.")
+    parser.add_argument("--supervised_datasets", type=str, default="/datasets/2024-08-09_19-36-29/15_1.000_810000.pt",)
+    parser.set_defaults(supervised=True)
 
     ### Parameters that usually don't need to be changed.
     parser.add_argument("--dir", default='main', type=str)
@@ -111,7 +117,30 @@ if __name__ == "__main__":
     best_actor = None
     best_critic = None
 
-    for t in range(int(args.max_timesteps)):
+    # save parameters
+
+    with open(os.path.join(log_path, 'train_params.yaml'), 'w') as fp:
+        yaml.dump(kwargs, fp, default_flow_style=False)
+
+    if args.supervised:
+        from repr_control.datasets.datasets import SupervisedParkingDataset
+        from torch.utils.data import DataLoader
+        cur_path = os.path.dirname(__file__)
+        dataset = torch.load(cur_path + args.supervised_datasets)
+        loader = DataLoader(dataset, batch_size=256, shuffle=True)
+        for supervised_t, supervised_data in enumerate(loader):
+            info = agent.supervised_train(supervised_data)
+            for key, value in info.items():
+                summary_writer.add_scalar(f'info/{key}', value, supervised_t + 1)
+            summary_writer.flush()
+
+        actor = agent.actor.state_dict()
+        torch.save(actor, os.path.join(log_path, 'actor_after_supervised.pth'))
+
+
+    for t in range(int(args.max_timesteps + args.start_timesteps)):
+
+        # episode_timesteps += 1
 
 
         info = agent.train(replay_buffer, batch_size=args.batch_size)
@@ -160,8 +189,3 @@ if __name__ == "__main__":
 
     torch.save(agent.actor.state_dict(), log_path + "/actor_last.pth")
     torch.save(agent.critic.state_dict(), log_path + "/critic_last.pth")
-
-    # save parameters
-    # kwargs.update({"action_space": None}) # action space might not be serializable
-    with open(os.path.join(log_path, 'train_params.pkl'), 'wb') as fp:
-        pkl.dump(kwargs, fp)

@@ -212,6 +212,10 @@ class ModelBasedDPGAgent(ModelBasedSACAgent):
 				 device=device,
 				 **kwargs)
 		self.actor = DeterministicActor(state_dim, action_dim, hidden_dim, hidden_depth).to(self.device)
+		self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=lr, betas=(0.9, 0.999))
+		self.actor_supervised_optimizer = torch.optim.Adam(self.actor.parameters(),
+														   lr=1e-3,
+														   betas=[0.9, 0.999])
 
 	def update_actor_and_alpha(self, batch):
 		obs = batch.state
@@ -263,3 +267,29 @@ class ModelBasedDPGAgent(ModelBasedSACAgent):
 			# **critic_info,
 			**actor_info,
 		}
+
+	def supervised_from_mpc(self, batch):
+
+		obs, action = batch
+		if obs.device == torch.device('cpu'):
+			obs = obs.float().to(self.device)
+			action = action.float().to(self.device)
+
+		output = self.actor(obs)
+		loss = F.mse_loss(output, action)
+
+		# optimize the actor
+		self.actor_supervised_optimizer.zero_grad()
+		loss.backward()
+		self.actor_supervised_optimizer.step()
+
+		info = {'supervised_loss': loss.item()}
+
+		return info
+
+
+	def supervised_train(self, batch,):
+		actor_info = self.supervised_from_mpc(batch)
+		# critic_info = self.critic_step(batch, su)
+
+		return actor_info
