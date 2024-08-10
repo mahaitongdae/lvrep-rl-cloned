@@ -33,14 +33,14 @@ if __name__ == "__main__":
                         help="Number of random features. Suitable numbers for 2-dimensional system is 512, 3-dimensional 1024, etc.")
     parser.add_argument("--nystrom_sample_dim", default=8192, type=int,
                         help='The sampling dimension for nystrom critic. After sampling, take the maximum rf_num eigenvectors..')
-    parser.add_argument("--device", default='cuda', type=str,
+    parser.add_argument("--device", default='mps', type=str,
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
 
     parser.add_argument("--supervised", action='store_true',
                         help="add supervised learning.")
     parser.add_argument("--supervised_datasets", type=str, default="/datasets/2024-08-09_19-36-29/15_1.000_810000.pt",)
-    parser.set_defaults(supervised=True)
+    parser.set_defaults(supervised=False)
 
     ### Parameters that usually don't need to be changed.
     parser.add_argument("--dir", default='main', type=str)
@@ -145,36 +145,21 @@ if __name__ == "__main__":
 
         info = agent.train(replay_buffer, batch_size=args.batch_size)
 
-        if t % 100 == 0:
+        if t % 10 == 0:
             # +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
             print(
                 f"Total T: {t + 1} Rollout cost: {info['actor_loss']:.3f} Terminal cost: {info['terminal_cost']:.3f}")
             # Reset environment
 
-        # Evaluate episode
-        # if (t + 1) % args.eval_freq == 0:
-        #     steps_per_sec = timer.steps_per_sec(t + 1)
-        #     eval_len, eval_ret, _, _ = util.eval_policy(agent, eval_env, eval_episodes=50)
-        #     evaluations.append(eval_ret)
-        #
-        #     if t >= args.start_timesteps:
-        #         info.update({'eval_len': eval_len,
-        #                      'eval_ret': eval_ret})
-        #
-        #
-        #     print('Step {}. Steps per sec: {:.4g}.'.format(t + 1, steps_per_sec))
-        #
-        #     if eval_ret > best_eval_reward:
-        #         best_actor = agent.actor.state_dict()
-        #         best_critic = agent.critic.state_dict()
-        #
-        #         # save best actor/best critic
-        #         torch.save(best_actor, log_path + "/best_actor.pth")
-        #         torch.save(best_critic, log_path + "/best_critic.pth")
-        #
-        #     best_eval_reward = max(evaluations)
+        if info['terminal_cost'] > best_eval_reward:
+            best_actor = agent.actor.state_dict()
+            best_critic = agent.critic.state_dict()
 
-        if (t + 1) % 50 == 0:
+            # save best actor/best critic
+            torch.save(best_actor, log_path + "/best_actor.pth")
+            torch.save(best_critic, log_path + "/best_critic.pth")
+
+        if (t + 1) % 2 == 0:
             for key, value in info.items():
                 if 'dist' not in key:
                     summary_writer.add_scalar(f'info/{key}', value, t + 1)

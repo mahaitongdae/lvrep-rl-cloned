@@ -35,7 +35,7 @@ def eval(log_path, ):
     else:
         raise NotImplementedError
 
-    agent.actor.load_state_dict(torch.load(log_path+"/actor_after_supervised.pth"))
+    agent.actor.load_state_dict(torch.load(log_path+"/best_actor.pth"))
     # agent.actor = actor
     agent.device = torch.device("cpu")
 
@@ -85,4 +85,4 @@ def eval_biagt(policy, eval_env, eval_episodes=100, render=False, seed=0, state=
 
 
 if __name__ == '__main__':
-    eval("/home/haitong/PycharmProjects/lvrep-rl-cloned/repr_control/log/mbdpg/parking/seed_0_2024-08-09-23-53-29")
+    eval("/Users/mahaitong/Code/repr_control/repr_control/log/mbdpg/parking/seed_0_2024-08-10-00-45-29")
