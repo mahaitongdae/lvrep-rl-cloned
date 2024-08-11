@@ -23,7 +23,7 @@ def eval(log_path, ):
     kwargs['device'] = 'cpu'
 
     # eval_env = gymnasium.make('ArticulateInfiniteHorizon-v0', render_mode='human', horizon=500, save_video=True)
-    eval_env = ArticulateParkingInfiniteHorizon(render_mode='human', horizon=500, save_video=True)
+    eval_env = ArticulateParkingInfiniteHorizon(render_mode='human', horizon=250, save_video=True)
     kwargs['action_space'] = eval_env.action_space
     kwargs.update({'eval': True})
     if kwargs['alg'] == "sac":
@@ -35,14 +35,14 @@ def eval(log_path, ):
     else:
         raise NotImplementedError
 
-    agent.actor.load_state_dict(torch.load(log_path+"/best_actor.pth"))
+    agent.actor.load_state_dict(torch.load(log_path+"/best_actor.pth", map_location=torch.device('cpu')))
     # agent.actor = actor
     agent.device = torch.device("cpu")
 
     _, _, _, ep_rets = eval_biagt(agent, eval_env,
                                   eval_episodes=1,
                                   render=True,
-                                  state=np.array([ 2.   ,       0.5    ,     -0.26179939 , 0.26179939 , 0.       ,   0.        ])
+                                  state=np.array([ 5.   ,       1.5    ,     -0.2 , 0.2 , 0.       ,   0.        ])
                                   ) # seed=3
                                   # seed=5)
     eval_env.close()
@@ -85,4 +85,4 @@ def eval_biagt(policy, eval_env, eval_episodes=100, render=False, seed=0, state=
 
 
 if __name__ == '__main__':
-    eval("/Users/mahaitong/Code/repr_control/repr_control/log/mbdpg/parking/seed_0_2024-08-10-00-45-29")
+    eval("/Users/mahaitong/Code/repr_control/repr_control/log/mbdpg/parking/seed_0_2024-08-10-01-02-39")

@@ -464,6 +464,6 @@ def test_qp_unrolled():
                          })
     network = QPUnrolledNetwork(**default_args)
     print(network(torch.rand(size=(128, input_size))).shape)
-    print(network.state_dict())
+    # print(network.state_dict())
 
 

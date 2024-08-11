@@ -436,8 +436,6 @@ class ArticulateParkingInfiniteHorizon(ArticulateParking):
 
         self.step_counter = 0
 
-        if self.render_mode == "human":
-            self.render()
         return np.array(self.state, dtype=np.float32), {}
 
     def dynamics_step(self, action):
