@@ -41,7 +41,7 @@ For those interested in the details of SDEC algorithm, please check our [papers]
     ```
 4. install the toolbox
     ```shell
-   git clone https://github.com/CoNG-Harvard/repr_control.git
+   git clone https://github.com/CoNG-harvard/repr_control.git
    cd repr_control
    pip install -e .
    ```
