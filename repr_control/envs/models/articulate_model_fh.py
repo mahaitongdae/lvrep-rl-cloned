@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-state_dim = 7                       # state dimension
+state_dim = 6                       # state dimension
 action_dim = 2                      # action dimension
 state_range = [[
                 -20,
@@ -62,7 +62,7 @@ def rewards(state, action, terminal = False):
                           + 10 * acc ** 2
                           + 10 * delta_rate ** 2)
     else:
-        reward = -1 * (10 * x ** 2 + 10 * y ** 2 + 100 * th0 ** 2 + 100 * dth ** 2)
+        reward = -1 * (10 * x ** 2 + 10 * y ** 2 + 100 * th0 ** 2 + 100 * (th0 + dth) ** 2)
     return reward
 
 def initial_distribution(batch_size):
@@ -91,7 +91,7 @@ def initial_distribution(batch_size):
     #         ]
     # )
     # self.state = self.np_random.uniform(low=-1 * high, high=high)
-    state = np.random.uniform(low=np.array([2.0, 0.0, - np.pi / 12, 0.0, 0.0, 0.0]),
+    state = np.random.uniform(low=np.array([-5.0, -1.5, - np.pi / 12, 0.0, 0.0, 0.0]),
                               high=np.array([5.0, 1.5, np.pi / 12, 0.0 ,0.0, 0.0]),
                               size=(batch_size, 6))
     state[:, 3] = - state[:, 2] # we sample theta_1 and calculate theta_1 - theta_0
