@@ -42,7 +42,7 @@ def eval(log_path, ):
     _, _, _, ep_rets = eval_biagt(agent, eval_env,
                                   eval_episodes=1,
                                   render=True,
-                                  state=np.array([ 5.   ,       1.5    ,     -0.2 , 0.2 , 0.       ,   0.        ])
+                                  state=np.array([ 2.   ,       1.5    ,     0.2 , -0.2 , 0.       ,   0.        ])
                                   ) # seed=3
                                   # seed=5)
     eval_env.close()
@@ -85,4 +85,4 @@ def eval_biagt(policy, eval_env, eval_episodes=100, render=False, seed=0, state=
 
 
 if __name__ == '__main__':
-    eval("/Users/mahaitong/Code/repr_control/repr_control/log/mbdpg/parking/seed_0_2024-08-10-01-02-39")
+    eval("/Users/mahaitong/Code/repr_control/repr_control/log/mbdpg/parking/seed_0_2024-08-11-17-33-38")

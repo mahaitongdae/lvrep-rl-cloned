@@ -104,6 +104,24 @@ class DeterministicActor(nn.Module):
     action = self.trunk(obs).tanh()
     return action
 
+class DeterministicQPActor(nn.Module):
+  def __init__(self, obs_dim, action_dim, hidden_dim, hidden_depth, device, n_qp, m_qp):
+    super().__init__()
+    from repr_control.networks.qp import qp_default_args
+    from repr_control.networks.qp.qp_unrolled_network import QPUnrolledNetwork, mlp_builder
+    qp_default_args.update({
+      'device': device,  # device, input_size, n_qp, m_qp, qp_iter, mlp_builder,
+      'input_size': obs_dim,
+      'n_qp': n_qp,  # P is n by n
+      'm_qp': m_qp,  # m is constraint nums
+      'qp_iter': 10,
+      'mlp_builder': mlp_builder
+    })
+    self.qp_net = QPUnrolledNetwork(**qp_default_args)
+
+  def forward(self, obs):
+    return self.qp_net(obs)
+
 
 class StochasticActorFromDetStructureWrapper(nn.Module):
   """

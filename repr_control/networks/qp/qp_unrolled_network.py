@@ -457,13 +457,13 @@ def test_qp_unrolled():
     input_size = 5
     default_args.update({'device': 'cpu', # device, input_size, n_qp, m_qp, qp_iter, mlp_builder,
                          'input_size': input_size,
-                         'n_qp': 8,             #  P is n by n
+                         'n_qp': 12,             #  P is n by n
                          'm_qp': 48,            # m is constraint nums
                          'qp_iter' : 10,
                          'mlp_builder': mlp_builder
                          })
     network = QPUnrolledNetwork(**default_args)
-    print(network(torch.rand(size=(128, input_size))).shape)
+    print(network(torch.rand(size=(4, input_size))))
     # print(network.state_dict())
 
 

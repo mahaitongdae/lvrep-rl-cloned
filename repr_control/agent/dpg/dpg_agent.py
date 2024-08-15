@@ -4,7 +4,7 @@ from repr_control.utils.buffer import Batch
 from repr_control.agent.sac.sac_agent import ModelBasedSACAgent
 from repr_control.agent.actor import DeterministicActor
 from repr_control.agent.critic import DoubleQCritic
-from repr_control.agent.actor import DeterministicActor
+from repr_control.agent.actor import DeterministicActor, DeterministicQPActor
 import numpy as np
 from repr_control.utils import util
 
@@ -293,3 +293,72 @@ class ModelBasedDPGAgent(ModelBasedSACAgent):
 		# critic_info = self.critic_step(batch, su)
 
 		return actor_info
+
+class ModelBasedQPDPGAgent(ModelBasedDPGAgent):
+
+	def __init__(self, state_dim,
+				 action_dim,
+				 action_range,
+				 dynamics,
+				 rewards,
+				 initial_distribution,
+				 horizon=250,
+				 lr=0.0003,
+				 discount=0.99,
+				 target_update_period=2,
+				 tau=0.005, alpha=0.1,
+				 auto_entropy_tuning=True,
+				 hidden_dim=1024,
+				 hidden_depth=2,
+				 device='cpu',
+				 **kwargs):
+		super().__init__(state_dim,
+				 action_dim,
+				 action_range,
+				 dynamics,
+				 rewards,
+				 initial_distribution,
+				 horizon=horizon,
+				 lr=lr,
+				 discount=discount,
+				 target_update_period=target_update_period,
+				 tau=tau, alpha=alpha,
+				 auto_entropy_tuning=auto_entropy_tuning,
+				 hidden_dim=hidden_dim,
+				 hidden_depth=hidden_depth,
+				 device=device,
+				 **kwargs)
+
+		self.actor = DeterministicQPActor(state_dim, action_dim,
+										  hidden_dim, hidden_depth,
+										  self.device, kwargs.get('n_qp', 12),
+										  kwargs.get('m_qp', 48))
+		self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),
+												lr=lr,
+												betas=[0.9, 0.999])
+		self.action_dim = action_dim
+
+	def update_actor_and_alpha(self, batch):
+		obs = batch.state
+		log_probs = []
+		rewards = torch.zeros([obs.shape[0]]).to(self.device)
+		for i in range(self.horizon):
+			action = self.actor(obs)[:, :self.action_dim]
+			obs = self.dynamics(obs, action)
+			if i == self.horizon - 1:
+				rewards += self.rewards(obs, action, terminal=True)
+			else:
+				rewards += self.rewards(obs, action, terminal=False)
+		final_reward = self.rewards(obs, action, terminal=True)
+		actor_loss = -1 * rewards.mean()
+
+		# optimize the actor
+		self.actor_optimizer.zero_grad()
+		actor_loss.backward()
+		self.actor_optimizer.step()
+
+		info = {'actor_loss': actor_loss.item(),
+				'terminal_cost': final_reward.mean().item()}
+
+		return info
+

@@ -23,7 +23,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     ### parameter that
-    parser.add_argument("--alg", default="mbdpg",
+    parser.add_argument("--alg", default="mbdpgqp",
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--horizon", default=240, type=int,
                         help="The algorithm to use. rfsac or sac.")
@@ -33,7 +33,7 @@ if __name__ == "__main__":
                         help="Number of random features. Suitable numbers for 2-dimensional system is 512, 3-dimensional 1024, etc.")
     parser.add_argument("--nystrom_sample_dim", default=8192, type=int,
                         help='The sampling dimension for nystrom critic. After sampling, take the maximum rf_num eigenvectors..')
-    parser.add_argument("--device", default='mps', type=str,
+    parser.add_argument("--device", default='cpu', type=str,
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
 
@@ -94,6 +94,11 @@ if __name__ == "__main__":
     elif args.alg == "mbdpg":
         from repr_control.envs.models.articulate_model_fh import dynamics, rewards, initial_distribution
         agent = dpg_agent.ModelBasedDPGAgent(6, 2, [[-1, -1], [1, 1]], dynamics, rewards, initial_distribution, **kwargs)
+    elif args.alg == "mbdpgqp":
+        from repr_control.envs.models.articulate_model_fh import dynamics, rewards, initial_distribution
+
+        agent = dpg_agent.ModelBasedQPDPGAgent(6, 2, [[-1, -1], [1, 1]], dynamics, rewards, initial_distribution,
+                                             **kwargs)
     elif args.alg == 'rfsac':
         pass
     else:
