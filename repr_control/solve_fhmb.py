@@ -25,6 +25,8 @@ if __name__ == "__main__":
     ### parameter that
     parser.add_argument("--alg", default="mbdpgqp",
                         help="The algorithm to use. rfsac or sac.")
+    parser.add_argument("--notes", type=str, default="change init dist",
+                        help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--horizon", default=240, type=int,
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--env", default='parking',
