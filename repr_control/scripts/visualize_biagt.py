@@ -12,6 +12,7 @@ from repr_control.agent.actor import DiagGaussianActor
 from repr_control.utils.util import eval_policy
 import gymnasium
 import yaml
+import time
 
 def eval(log_path, ):
     try:
@@ -55,6 +56,7 @@ def eval_biagt(policy, eval_env, eval_episodes=100, render=False, seed=0, state=
     """
     ep_rets = []
     avg_len = 0.
+    forward_time = 0.
     for i in range(eval_episodes):
         ep_ret = 0.
         # eval_env.seed(i)
@@ -65,7 +67,9 @@ def eval_biagt(policy, eval_env, eval_episodes=100, render=False, seed=0, state=
         done = False
         # print("eval_policy state", state)
         while not done:
+            start = time.time()
             action = policy.select_action(np.array(state))
+            forward_time += time.time() - start
             state, reward, terminated, truncated, _ = eval_env.step(action)
             done = terminated or truncated
             ep_ret += reward
@@ -80,9 +84,35 @@ def eval_biagt(policy, eval_env, eval_episodes=100, render=False, seed=0, state=
 
     print("---------------------------------------")
     print(f"Evaluation over {eval_episodes} episodes: avg eplen {avg_len}, avg return {avg_ret:.3f} $\pm$ {std_ret:.3f}")
+    print(f"forward time {forward_time:.3f}")
     print("---------------------------------------")
+    import matplotlib.pyplot as plt
+    labels_s = (r'$x(t)$', r'$y(t)$', r'$\theta_0{x}(t)$', r'$\theta_0 - \theta_1(t)$', r'v(t)', 'delta(t)')
+    labels_u = (r'$a(t)$', r'$ddelta(t)$')
+    n = len(labels_s)
+    m = len(labels_u)
+    fig, ax = plt.subplots(1, n + m, dpi=150, figsize=(15, 2))
+    plt.subplots_adjust(wspace=0.45)
+
+    for i in range(len(labels_s)):
+        ax[i].plot(state[:, i])
+        ax[i].axhline(0, linestyle='--', color='tab:orange')
+        ax[i].set_xlabel(r'$t$')
+        ax[i].set_title(labels_s[i])
+    u_max = np.array([1.0, np.pi / 24])
+    ax[n].plot(control[:, 0])
+    ax[n + 1].plot(control[:, 1] * np.pi / 24)
+    for i in range(m):
+        # control = u_max[np.newaxis, :] * control
+
+        ax[n + i].axhline(u_max[i], linestyle='--', color='tab:orange')
+        ax[n + i].axhline(-u_max[i], linestyle='--', color='tab:orange')
+        ax[n + i].set_xlabel(r'$t$')
+        ax[n + i].set_title(labels_u[i])
+    plt.legend()
+    plt.show()
     return avg_len, avg_ret, std_ret, ep_rets
 
 
 if __name__ == '__main__':
-    eval("/Users/mahaitong/Code/repr_control/repr_control/log/mbdpg/parking/seed_0_2024-08-11-17-33-38")
+    eval("/home/haitong/PycharmProjects/lvrep-rl-cloned/repr_control/log/mbdpg/parking/seed_0_2024-08-27-22-46-35")

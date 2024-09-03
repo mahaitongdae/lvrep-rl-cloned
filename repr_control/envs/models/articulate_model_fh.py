@@ -62,7 +62,7 @@ def rewards(state, action, terminal = False):
                           + 10 * acc ** 2
                           + 10 * delta_rate ** 2)
     else:
-        reward = -1 * (10 * x ** 2 + 10 * y ** 2 + 100 * th0 ** 2 + 100 * (th0 + dth) ** 2)
+        reward = -1 * (1 * x ** 2 + 10 * y ** 2 + 100 * th0 ** 2 + 100 * (th0 + dth) ** 2)
     return reward
 
 def initial_distribution(batch_size):
