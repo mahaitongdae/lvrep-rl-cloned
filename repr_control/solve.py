@@ -7,10 +7,12 @@ from datetime import datetime
 from repr_control.utils import util, buffer
 from repr_control.agent.sac import sac_agent
 from repr_control.agent.rfsac import rfsac_agent
-from define_problem import *
+
 from gymnasium.envs.registration import register
 import gymnasium
 import yaml
+import torch
+import numpy as np
 
 
 if __name__ == "__main__":
@@ -18,15 +20,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     ### parameter that
-    parser.add_argument("--alg", default="rfsac",
+    parser.add_argument("--alg", default="sac",
                         help="The algorithm to use. rfsac or sac.")
-    parser.add_argument("--env", default='custom',
+    parser.add_argument("--env", default='HalfCheetah-v4',
                         help="Name your env/dynamics, only for folder names.")  # Alg name (sac, vlsac)
     parser.add_argument("--rf_num", default=512, type=int,
                         help="Number of random features. Suitable numbers for 2-dimensional system is 512, 3-dimensional 1024, etc.")
     parser.add_argument("--nystrom_sample_dim", default=8192, type=int,
                         help='The sampling dimension for nystrom critic. After sampling, take the maximum rf_num eigenvectors..')
-    parser.add_argument("--device", default='cpu', type=str,
+    parser.add_argument("--device", default='cuda', type=str,
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
 
@@ -56,7 +58,7 @@ if __name__ == "__main__":
     exp_name = f'seed_{args.seed}_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}'
 
     # setup example_results
-    log_path = f'log/{alg_name}/{env_name}/{exp_name}'
+    log_path = f'log/{alg_name}/{args.env}/{exp_name}'
     summary_writer = SummaryWriter(log_path + "/summary_files")
 
     # set seeds
@@ -64,25 +66,9 @@ if __name__ == "__main__":
     np.random.seed(args.seed)
 
     kwargs = vars(args)
-    kwargs.update({
-        "state_dim": state_dim,
-        "action_dim": action_dim,
-        "action_range": action_range,
-        'obs_space_high': np.clip(state_range[0], -3., 3.).tolist(),
-        'obs_space_low': np.clip(state_range[1], -3., 3.).tolist(),  # in case of inf observation space
-    })
-
-    # Initialize policy
-    if args.alg == "sac":
-        agent = sac_agent.SACAgent(**kwargs)
-    elif args.alg == 'rfsac':
-        agent = rfsac_agent.CustomModelRFSACAgent(dynamics_fn = dynamics, rewards_fn = rewards, **kwargs)
-    else:
-        raise NotImplementedError("Algorithm not implemented.")
-
-    replay_buffer = buffer.ReplayBuffer(state_dim, action_dim, device=args.device)
 
     if args.env == 'custom':
+        from define_problem import *
         register(id='custom-v0',
                  entry_point='repr_control.envs:CustomEnv',
                  max_episode_steps=max_step)
@@ -103,8 +89,30 @@ if __name__ == "__main__":
     else:
         env = gymnasium.make(args.env)
         eval_env = gymnasium.make(args.env)
+        state_dim = eval_env.observation_space.shape[0]
+        action_dim = eval_env.action_space.shape[0]
     env = gymnasium.wrappers.RescaleAction(env, min_action=-1, max_action=1)
     eval_env = gymnasium.wrappers.RescaleAction(eval_env, min_action=-1, max_action=1)
+    replay_buffer = buffer.ReplayBuffer(state_dim, action_dim, device=args.device)
+    kwargs.update({
+        "state_dim": state_dim,
+        "action_dim": action_dim,
+        "action_range": [[-1]*action_dim, [1]* action_dim],
+        # 'obs_space_high': np.clip(state_range[0], -3., 3.).tolist(),
+        # 'obs_space_low': np.clip(state_range[1], -3., 3.).tolist(),  # in case of inf observation space
+    })
+
+    # Initialize policy
+    if args.alg == "sac":
+        agent = sac_agent.SACAgent(**kwargs)
+    elif args.alg == 'rfsac':
+        agent = rfsac_agent.CustomModelRFSACAgent(dynamics_fn = dynamics, rewards_fn = rewards, **kwargs)
+    else:
+        raise NotImplementedError("Algorithm not implemented.")
+
+
+
+
 
     # Evaluate untrained policy
     evaluations = []
@@ -165,7 +173,7 @@ if __name__ == "__main__":
         # Evaluate episode
         if (t + 1) % args.eval_freq == 0:
             steps_per_sec = timer.steps_per_sec(t + 1)
-            eval_len, eval_ret, _, _ = util.eval_policy(agent, eval_env, eval_episodes=50)
+            eval_len, eval_ret, _, _ = util.eval_policy(agent, eval_env, eval_episodes=10)
             evaluations.append(eval_ret)
 
             if t >= args.start_timesteps:
@@ -184,6 +192,9 @@ if __name__ == "__main__":
                 torch.save(best_critic, log_path + "/best_critic.pth")
 
             best_eval_reward = max(evaluations)
+
+        if (t + 1) % int(args.max_timesteps / 5) == 0:
+            torch.save(best_actor, log_path + f"/actor_{t}_{eval_ret}.pth")
 
         if (t + 1) % 500 == 0:
             for key, value in info.items():

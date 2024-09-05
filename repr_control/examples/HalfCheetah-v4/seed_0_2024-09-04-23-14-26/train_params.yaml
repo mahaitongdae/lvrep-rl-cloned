@@ -1,0 +1,31 @@
+action_dim: 6
+action_range:
+- - -1
+  - -1
+  - -1
+  - -1
+  - -1
+  - -1
+- - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+alg: sac
+batch_size: 256
+device: cuda
+discount: 0.99
+embedding_dim: -1
+env: HalfCheetah-v4
+eval_freq: 5000
+feature_dim: 256
+hidden_dim: 256
+max_timesteps: 100000.0
+nystrom_sample_dim: 8192
+rf_num: 512
+seed: 0
+start_timesteps: 25000.0
+state_dim: 17
+tau: 0.005
+use_nystrom: false
