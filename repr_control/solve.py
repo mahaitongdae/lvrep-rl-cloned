@@ -13,6 +13,7 @@ import gymnasium
 import yaml
 import torch
 import numpy as np
+import time
 
 
 if __name__ == "__main__":
@@ -22,7 +23,7 @@ if __name__ == "__main__":
     ### parameter that
     parser.add_argument("--alg", default="sac",
                         help="The algorithm to use. rfsac or sac.")
-    parser.add_argument("--env", default='HalfCheetah-v4',
+    parser.add_argument("--env", default='Hopper-v4',
                         help="Name your env/dynamics, only for folder names.")  # Alg name (sac, vlsac)
     parser.add_argument("--rf_num", default=512, type=int,
                         help="Number of random features. Suitable numbers for 2-dimensional system is 512, 3-dimensional 1024, etc.")
@@ -39,7 +40,7 @@ if __name__ == "__main__":
                         help='the number of initial steps that collects data via random sampled actions.')  # Time steps initial random policy is used
     parser.add_argument("--eval_freq", default=5000, type=int,
                         help='number of iterations as the interval to evaluate trained policy.')  # How often (time steps) we evaluate
-    parser.add_argument("--max_timesteps", default=1e5, type=float,
+    parser.add_argument("--max_timesteps", default=2e5, type=float,
                         help='the total training time steps / iterations.')  # Max time steps to run environment
     parser.add_argument("--batch_size", default=256, type=int)  # Batch size for both actor and critic
     parser.add_argument("--hidden_dim", default=256, type=int)  # Network hidden dims
@@ -155,8 +156,9 @@ if __name__ == "__main__":
         info = {}
 
         if t >= args.start_timesteps:
+            start_time = time.time()
             info = agent.train(replay_buffer, batch_size=args.batch_size)
-
+            print(f"step time {time.time() - start_time}")
         if done:
             # +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
             print(
