@@ -216,6 +216,9 @@ class ModelBasedDPGAgent(ModelBasedSACAgent):
 		self.actor_supervised_optimizer = torch.optim.Adam(self.actor.parameters(),
 														   lr=1e-3,
 														   betas=[0.9, 0.999])
+		self.cost_to_go = util.mlp(state_dim, hidden_dim, 1, hidden_depth).to(self.device)
+		self.cost_to_go.apply(util.weight_init)
+		self.cost_to_go_optimizer = torch.optim.Adam(self.cost_to_go.parameters(), lr=3e-4, betas=[0.9,0.999])
 
 	def update_actor_and_alpha(self, batch):
 		obs = batch.state
