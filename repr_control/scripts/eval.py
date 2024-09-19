@@ -15,16 +15,17 @@ def eval(log_path, ):
     register(id='custom-v0',
              entry_point='repr_control.envs:CustomEnv',
              max_episode_steps=max_step)
-    eval_env = gymnasium.make('custom-v0',
-                   dynamics=dynamics,
-                   rewards=rewards,
-                   initial_distribution=initial_distribution,
-                   state_range=state_range,
-                   action_range=action_range,
-                   sigma=sigma)
+    eval_env = gymnasium.make('Hopper-v4',render_mode='human',
+                   # dynamics=dynamics,
+                   # rewards=rewards,
+                   # initial_distribution=initial_distribution,
+                   # state_range=state_range,
+                   # action_range=action_range,
+                   # sigma=sigma,
+                              )
     eval_env = gymnasium.wrappers.RescaleAction(eval_env, min_action=-1, max_action=1)
     agent = get_controller(log_path)
-    _, _, _, ep_rets = eval_policy(agent, eval_env, eval_episodes=50)
+    _, _, _, ep_rets = eval_policy(agent, eval_env, render=True, eval_episodes=1)
 
     return ep_rets
 
@@ -48,7 +49,7 @@ def get_controller(log_path):
                               hidden_depth=2,
                               log_std_bounds=[-5., 2.])
 
-    actor.load_state_dict(torch.load(log_path + "/actor_last.pth"))
+    actor.load_state_dict(torch.load(log_path + "/actor_799999_2517.3648784024767.pth"))
     agent.actor = actor
     agent.device = torch.device("cpu")
     return agent
@@ -56,7 +57,7 @@ def get_controller(log_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('log_path', type=str
-                        , default='/home/haitong/PycharmProjects/lvrep-rl-cloned-toolbox/repr_control/examples/example_results/rfsac/Pendulum/seed_0_2024-07-18-14-50-35')
+    parser.add_argument('--log_path', type=str
+                        , default='/home/haitong/PycharmProjects/repr_learning/repr_control/repr_control/log/sac/Hopper-v4/seed_0_2024-09-12-19-15-42')
     args = parser.parse_args()
     eval(args.log_path)
