@@ -15,9 +15,7 @@ For those interested in the details of SDEC algorithm, please check our [papers]
 1. Install anaconda and git (if you haven't).
 2. Create new environment,
    
-   **Windows** : Open Anaconda prompt:
-
-   **Mac** or **Linux** : Open Terminal:
+   **Windows** : Open Anaconda prompt.   **Mac** or **Linux** : Open Terminal:
     
     ```shell
     conda create -n repr-control python=3.10
