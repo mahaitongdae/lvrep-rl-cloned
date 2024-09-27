@@ -42,7 +42,7 @@ To use repr-control,
    
    .. code-block:: console
 
-      $ git clone https://github.com/CoNGHarvard/repr_control.git
+      $ git clone https://github.com/CoNG-harvard/repr_control.git
       $ cd repr_control
       $ pip install -e .
 

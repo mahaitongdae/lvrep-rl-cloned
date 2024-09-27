@@ -111,6 +111,15 @@ For all the hyperparameters can be tuned, run
 .. code-block:: console
 
    $ python solve.py --help
+
+- Experimental: vectorized solution:
+
+.. code-block:: console
+
+   $ python solve_vec.py --max_timesteps 2e5 --device cuda
+
+
+use vectorized rollout and evaluation to speed up the training.
    
 
 3. Monitoring and evaluating the training results

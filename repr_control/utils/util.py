@@ -73,6 +73,30 @@ def eval_policy(policy, eval_env, eval_episodes=100, render=False, seed=0):
 	print("---------------------------------------")
 	return avg_len, avg_ret, std_ret, ep_rets
 
+def batch_eval(policy, eval_env, seed=0):
+	import torch
+	avg_len = 0.
+	ep_ret = torch.zeros((eval_env.sample_batch_size, 1), device=eval_env.device)
+	# eval_env.seed(i)
+	state, _ = eval_env.reset(seed=seed)
+	done = False
+	# print("eval_policy state", state)
+	while not done:
+		action = policy.batch_select_action(state)
+		state, reward, terminated, truncated, _ = eval_env.step(action)
+		done = terminated or truncated
+		ep_ret += reward
+
+	avg_ret = ep_ret.mean().item()
+	std_ret = ep_ret.std().item()
+
+	print("---------------------------------------")
+	print(
+		f"Evaluation avg return {avg_ret:.3f} $\pm$ {std_ret:.3f}")
+	print("---------------------------------------")
+	return None, avg_ret, std_ret, ep_ret
+
+
 
 
 def weight_init(m):
