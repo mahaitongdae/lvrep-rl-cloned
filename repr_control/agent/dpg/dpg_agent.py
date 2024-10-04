@@ -278,6 +278,8 @@ class ModelBasedDPGAgent(ModelBasedSACAgent):
 			obs = obs.float().to(self.device)
 			action = action.float().to(self.device)
 
+		if obs.shape[1] == 7:
+			obs = obs[:, :-1]
 		output = self.actor(obs)
 		loss = F.mse_loss(output, action)
 
