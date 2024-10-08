@@ -23,9 +23,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     ### parameter that
-    parser.add_argument("--alg", default="mbdpgqp",
+    parser.add_argument("--alg", default="mbdpg",
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--horizon", default=240, type=int,
+                        help="The algorithm to use. rfsac or sac.")
+    parser.add_argument("--notes", default="change init dist", type=str,
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--env", default='parking',
                         help="Name your env/dynamics, only for folder names.")  # Alg name (sac, vlsac)
@@ -33,14 +35,14 @@ if __name__ == "__main__":
                         help="Number of random features. Suitable numbers for 2-dimensional system is 512, 3-dimensional 1024, etc.")
     parser.add_argument("--nystrom_sample_dim", default=8192, type=int,
                         help='The sampling dimension for nystrom critic. After sampling, take the maximum rf_num eigenvectors..')
-    parser.add_argument("--device", default='cpu', type=str,
+    parser.add_argument("--device", default='cuda', type=str,
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
 
     parser.add_argument("--supervised", action='store_true',
                         help="add supervised learning.")
     parser.add_argument("--supervised_datasets", type=str, default="/datasets/2024-08-09_19-36-29/15_1.000_810000.pt",)
-    parser.set_defaults(supervised=False)
+    parser.set_defaults(supervised=True)
 
     ### Parameters that usually don't need to be changed.
     parser.add_argument("--dir", default='main', type=str)
@@ -49,7 +51,7 @@ if __name__ == "__main__":
     parser.add_argument("--eval_freq", default=1000, type=int)  # How often (time steps) we evaluate
     parser.add_argument("--max_timesteps", default=2e4, type=float)  # Max time steps to run environment
     parser.add_argument("--batch_size", default=1024, type=int)  # Batch size for both actor and critic
-    parser.add_argument("--hidden_dim", default=256, type=int)  # Network hidden dims
+    parser.add_argument("--hidden_dim", default=512, type=int)  # Network hidden dims
     parser.add_argument("--hidden_depth", default=3, type=int)  # Latent feature dim
     parser.add_argument("--feature_dim", default=256, type=int)  # Latent feature dim
     parser.add_argument("--discount", default=0.99)  # Discount factor
@@ -153,16 +155,16 @@ if __name__ == "__main__":
         if t % 10 == 0:
             # +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
             print(
-                f"Total T: {t + 1} Rollout cost: {info['actor_loss']:.3f} Terminal cost: {info['terminal_cost']:.3f}")
+                f"Total T: {t + 1} Rollout cost: {info['actor_loss']:.3f} Terminal cost: {info['terminal_cost']:.3f}, cost2go cost: {info['critic_loss']:.3f}")
             # Reset environment
 
         if info['terminal_cost'] > best_eval_reward:
             best_actor = agent.actor.state_dict()
-            best_critic = agent.critic.state_dict()
+            best_critic = agent.cost_to_go.state_dict()
 
             # save best actor/best critic
             torch.save(best_actor, log_path + "/best_actor.pth")
-            torch.save(best_critic, log_path + "/best_critic.pth")
+            torch.save(best_critic, log_path + "/best_cost_to_go.pth")
 
         if (t + 1) % 2 == 0:
             for key, value in info.items():
@@ -178,4 +180,4 @@ if __name__ == "__main__":
     print('Total time cost {:.4g}s.'.format(timer.time_cost()))
 
     torch.save(agent.actor.state_dict(), log_path + "/actor_last.pth")
-    torch.save(agent.critic.state_dict(), log_path + "/critic_last.pth")
+    torch.save(agent.cost_to_go.state_dict(), log_path + "/cost_to_go_last.pth")

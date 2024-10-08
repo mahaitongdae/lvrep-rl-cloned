@@ -216,6 +216,9 @@ class ModelBasedDPGAgent(ModelBasedSACAgent):
 		self.actor_supervised_optimizer = torch.optim.Adam(self.actor.parameters(),
 														   lr=1e-3,
 														   betas=[0.9, 0.999])
+		self.cost_to_go = util.mlp(state_dim, hidden_dim, 1, hidden_depth).to(self.device)
+		self.cost_to_go.apply(util.weight_init)
+		self.cost_to_go_optimizer = torch.optim.Adam(self.cost_to_go.parameters(), lr=3e-4, betas=[0.9,0.999])
 
 	def update_actor_and_alpha(self, batch):
 		obs = batch.state
@@ -233,14 +236,22 @@ class ModelBasedDPGAgent(ModelBasedSACAgent):
 			# log_probs.append(log_prob)
 		final_reward = self.rewards(obs, action, terminal=True)
 		actor_loss = -1 * rewards.mean()
+		actor_loss_value = actor_loss.clone().detach()
 
 		# optimize the actor
 		self.actor_optimizer.zero_grad()
 		actor_loss.backward()
 		self.actor_optimizer.step()
 
+		v = self.cost_to_go(obs)
+		critic_loss = ((v - actor_loss_value) ** 2).mean()
+		self.cost_to_go_optimizer.zero_grad()
+		critic_loss.backward(inputs = list(self.cost_to_go.parameters()))
+		self.cost_to_go_optimizer.step()
+
 		info = {'actor_loss': actor_loss.item(),
-				'terminal_cost': final_reward.mean().item()}
+				'terminal_cost': final_reward.mean().item(),
+				'critic_loss': critic_loss.item()}
 
 		return info
 
@@ -339,13 +350,16 @@ class ModelBasedQPDPGAgent(ModelBasedDPGAgent):
 												lr=lr,
 												betas=[0.9, 0.999])
 		self.action_dim = action_dim
+		self.actor_supervised_optimizer = torch.optim.Adam(self.actor.parameters(),
+														   lr=1e-3,
+														   betas=[0.9, 0.999])
 
 	def update_actor_and_alpha(self, batch):
 		obs = batch.state
 		log_probs = []
 		rewards = torch.zeros([obs.shape[0]]).to(self.device)
 		for i in range(self.horizon):
-			action = self.actor(obs)[:, :self.action_dim]
+			action = self.actor(obs)
 			obs = self.dynamics(obs, action)
 			if i == self.horizon - 1:
 				rewards += self.rewards(obs, action, terminal=True)

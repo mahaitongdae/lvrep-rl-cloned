@@ -118,9 +118,10 @@ class DeterministicQPActor(nn.Module):
       'mlp_builder': mlp_builder
     })
     self.qp_net = QPUnrolledNetwork(**qp_default_args)
+    self.action_dim = action_dim
 
   def forward(self, obs):
-    return self.qp_net(obs)
+    return self.qp_net(obs)[:, :self.action_dim]
 
 
 class StochasticActorFromDetStructureWrapper(nn.Module):
