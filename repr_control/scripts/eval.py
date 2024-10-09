@@ -3,7 +3,7 @@ import os
 import argparse
 from repr_control.agent.rfsac import rfsac_agent
 from repr_control.agent.sac import sac_agent
-from repr_control.agent.actor import DiagGaussianActor
+from repr_control.agent.actor import DiagGaussianActor, DeterministicActor
 from repr_control.utils.util import eval_policy
 from repr_control.define_problem import *
 import gymnasium
@@ -27,6 +27,30 @@ def eval(log_path, ):
     _, _, _, ep_rets = eval_policy(agent, eval_env, eval_episodes=50)
 
     return ep_rets
+
+def eval_mbdpg_agent(log_path):
+    try:
+        with open(os.path.join(log_path, 'train_params.pkl'), 'rb') as f:
+            kwargs = pkl.load(f)
+    except:
+        with open(os.path.join(log_path, 'train_params.yaml'), 'r') as f:
+            kwargs = yaml.safe_load(f)
+
+    from repr_control.envs.models.articulate_model_fh import dynamics, evaluate_initial_states, terminal_constraints
+    import copy
+    actor = DeterministicActor(12, 2, kwargs['hidden_dim'], kwargs['hidden_depth'])
+    actor.load_state_dict(torch.load(log_path + "/actor_after_supervised.pth"))
+
+    init_state = evaluate_initial_states(15).float()
+    obs = copy.deepcopy(init_state)
+    for i in range(kwargs['horizon']):
+        action = actor(torch.hstack([obs, init_state]))
+        # noise = 0.1 * torch.randn_like(action)
+        # action = torch.clamp(action + noise, min=-1, max=1)
+        obs = dynamics(obs, action)
+        # rewards += self.rewards(obs, action)
+    terminal_constraint = terminal_constraints(obs)
+    print(torch.max(terminal_constraint, dim=0))
 
 def get_controller(log_path):
     try:
@@ -56,7 +80,8 @@ def get_controller(log_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('log_path', type=str
-                        , default='/home/haitong/PycharmProjects/lvrep-rl-cloned-toolbox/repr_control/examples/example_results/rfsac/Pendulum/seed_0_2024-07-18-14-50-35')
+    parser.add_argument('--log_path', type=str
+                        , default='/home/naliseas-workstation/Documents/haitong/repr_control/lvrep-rl-cloned/log/mbdpgtc/parking/seed_0_2024-10-09-10-21-24')
     args = parser.parse_args()
-    eval(args.log_path)
+    # eval(args.log_path)
+    eval_mbdpg_agent(args.log_path)

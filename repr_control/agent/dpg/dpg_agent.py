@@ -378,3 +378,131 @@ class ModelBasedQPDPGAgent(ModelBasedDPGAgent):
 
 		return info
 
+
+class ModelBasedDPGAgentTerminalConstraints(ModelBasedDPGAgent):
+
+	def __init__(self, state_dim, 
+					action_dim, 
+					action_range, 
+					dynamics, 
+					rewards, 
+					initial_distribution, 
+					terminal_constraints,
+					action_noise,
+					lr_schedule=False,
+					statewise_weights=True,
+					horizon=250, 
+					lr=0.0003, 
+					discount=0.99, 
+					target_update_period=2, 
+					tau=0.005, 
+					alpha=0.1, 
+					auto_entropy_tuning=True, 
+					hidden_dim=1024, 
+					hidden_depth=2, 
+					device='cpu', 
+					**kwargs):
+		super().__init__(state_dim, 
+				   action_dim, 
+				   action_range, 
+				   dynamics, 
+				   rewards, 
+				   initial_distribution, 
+				   horizon, 
+				   lr, 
+				   discount, 
+				   target_update_period, tau, alpha, auto_entropy_tuning, hidden_dim, hidden_depth, device, **kwargs)
+		
+		self.actor = DeterministicActor(state_dim+state_dim, action_dim, hidden_dim, hidden_depth).to(self.device)
+		self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),
+												lr=lr,
+												betas=[0.9, 0.999])
+		self.actor_supervised_optimizer = torch.optim.Adam(self.actor.parameters(),
+														   lr=1e-3,
+														   betas=[0.9, 0.999])
+		self.action_noise_std = action_noise
+
+		self.terminal_constraints = terminal_constraints
+		if not statewise_weights:
+			self.terminal_constraint_weights = torch.tensor([1.0, 1.0, 1.0, 1.0]).unsqueeze(dim=0).to(self.device).requires_grad_()
+			self.terminal_constraint_weights_optimizer = torch.optim.Adam(params=[self.terminal_constraint_weights], lr=1e-2)
+		else:
+			self.terminal_constraint_weights = util.mlp(state_dim, hidden_dim, 4, hidden_depth, output_mod=torch.nn.Softplus()).to(self.device)
+			self.terminal_constraint_weights_optimizer = torch.optim.Adam(params=self.terminal_constraint_weights.parameters(), lr=0.3 * lr)
+		self.statewise_weights = statewise_weights
+		self.lr_schedule = lr_schedule
+		if lr_schedule:
+			from torch.optim.lr_scheduler import LinearLR
+			self.lr_scheduler_actor = LinearLR(self.actor_optimizer, start_factor=1.0, end_factor=0.1, total_iters=int(kwargs['max_timesteps'] / 2))
+			self.lr_scheduler_weights = LinearLR(self.terminal_constraint_weights_optimizer, start_factor=1.0, end_factor=0.1, total_iters=int(kwargs['max_timesteps'] / 10))
+
+	
+	def update_actor_and_alpha(self, batch):
+		obs = batch.state
+		init_state = batch.state
+		if self.statewise_weights:
+			weights = self.terminal_constraint_weights(obs)
+		rewards = torch.zeros([obs.shape[0]]).to(self.device)
+		for i in range(self.horizon):
+			action = self.actor(torch.hstack([obs, init_state]))
+			if self.action_noise_std > 0:
+				noise = self.action_noise_std * torch.randn_like(action)
+				action = torch.clamp(action + noise, min=-1, max=1)
+			obs = self.dynamics(obs, action)
+			rewards += self.rewards(obs, action)
+		terminal_constraint = self.terminal_constraints(obs)
+		if self.statewise_weights:
+			weighted_terminal_constraint = (weights * terminal_constraint).sum(dim=1)
+		else:
+			weighted_terminal_constraint = (self.terminal_constraint_weights * terminal_constraint).sum(dim=1)
+		actor_loss = (-1 * rewards +  weighted_terminal_constraint).mean()
+		weights_loss = (-1 * weighted_terminal_constraint).mean()
+
+		# optimize the actor
+		self.actor_optimizer.zero_grad()
+		self.terminal_constraint_weights_optimizer.zero_grad()
+		actor_loss.backward(inputs=list(self.actor.parameters()), retain_graph=True)
+		if self.steps % 5 == 0:
+			if not self.statewise_weights:
+				weights_loss.backward(inputs=[self.terminal_constraint_weights])
+			else:
+				weights_loss.backward(inputs=list(self.terminal_constraint_weights.parameters()))
+		self.actor_optimizer.step()
+		self.lr_scheduler_actor.step()
+		if self.steps % 5 == 0:
+			self.terminal_constraint_weights_optimizer.step()
+			if not self.statewise_weights:
+				with torch.no_grad():
+					self.terminal_constraint_weights.clamp_(min=0.0)
+			self.lr_scheduler_weights.step()
+
+		# self.terminal_constraint_weights = torch.clip(self.terminal_constraint_weights, 
+		# 										min = torch.zeros_like(self.terminal_constraint_weights)).detach_().requires_grad_()
+
+		# v = self.cost_to_go(obs)
+		# critic_loss = ((v - actor_loss_value) ** 2).mean()
+		# self.cost_to_go_optimizer.zero_grad()
+		# critic_loss.backward(inputs = list(self.cost_to_go.parameters()))
+		# self.cost_to_go_optimizer.step()
+
+		info = {'actor_loss': actor_loss.item(),
+		  		'weights_loss': weights_loss.item(),
+		  		'average_cstr_1x' : terminal_constraint[:, 0].mean().item(),
+				'average_cstr_2y' : terminal_constraint[:, 1].mean().item(),
+				'average_cstr_3th' : terminal_constraint[:, 2].mean().item(),
+				'average_cstr_4dth' : terminal_constraint[:, 3].mean().item(),
+				
+				'avg_reward': rewards.mean().item(),
+				'terminal_cost': weighted_terminal_constraint.mean().item(),
+				# 'critic_loss': critic_loss.item(),
+				}
+		
+		if not self.statewise_weights:
+			info.update({
+				'weights_1x': self.terminal_constraint_weights[:, 0].item(),
+				'weights_2y': self.terminal_constraint_weights[:, 1].item(),
+				'weights_3th': self.terminal_constraint_weights[:, 2].item(),
+				'weights_4th0': self.terminal_constraint_weights[:, 3].item(),
+			})
+
+		return info

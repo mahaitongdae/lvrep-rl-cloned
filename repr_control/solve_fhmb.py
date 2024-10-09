@@ -23,27 +23,27 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     ### parameter that
-    parser.add_argument("--alg", default="mbdpg",
+    parser.add_argument("--alg", default="mbdpgtc",
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--notes", type=str, default="change init dist",
                         help="The algorithm to use. rfsac or sac.")
-    parser.add_argument("--horizon", default=240, type=int,
+    parser.add_argument("--horizon", default=480, type=int,
                         help="The algorithm to use. rfsac or sac.")
-    parser.add_argument("--notes", default="change init dist", type=str,
+    parser.add_argument("--action_noise", default=0., type=float,
                         help="The algorithm to use. rfsac or sac.")
+    parser.add_argument("--lr_schedule", action='store_true', default=True, help="add learning rate schedule.")
+    
+    # parser.add_argument("--notes", default="change init dist", type=str,
+    #                     help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--env", default='parking',
                         help="Name your env/dynamics, only for folder names.")  # Alg name (sac, vlsac)
-    parser.add_argument("--rf_num", default=512, type=int,
-                        help="Number of random features. Suitable numbers for 2-dimensional system is 512, 3-dimensional 1024, etc.")
-    parser.add_argument("--nystrom_sample_dim", default=8192, type=int,
-                        help='The sampling dimension for nystrom critic. After sampling, take the maximum rf_num eigenvectors..')
     parser.add_argument("--device", default='cuda', type=str,
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
 
     parser.add_argument("--supervised", action='store_true',
                         help="add supervised learning.")
-    parser.add_argument("--supervised_datasets", type=str, default="/datasets/2024-08-09_19-36-29/15_1.000_810000.pt",)
+    parser.add_argument("--supervised_datasets", type=str, default="/datasets/2024-10-08_20-20-38/15_1.000_1620000.pt",)
     parser.set_defaults(supervised=True)
 
     ### Parameters that usually don't need to be changed.
@@ -98,6 +98,9 @@ if __name__ == "__main__":
     elif args.alg == "mbdpg":
         from repr_control.envs.models.articulate_model_fh import dynamics, rewards, initial_distribution
         agent = dpg_agent.ModelBasedDPGAgent(6, 2, [[-1, -1], [1, 1]], dynamics, rewards, initial_distribution, **kwargs)
+    elif args.alg == "mbdpgtc":
+        from repr_control.envs.models.articulate_model_fh import dynamics, one_hot_rewards, initial_distribution, terminal_constraints
+        agent = dpg_agent.ModelBasedDPGAgentTerminalConstraints(6, 2, [[-1, -1], [1, 1]], dynamics, one_hot_rewards, initial_distribution, terminal_constraints, **kwargs)
     elif args.alg == "mbdpgqp":
         from repr_control.envs.models.articulate_model_fh import dynamics, rewards, initial_distribution
 
@@ -157,7 +160,7 @@ if __name__ == "__main__":
         if t % 10 == 0:
             # +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
             print(
-                f"Total T: {t + 1} Rollout cost: {info['actor_loss']:.3f} Terminal cost: {info['terminal_cost']:.3f}, cost2go cost: {info['critic_loss']:.3f}")
+                f"Total T: {t + 1} Rollout cost: {info['actor_loss']:.3f} Terminal cost: {info['terminal_cost']:.3f}") # , cost2go cost: {info['critic_loss']:.3f}
             # Reset environment
 
         if info['terminal_cost'] > best_eval_reward:
