@@ -434,7 +434,7 @@ class ModelBasedDPGAgentTerminalConstraints(ModelBasedDPGAgent):
 			self.terminal_constraint_weights_optimizer = torch.optim.Adam(params=[self.terminal_constraint_weights], lr=1e-2)
 		else:
 			self.terminal_constraint_weights = util.mlp(state_dim, hidden_dim, 4, hidden_depth, output_mod=torch.nn.Softplus()).to(self.device)
-			self.terminal_constraint_weights_optimizer = torch.optim.Adam(params=self.terminal_constraint_weights.parameters(), lr=0.3 * lr)
+			self.terminal_constraint_weights_optimizer = torch.optim.Adam(params=self.terminal_constraint_weights.parameters(), lr=3 * lr)
 		self.statewise_weights = statewise_weights
 		self.lr_schedule = lr_schedule
 		if lr_schedule:

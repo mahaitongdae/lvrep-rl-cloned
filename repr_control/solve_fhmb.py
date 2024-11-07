@@ -33,13 +33,13 @@ if __name__ == "__main__":
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--lr_schedule", action='store_true', default=True, help="add learning rate schedule.")
     parser.add_argument("--add_init_state", action='store_true', default=True, help="add initial state to policy.")
-    parser.add_argument("--statewise_weights", action='store_true', default=False, help="add initial state to policy.")
+    parser.add_argument("--statewise_weights", action='store_true', default=True, help="add initial state to policy.")
     
     # parser.add_argument("--notes", default="change init dist", type=str,
     #                     help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--env", default='parking',
                         help="Name your env/dynamics, only for folder names.")  # Alg name (sac, vlsac)
-    parser.add_argument("--device", default='mps', type=str,
+    parser.add_argument("--device", default='cpu', type=str,
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
 
@@ -101,8 +101,8 @@ if __name__ == "__main__":
         from repr_control.envs.models.articulate_model_fh import dynamics, rewards, initial_distribution
         agent = dpg_agent.ModelBasedDPGAgent(6, 2, [[-1, -1], [1, 1]], dynamics, rewards, initial_distribution, **kwargs)
     elif args.alg == "mbdpgtc":
-        from repr_control.envs.models.articulate_model_fh import dynamics, one_hot_rewards, initial_distribution, terminal_constraints
-        agent = dpg_agent.ModelBasedDPGAgentTerminalConstraints(6, 2, [[-1, -1], [1, 1]], dynamics, one_hot_rewards, initial_distribution, terminal_constraints, **kwargs)
+        from repr_control.envs.models.articulate_model_fh import dynamics, xy_rewards, initial_distribution, terminal_constraints
+        agent = dpg_agent.ModelBasedDPGAgentTerminalConstraints(6, 2, [[-1, -1], [1, 1]], dynamics, xy_rewards, initial_distribution, terminal_constraints, **kwargs)
     elif args.alg == "mbdpgqp":
         from repr_control.envs.models.articulate_model_fh import dynamics, rewards, initial_distribution
 

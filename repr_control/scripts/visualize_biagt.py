@@ -33,6 +33,8 @@ def eval(log_path, ):
         agent = sac_agent.QPSACAgent(**kwargs)
     elif kwargs['alg'] == "mbdpg":
         agent = dpg_agent.DPGAgent(state_dim=6, action_dim=2, action_range = [[-1, -1], [1, 1]], **kwargs)
+    elif kwargs['alg'] == "mbdpgtc":
+        agent = dpg_agent.ModelBasedDPGAgentTerminalConstraints(state_dim=6, action_dim=2, action_range = [[-1, -1], [1, 1]], **kwargs)
     else:
         raise NotImplementedError
 
@@ -177,4 +179,4 @@ def plot_cost_to_go(log_path):
 
 
 if __name__ == '__main__':
-    plot_cost_to_go("/Users/mahaitong/Code/repr_control/repr_control/log/mbdpg/parking/seed_0_2024-08-27-22-46-35")
+    eval("/Users/mahaitong/Code/repr_control/repr_control/log/mbdpgtc/parking/seed_0_2024-11-07-21-11-20")

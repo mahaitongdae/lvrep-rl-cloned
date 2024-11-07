@@ -65,6 +65,14 @@ def rewards(state, action, terminal = False):
         reward = -1 * (1 * x ** 2 + 10 * y ** 2 + 100 * th0 ** 2 + 100 * (th0 + dth) ** 2)
     return reward
 
+def xy_rewards(state,action):
+    x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
+    acc, delta_rate = torch.unbind(action, dim=1)
+    reward = -1e-3 * (x ** 2 + y ** 2
+                      +  acc ** 2
+                      +  delta_rate ** 2)
+    return reward
+
 def one_hot_rewards(state, action):
     # x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
     acc, delta_rate = torch.unbind(action, dim=1)
