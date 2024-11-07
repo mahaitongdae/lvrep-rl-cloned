@@ -23,24 +23,24 @@ action_range = [[-1, -1], [1, 1]]          # low and high
 max_step = 250                      # maximum rollout steps per episode
 sigma = 0.0                          # noise standard deviation.
 env_name = 'Parking'
+L_TRACTOR = 4.9276  # tractor length
+R = 8.5349  # turning radius
+L_TRAILER = 15.8496  # trailer length
+W = 3.1162
 assert len(action_range[0]) == len(action_range[1]) == action_dim
 def dynamics(state, action):
-    l = 4.9276  # tractor length
-    R = 8.5349  # turning radius
-    d1 = 15.8496  # trailer length
     delta_max = np.pi / 6
     dt = 0.05
-
     x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
     acc = action[:, 0] * 2
     delta_rate = action[:, 1] * delta_max / 2
-    normalized_steer = torch.tan(delta) * R / l
+    normalized_steer = torch.tan(delta) * R / L_TRACTOR
 
     ds = torch.vstack([
         v * torch.cos(th0),
         v * torch.sin(th0),
         v * normalized_steer / R,
-        -1 * v * (d1 * normalized_steer + torch.sin(dth) * R) / (R * d1),
+        -1 * v * (L_TRAILER * normalized_steer + torch.sin(dth) * R) / (R * L_TRAILER),
         acc,
         delta_rate,
     ]).T
@@ -138,8 +138,8 @@ def initial_distribution(batch_size):
     #                           size=(batch_size, 6))
     # state[:, 3] = - state[:, 2]  # we sample theta_1 and calculate theta_1 - theta_0
     # ref guided search 1
-    state = np.random.uniform(low=np.array([-8., -16, - np.pi / 2, 0.0, 0.0, 0.0]),
-                              high=np.array([-7., -15, np.pi / 2, 0.0, 0.0, 0.0]),
+    state = np.random.uniform(low=np.array([-10, 2., - np.pi / 2, 0.0, 0.0, 0.0]),
+                              high=np.array([-6, 4., - np.pi / 2, 0.0, 0.0, 0.0]),
                               size=(batch_size, 6))
     return torch.from_numpy(state)
 
@@ -161,5 +161,3 @@ def evaluate_initial_states(grid_size):
     init_states = np.vstack([grid_x, grid_y, grid_th0, grid_dth, grid_v, grid_delta]).T
 
     return torch.from_numpy(init_states)
-
-

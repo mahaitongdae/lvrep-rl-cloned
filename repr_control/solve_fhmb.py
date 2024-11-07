@@ -39,13 +39,13 @@ if __name__ == "__main__":
     #                     help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--env", default='parking',
                         help="Name your env/dynamics, only for folder names.")  # Alg name (sac, vlsac)
-    parser.add_argument("--device", default='cuda', type=str,
+    parser.add_argument("--device", default='mps', type=str,
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
 
     parser.add_argument("--supervised", action='store_true',
                         help="add supervised learning.")
-    parser.add_argument("--supervised_datasets", type=str, default="/datasets/2024-10-08_20-20-38/15_1.000_1620000.pt",)
+    parser.add_argument("--supervised_datasets", type=str, default="/datasets/2024-11-07_06-49-15/10_0.500_240000.pt",)
     parser.set_defaults(supervised=True)
 
     ### Parameters that usually don't need to be changed.
