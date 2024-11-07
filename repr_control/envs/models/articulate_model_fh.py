@@ -132,10 +132,15 @@ def initial_distribution(batch_size):
     #         ]
     # )
     # self.state = self.np_random.uniform(low=-1 * high, high=high)
-    state = np.random.uniform(low=np.array([2.0, 0.5, - np.pi / 12, 0.0, 0.0, 0.0]),
-                              high=np.array([5.0, 1.5, np.pi / 12, 0.0 ,0.0, 0.0]),
+    # parallel parking
+    # state = np.random.uniform(low=np.array([2.0, 0.5, - np.pi / 12, 0.0, 0.0, 0.0]),
+    #                           high=np.array([5.0, 1.5, np.pi / 12, 0.0 ,0.0, 0.0]),
+    #                           size=(batch_size, 6))
+    # state[:, 3] = - state[:, 2]  # we sample theta_1 and calculate theta_1 - theta_0
+    # ref guided search 1
+    state = np.random.uniform(low=np.array([-8., -16, - np.pi / 2, 0.0, 0.0, 0.0]),
+                              high=np.array([-7., -15, np.pi / 2, 0.0, 0.0, 0.0]),
                               size=(batch_size, 6))
-    state[:, 3] = - state[:, 2] # we sample theta_1 and calculate theta_1 - theta_0
     return torch.from_numpy(state)
 
 def evaluate_initial_states(grid_size):
