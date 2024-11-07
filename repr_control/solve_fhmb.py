@@ -32,6 +32,8 @@ if __name__ == "__main__":
     parser.add_argument("--action_noise", default=0., type=float,
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--lr_schedule", action='store_true', default=True, help="add learning rate schedule.")
+    parser.add_argument("--add_init_state", action='store_true', default=True, help="add initial state to policy.")
+    parser.add_argument("--statewise_weights", action='store_true', default=False, help="add initial state to policy.")
     
     # parser.add_argument("--notes", default="change init dist", type=str,
     #                     help="The algorithm to use. rfsac or sac.")
