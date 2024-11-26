@@ -1,6 +1,9 @@
 import pickle as pkl
 import os
 import argparse
+
+from torch.distributed.elastic import agent
+
 from repr_control.agent.rfsac import rfsac_agent
 from repr_control.agent.sac import sac_agent
 from repr_control.agent.actor import DiagGaussianActor, DeterministicActor
@@ -128,7 +131,7 @@ def get_controller(log_path):
                               hidden_depth=2,
                               log_std_bounds=[-5., 2.])
 
-    actor.load_state_dict(torch.load(log_path + "/actor_last.pth"))
+    actor.load_state_dict(torch.load(log_path + "/best_actor.pth"))
     agent.actor = actor
     agent.device = torch.device("cpu")
     return agent
@@ -137,7 +140,15 @@ def get_controller(log_path):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--log_path', type=str
-                        , default='/home/naliseas-workstation/Documents/haitong/repr_control/lvrep-rl-cloned/log/mbdpgtc/parking/seed_0_2024-10-18-02-18-38')
+                        , default='/Users/mahaitong/Code/repr_control/repr_control/log/rfsac/Pendulum/seed_0_2024-07-24-19-05-21')
     args = parser.parse_args()
     # eval(args.log_path)
-    plot_heatmap_mbdpg_agent(args.log_path)
+    # plot_heatmap_mbdpg_agent(args.log_path)
+    controller = get_controller(args.log_path)
+
+    import time
+    current_time = time.time()
+    for _ in range(10000):
+        state = torch.randn(3).numpy()
+        controller.select_action(state)
+    print((time.time() - current_time) / 10000)

@@ -73,7 +73,7 @@ def xy_rewards(state,action):
                       +  delta_rate ** 2)
     return reward
 
-def one_hot_rewards(state, action):
+def one_hot_rewards(state, action, xf):
     # x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
     acc, delta_rate = torch.unbind(action, dim=1)
     # if not terminal:
@@ -88,68 +88,114 @@ def one_hot_rewards(state, action):
     #     reward = -1 * (1 * x ** 2 + 10 * y ** 2 + 100 * th0 ** 2 + 100 * (th0 + dth) ** 2)
     # return reward
     rewards = -1 * acc ** 2 - 1 * delta_rate ** 2
-    constraints = terminal_constraints(state)
+    constraints = terminal_constraints(state, xf)
     max_constraints = torch.max(constraints, dim=1)[0]
-    penalty = torch.where(max_constraints > torch.zeros_like(max_constraints), -1 * torch.ones_like(max_constraints), torch.zeros_like(max_constraints))
+    penalty = torch.where(max_constraints > torch.zeros_like(max_constraints),
+                          -1 * torch.ones_like(max_constraints),
+                          torch.zeros_like(max_constraints))
     return rewards + penalty
 
-def terminal_constraints(state):
-    x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
+def terminal_constraints(state, xf=None):
+    if xf is None:
+        xf = torch.zeros_like(state).to(state.device)
+    error = torch.abs(xf - state)
+    x, y, th0, dth, v, delta = torch.unbind(error, dim=1)
     constraints = torch.vstack([
-        torch.abs(x) - 0.05,
-        torch.abs(y) - 0.05,
-        torch.abs(th0) - 1 * torch.pi / 180,
-        torch.abs(dth) - 1 * torch.pi / 180,
+        x - 0.05,
+        y - 0.05,
+        th0 - 1 * torch.pi / 180,
+        dth - 1 * torch.pi / 180,
     ]).T
     return constraints
 
-def true_terminal_constraints(state):
-    x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
+def true_terminal_constraints(state, xf=None):
+    if xf is None:
+        xf = torch.zeros_like(state).to(state.device)
+    error = torch.abs(xf - state)
+    x, y, th0, dth, v, delta = torch.unbind(error, dim=1)
     constraints = torch.vstack([
-        torch.abs(x) - 0.1,
-        torch.abs(y) - 0.1,
-        torch.abs(th0) - 2 * torch.pi / 180,
-        torch.abs(dth) - 2 * torch.pi / 180,
+        x - 0.1,
+        y - 0.1,
+        th0 - 2 * torch.pi / 180,
+        dth - 2 * torch.pi / 180,
     ]).T
     return constraints
 
+
+# def initial_distribution(batch_size):
+#
+#     # high = np.array(
+#     #         [
+#     #             10,
+#     #             3,
+#     #             np.pi / 6,
+#     #             np.pi / 6,
+#     #             0.0,
+#     #             0.0,
+#     #             0.0
+#     #         ],
+#     #         dtype=np.float32,
+#     #     )
+#     #
+#     # reset_std = np.array(
+#     #     [3.0,
+#     #         0.5,
+#     #         np.pi / 12,
+#     #         np.pi / 12,
+#     #         0.0,
+#     #         0.0,
+#     #         0.0
+#     #         ]
+#     # )
+#     # self.state = self.np_random.uniform(low=-1 * high, high=high)
+#     # parallel parking
+#     # state = np.random.uniform(low=np.array([2.0, 0.5, - np.pi / 12, 0.0, 0.0, 0.0]),
+#     #                           high=np.array([5.0, 1.5, np.pi / 12, 0.0 ,0.0, 0.0]),
+#     #                           size=(batch_size, 6))
+#     # state[:, 3] = - state[:, 2]  # we sample theta_1 and calculate theta_1 - theta_0
+#     # ref guided search 1
+#     state = np.random.uniform(low=np.array([-10, 2., - np.pi / 2, 0.0, 0.0, 0.0]),
+#                               high=np.array([-6, 4., np.pi / 2, 0.0, 0.0, 0.0]),
+#                               size=(batch_size, 6))
+#     return torch.from_numpy(state)
 
 def initial_distribution(batch_size):
 
-    # high = np.array(
-    #         [
-    #             10,
-    #             3,
-    #             np.pi / 6,
-    #             np.pi / 6,
-    #             0.0,
-    #             0.0,
-    #             0.0
-    #         ],
-    #         dtype=np.float32,
-    #     )
-    #
-    # reset_std = np.array(
-    #     [3.0,
-    #         0.5,
-    #         np.pi / 12,
-    #         np.pi / 12,
-    #         0.0,
-    #         0.0,
-    #         0.0
-    #         ]
-    # )
-    # self.state = self.np_random.uniform(low=-1 * high, high=high)
-    # parallel parking
-    # state = np.random.uniform(low=np.array([2.0, 0.5, - np.pi / 12, 0.0, 0.0, 0.0]),
-    #                           high=np.array([5.0, 1.5, np.pi / 12, 0.0 ,0.0, 0.0]),
-    #                           size=(batch_size, 6))
-    # state[:, 3] = - state[:, 2]  # we sample theta_1 and calculate theta_1 - theta_0
-    # ref guided search 1
-    state = np.random.uniform(low=np.array([-10, 2., - np.pi / 2, 0.0, 0.0, 0.0]),
-                              high=np.array([-6, 4., - np.pi / 2, 0.0, 0.0, 0.0]),
+    state = np.random.uniform(low=np.array([ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+                                  high=np.array([ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+                                  size=(batch_size, 6))
+    state = torch.from_numpy(state).float()
+    goal = goal_distribution(batch_size)
+    obstacle = obstacle_distribution(batch_size)
+    return torch.hstack([state, goal, obstacle])
+
+def goal_distribution(batch_size):
+
+    goal = np.random.uniform(low=np.array([20.0, 17.11, np.pi / 2, 0.0, 0.0, 0.0]),
+                              high=np.array([20.0, 17.11, np.pi / 2, 0.0, 0.0, 0.0]),
                               size=(batch_size, 6))
-    return torch.from_numpy(state)
+    return torch.from_numpy(goal)
+
+def obstacle_distribution(batch_size):
+    obstacle = np.array([[ 15.,  35.],
+                           [ 15.,   5.],
+                           [-20.,   5.],
+                           [-20.,  35.],
+                           [ 15.,  -5.],
+                           [ 15., -40.],
+                           [-20., -40.],
+                           [-20.,  -5.],
+                           [ 35.,  10.],
+                           [ 80.,  10.],
+                           [ 80., -40.],
+                           [ 35., -40.],
+                           [ 35.,  80.],
+                           [ 80.,  80.],
+                           [ 80.,  30.],
+                           [ 35.,  30.]])
+    flatten_obs = np.reshape(obstacle, [1, -1])
+    batch_flatten_obs = torch.from_numpy(np.repeat(flatten_obs, batch_size, axis=0))
+    return batch_flatten_obs
 
 def evaluate_initial_states(grid_size):
 
@@ -169,3 +215,7 @@ def evaluate_initial_states(grid_size):
     init_states = np.vstack([grid_x, grid_y, grid_th0, grid_dth, grid_v, grid_delta]).T
 
     return torch.from_numpy(init_states)
+
+if __name__ == '__main__':
+    print(initial_distribution(256).shape)
+

@@ -1,3 +1,5 @@
+import copy
+
 import torch
 import torch.nn.functional as F
 from repr_control.utils.buffer import Batch
@@ -413,27 +415,31 @@ class ModelBasedDPGAgentTerminalConstraints(ModelBasedDPGAgent):
 				   lr, 
 				   discount, 
 				   target_update_period, tau, alpha, auto_entropy_tuning, hidden_dim, hidden_depth, device, **kwargs)
-		
-		if add_init_state:
 
-			self.actor = DeterministicActor(state_dim+state_dim, action_dim, hidden_dim, hidden_depth).to(self.device)
-			self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),
-													lr=lr,
-													betas=[0.9, 0.999])
-			self.actor_supervised_optimizer = torch.optim.Adam(self.actor.parameters(),
+		from repr_control.envs.models.collision_checking import collsion_checking
+		self.tractor_trailer_dim = 6
+		self.xf_dim = 6
+		self.obstacle_dim = 32  # 4 * 4 * 2
+		self.obs_dim = self.tractor_trailer_dim + self.xf_dim + self.obstacle_dim
+		# if add_init_state:
+
+		self.actor = DeterministicActor(self.obs_dim,
+										action_dim, hidden_dim, hidden_depth).to(self.device)
+		self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),
+												lr=lr,
+												betas=[0.9, 0.999])
+		self.actor_supervised_optimizer = torch.optim.Adam(self.actor.parameters(),
 															lr=1e-3,
 															betas=[0.9, 0.999])
 			
 		self.add_init_state = add_init_state
-
 		self.action_noise_std = action_noise
-
 		self.terminal_constraints = terminal_constraints
 		if not statewise_weights:
 			self.terminal_constraint_weights = torch.tensor([1.0, 1.0, 1.0, 1.0]).unsqueeze(dim=0).to(self.device).requires_grad_()
 			self.terminal_constraint_weights_optimizer = torch.optim.Adam(params=[self.terminal_constraint_weights], lr=1e-2)
 		else:
-			self.terminal_constraint_weights = util.mlp(state_dim, hidden_dim, 4, hidden_depth, output_mod=torch.nn.Softplus()).to(self.device)
+			self.terminal_constraint_weights = util.mlp(self.obs_dim, hidden_dim, 6, hidden_depth, output_mod=torch.nn.Softplus()).to(self.device)
 			self.terminal_constraint_weights_optimizer = torch.optim.Adam(params=self.terminal_constraint_weights.parameters(), lr=3 * lr)
 		self.statewise_weights = statewise_weights
 		self.lr_schedule = lr_schedule
@@ -442,28 +448,55 @@ class ModelBasedDPGAgentTerminalConstraints(ModelBasedDPGAgent):
 			self.lr_scheduler_actor = LinearLR(self.actor_optimizer, start_factor=1.0, end_factor=0.1, total_iters=int(kwargs['max_timesteps'] / 2))
 			self.lr_scheduler_weights = LinearLR(self.terminal_constraint_weights_optimizer, start_factor=1.0, end_factor=0.1, total_iters=int(kwargs['max_timesteps'] / 10))
 
+		self.collision_checking = collsion_checking
+
 	
 	def update_actor_and_alpha(self, batch):
 		obs = batch.state
-		init_state = batch.state
+		init_state = batch.state[:, :self.tractor_trailer_dim]
+		state = copy.deepcopy(init_state)
+		xf = batch.state[:, self.tractor_trailer_dim: self.tractor_trailer_dim + self.xf_dim]
+		flattern_obstacle = batch.state[:, -self.obstacle_dim:]
+		obstacle = flattern_obstacle.reshape(-1, 16, 2)
 		if self.statewise_weights:
 			weights = self.terminal_constraint_weights(obs)
+
 		rewards = torch.zeros([obs.shape[0]]).to(self.device)
+		dists = []
+		dths = []
+
+		# start rollout
 		for i in range(self.horizon):
-			if self.add_init_state:
-				action = self.actor(torch.hstack([obs, init_state]))
-			else:
-				action = self.actor(obs)
+			action = self.actor(torch.hstack([state, xf, flattern_obstacle]))
+
 			if self.action_noise_std > 0:
 				noise = self.action_noise_std * torch.randn_like(action)
 				action = torch.clamp(action + noise, min=-1, max=1)
-			obs = self.dynamics(obs, action)
-			rewards += self.rewards(obs, action)
-		terminal_constraint = self.terminal_constraints(obs)
+
+			dist = self.collision_checking.collision_checking_tt(state, obstacle)
+			dists.append(dist)
+			dths.append(state[:, 3].unsqueeze(dim=1))
+
+			# update state and obs
+			state = self.dynamics(state, action)
+			obs = torch.hstack([state, xf, flattern_obstacle])
+
+			rewards += self.rewards(state, action, xf)
+		terminal_constraint = self.terminal_constraints(state, xf)
+
+		# handle maximum constraints
+		dists = torch.vstack(dists).T
+		min_dists = torch.min(dists, dim=1)[0]
+		dist_cstr = -1 * min_dists
+		dths = torch.hstack(dths)
+		min_dths = torch.max(torch.abs(dths), dim=1)[0]
+		dth_cstr = min_dths - torch.pi / 2
+		all_cstr = torch.hstack([terminal_constraint, dist_cstr.unsqueeze_(dim=1), dth_cstr.unsqueeze_(dim=1)])
+
 		if self.statewise_weights:
-			weighted_terminal_constraint = (weights * terminal_constraint).sum(dim=1)
+			weighted_terminal_constraint = (weights * all_cstr).sum(dim=1)
 		else:
-			weighted_terminal_constraint = (self.terminal_constraint_weights * terminal_constraint).sum(dim=1)
+			weighted_terminal_constraint = (self.terminal_constraint_weights * all_cstr).sum(dim=1)
 		actor_loss = (-1 * rewards +  weighted_terminal_constraint).mean()
 		weights_loss = (-1 * weighted_terminal_constraint).mean()
 

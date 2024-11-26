@@ -13,6 +13,7 @@ from repr_control.agent.dpg import dpg_agent
 from gymnasium.envs.registration import register
 import gymnasium
 from repr_control.envs import ArticulateParking
+from repr_control.datasets.load_iagt_mat import SupervisedParkingDatasetV2
 import torch
 import numpy as np
 import yaml
@@ -27,7 +28,7 @@ if __name__ == "__main__":
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--notes", type=str, default="change init dist",
                         help="The algorithm to use. rfsac or sac.")
-    parser.add_argument("--horizon", default=480, type=int,
+    parser.add_argument("--horizon", default=900, type=int,
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--action_noise", default=0., type=float,
                         help="The algorithm to use. rfsac or sac.")
@@ -45,7 +46,9 @@ if __name__ == "__main__":
 
     parser.add_argument("--supervised", action='store_true',
                         help="add supervised learning.")
-    parser.add_argument("--supervised_datasets", type=str, default="/datasets/2024-11-07_06-49-15/10_0.500_240000.pt",)
+    parser.add_argument("--supervised_epochs", type=int, default=10000,
+                        help="number of epochs for supervised learning.")
+    parser.add_argument("--supervised_datasets", type=str, default="/datasets/2024-11-26_02-18-52/test.pt",)
     parser.set_defaults(supervised=True)
 
     ### Parameters that usually don't need to be changed.
@@ -101,8 +104,13 @@ if __name__ == "__main__":
         from repr_control.envs.models.articulate_model_fh import dynamics, rewards, initial_distribution
         agent = dpg_agent.ModelBasedDPGAgent(6, 2, [[-1, -1], [1, 1]], dynamics, rewards, initial_distribution, **kwargs)
     elif args.alg == "mbdpgtc":
-        from repr_control.envs.models.articulate_model_fh import dynamics, xy_rewards, initial_distribution, terminal_constraints
-        agent = dpg_agent.ModelBasedDPGAgentTerminalConstraints(6, 2, [[-1, -1], [1, 1]], dynamics, xy_rewards, initial_distribution, terminal_constraints, **kwargs)
+        from repr_control.envs.models.articulate_model_fh import dynamics, xy_rewards, one_hot_rewards, initial_distribution, terminal_constraints
+        agent = dpg_agent.ModelBasedDPGAgentTerminalConstraints(6, 2, [[-1, -1], [1, 1]],
+                                                                dynamics,
+                                                                one_hot_rewards,
+                                                                initial_distribution,
+                                                                terminal_constraints,
+                                                                **kwargs)
     elif args.alg == "mbdpgqp":
         from repr_control.envs.models.articulate_model_fh import dynamics, rewards, initial_distribution
 
@@ -142,11 +150,12 @@ if __name__ == "__main__":
         cur_path = os.path.dirname(__file__)
         dataset = torch.load(cur_path + args.supervised_datasets)
         loader = DataLoader(dataset, batch_size=256, shuffle=True)
-        for supervised_t, supervised_data in enumerate(loader):
-            info = agent.supervised_train(supervised_data)
-            for key, value in info.items():
-                summary_writer.add_scalar(f'info/{key}', value, supervised_t + 1)
-            summary_writer.flush()
+        for supervised_epoch in range(args.supervised_epochs):
+            for supervised_t, supervised_data in enumerate(loader):
+                info = agent.supervised_train(supervised_data)
+                for key, value in info.items():
+                    summary_writer.add_scalar(f'info/{key}', value, supervised_epoch + 1)
+                summary_writer.flush()
 
         actor = agent.actor.state_dict()
         torch.save(actor, os.path.join(log_path, 'actor_after_supervised.pth'))
