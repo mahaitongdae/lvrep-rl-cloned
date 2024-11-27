@@ -566,6 +566,8 @@ class ModelBasedDPGAgentTerminalConstraints(ModelBasedDPGAgent):
 		loss.backward()
 		self.actor_supervised_optimizer.step()
 
-		info = {'supervised_loss': loss.item()}
+		info = {'supervised_loss': loss.item(),
+				'avg_actions_1': action[:, 0].mean().item(),
+				'avg_actions_2': action[:, 1].mean().item(),}
 
 		return info

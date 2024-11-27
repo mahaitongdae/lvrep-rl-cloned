@@ -149,7 +149,7 @@ if __name__ == "__main__":
         from torch.utils.data import DataLoader
         cur_path = os.path.dirname(__file__)
         dataset = torch.load(cur_path + args.supervised_datasets)
-        loader = DataLoader(dataset, batch_size=256, shuffle=True)
+        loader = DataLoader(dataset, batch_size=512, shuffle=True)
         for supervised_epoch in range(args.supervised_epochs):
             for supervised_t, supervised_data in enumerate(loader):
                 info = agent.supervised_train(supervised_data)
