@@ -11,6 +11,8 @@ import torch.nn.functional as F
 
 from utils import util 
 
+from torchinfo import summary
+
 
 class DoubleQCritic(nn.Module):
   """Critic network, employes double Q-learning."""
@@ -21,7 +23,8 @@ class DoubleQCritic(nn.Module):
     self.Q2 = util.mlp(obs_dim + action_dim, hidden_dim, 1, hidden_depth)
 
     self.outputs = dict()
-    self.apply(util.weight_init)
+    # summary(self.Q1)
+    # self.apply(util.weight_init)
 
   def forward(self, obs, action):
     assert obs.size(0) == action.size(0)

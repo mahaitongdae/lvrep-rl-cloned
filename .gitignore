@@ -4,3 +4,5 @@
 /cost_log/
 
 /.idea
+*.pyc
+*/__pycache__/

@@ -15,7 +15,7 @@ from networks.policy import GaussianPolicy
 from networks.vae import Encoder, Decoder, GaussianFeature
 from agent.sac.sac_agent import SACAgent
 # from main import DEVICE
-from gym.envs.classic_control.pendulum import DEFAULT_X, DEFAULT_Y
+# from gym.envs.classic_control.pendulum import DEFAULT_X, DEFAULT_Y
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.autograd.set_detect_anomaly(True)
