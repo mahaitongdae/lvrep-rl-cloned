@@ -79,10 +79,11 @@ if __name__ == "__main__":
     if args.env == "Pendulum-v1":
         # env = noisyPendulumEnv(sigma =  sigma, euler = euler)
         # eval_env = noisyPendulumEnv(sigma = sigma, euler = euler)
+        eval_config = ENV_CONFIG.copy()
+        eval_config.update({'reward_scale': 1., 'eval': True, })
+        eval_env = env_creator_pendulum(eval_config)
         ENV_CONFIG.update({'reward_scale': 0.2, })
-        env = env_creator_pendulum(ENV_CONFIG)
-        ENV_CONFIG.update({'reward_scale': 1., })
-        eval_env = env_creator_pendulum(ENV_CONFIG)
+        env = env_creator_pendulum(ENV_CONFIG)        
     elif args.env == 'Quadrotor2D-v2':
         eval_config = ENV_CONFIG.copy()
         eval_config.update({'reward_scale': 1., 'eval': True, 'reward_exponential': False})

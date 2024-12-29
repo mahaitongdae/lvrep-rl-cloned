@@ -4,20 +4,20 @@ from os import path
 from typing import Optional
 
 import numpy as np
-import time
 
-import gym
-from gym import spaces
-# from gym.envs.classic_control import utils
-from gym.error import DependencyNotInstalled
+import gymnasium as gym
+from gymnasium import spaces
+from gymnasium.envs.classic_control import utils
+from gymnasium.error import DependencyNotInstalled
+
 
 DEFAULT_X = np.pi
 DEFAULT_Y = 1.0
 
-#adds gaussian noise
-class noisyPendulumEnv(gym.Env):
+
+class PendulumEnv(gym.Env):
     """
-       ### Description
+    ## Description
 
     The inverted pendulum swingup problem is based on the classic problem in control theory.
     The system consists of a pendulum attached at one end to a fixed point, and the other end being free.
@@ -27,13 +27,13 @@ class noisyPendulumEnv(gym.Env):
     The diagram below specifies the coordinate system used for the implementation of the pendulum's
     dynamic equations.
 
-    ![Pendulum Coordinate System](./diagrams/pendulum.png)
+    ![Pendulum Coordinate System](/_static/diagrams/pendulum.png)
 
     -  `x-y`: cartesian coordinates of the pendulum's end in meters.
     - `theta` : angle in radians.
     - `tau`: torque in `N m`. Defined as positive _counter-clockwise_.
 
-    ### Action Space
+    ## Action Space
 
     The action is a `ndarray` with shape `(1,)` representing the torque applied to free end of the pendulum.
 
@@ -42,7 +42,7 @@ class noisyPendulumEnv(gym.Env):
     | 0   | Torque | -2.0 | 2.0 |
 
 
-    ### Observation Space
+    ## Observation Space
 
     The observation is a `ndarray` with shape `(3,)` representing the x-y coordinates of the pendulum's free
     end and its angular velocity.
@@ -53,35 +53,39 @@ class noisyPendulumEnv(gym.Env):
     | 1   | y = sin(theta)   | -1.0 | 1.0 |
     | 2   | Angular Velocity | -8.0 | 8.0 |
 
-    ### Rewards
+    ## Rewards
 
     The reward function is defined as:
 
     *r = -(theta<sup>2</sup> + 0.1 * theta_dt<sup>2</sup> + 0.001 * torque<sup>2</sup>)*
 
-    where `$\theta$` is the pendulum's angle normalized between *[-pi, pi]* (with 0 being in the upright position).
+    where `theta` is the pendulum's angle normalized between *[-pi, pi]* (with 0 being in the upright position).
     Based on the above equation, the minimum reward that can be obtained is
     *-(pi<sup>2</sup> + 0.1 * 8<sup>2</sup> + 0.001 * 2<sup>2</sup>) = -16.2736044*,
     while the maximum reward is zero (pendulum is upright with zero velocity and no torque applied).
 
-    ### Starting State
+    ## Starting State
 
     The starting state is a random angle in *[-pi, pi]* and a random angular velocity in *[-1,1]*.
 
-    ### Episode Truncation
+    ## Episode Truncation
 
     The episode truncates at 200 time steps.
 
-    ### Arguments
+    ## Arguments
 
     - `g`: acceleration of gravity measured in *(m s<sup>-2</sup>)* used to calculate the pendulum dynamics.
       The default value is g = 10.0 .
 
-    ```
+    ```python
+    import gymnasium as gym
     gym.make('Pendulum-v1', g=9.81)
     ```
 
-    ### Version History
+    On reset, the `options` parameter allows the user to change the bounds used to determine
+    the new random state.
+
+    ## Version History
 
     * v1: Simplify the math equations, no difference in behavior.
     * v0: Initial versions release (1.0.0)
@@ -93,17 +97,13 @@ class noisyPendulumEnv(gym.Env):
         "render_fps": 30,
     }
 
-    def __init__(self, render_mode: Optional[str] = None, g=10.0,sigma = 0.0,
-        max_episode_steps = 200,euler = False):
+    def __init__(self, render_mode: Optional[str] = None, g=10.0):
         self.max_speed = 8
         self.max_torque = 2.0
         self.dt = 0.05
         self.g = g
         self.m = 1.0
         self.l = 1.0
-        self.sigma = sigma
-        self.max_episode_steps = max_episode_steps
-        self.euler = euler
 
         self.render_mode = render_mode
 
@@ -115,7 +115,7 @@ class noisyPendulumEnv(gym.Env):
         high = np.array([1.0, 1.0, self.max_speed], dtype=np.float32)
         # This will throw a warning in tests/envs/test_envs in utils/env_checker.py as the space is not symmetric
         #   or normalised as max_torque == 2 by default. Ignoring the issue here as the default settings are too old
-        #   to update to follow the openai gym api
+        #   to update to follow the gymnasium api
         self.action_space = spaces.Box(
             low=-self.max_torque, high=self.max_torque, shape=(1,), dtype=np.float32
         )
@@ -133,27 +133,17 @@ class noisyPendulumEnv(gym.Env):
         self.last_u = u  # for rendering
         costs = angle_normalize(th) ** 2 + 0.1 * thdot**2 + 0.001 * (u**2)
 
-        newthdot = thdot + (3 * g / (2 * l) * np.sin(th) + 3.0 / (m * l**2) * u + np.random.normal(scale = self.sigma)) * dt
+        newthdot = thdot + (3 * g / (2 * l) * np.sin(th) + 3.0 / (m * l**2) * u) * dt
         newthdot = np.clip(newthdot, -self.max_speed, self.max_speed)
-        if self.euler == True:
-            newth = th + thdot * dt
-        else:
-            newth = th + newthdot * dt
+        newth = th + newthdot * dt
+
         self.state = np.array([newth, newthdot])
-        # self.state += np.random.normal(size = (2,), scale = self.sigma)
-
-        self.counter += 1
-
-        if self.counter == self.max_episode_steps:
-            done = True
-        else:
-            done = False
 
         if self.render_mode == "human":
             self.render()
-        return self._get_obs(), -costs, done, {}
+        return self._get_obs(), -costs, False, False, {}
 
-    def reset(self, *, init_state = None, seed: Optional[int] = None, options: Optional[dict] = None):
+    def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
         super().reset(seed=seed)
         if options is None:
             high = np.array([DEFAULT_X, DEFAULT_Y])
@@ -166,39 +156,38 @@ class noisyPendulumEnv(gym.Env):
             y = utils.verify_number_and_cast(y)
             high = np.array([x, y])
         low = -high  # We enforce symmetric limits.
-
-        if init_state is None:
-            self.state = self.np_random.uniform(low=low, high=high)
-        else:
-            self.state = init_state
+        self.state = self.np_random.uniform(low=low, high=high)
         self.last_u = None
-
-        self.counter = 0
 
         if self.render_mode == "human":
             self.render()
-        return self._get_obs()
+        return self._get_obs(), {}
 
     def _get_obs(self):
         theta, thetadot = self.state
         return np.array([np.cos(theta), np.sin(theta), thetadot], dtype=np.float32)
 
+    def get_obs(self):
+        theta, thetadot = self.state
+        return np.array([np.cos(theta), np.sin(theta), thetadot], dtype=np.float32)
+
     def render(self):
         if self.render_mode is None:
+            assert self.spec is not None
             gym.logger.warn(
                 "You are calling render method without specifying any render mode. "
                 "You can specify the render_mode at initialization, "
-                f'e.g. gym("{self.spec.id}", render_mode="rgb_array")'
+                f'e.g. gym.make("{self.spec.id}", render_mode="rgb_array")'
             )
             return
 
         try:
             import pygame
             from pygame import gfxdraw
-        except ImportError:
+        except ImportError as e:
             raise DependencyNotInstalled(
-                "pygame is not installed, run `pip install gym[classic_control]`"
-            )
+                "pygame is not installed, run `pip install gymnasium[classic-control]`"
+            ) from e
 
         if self.screen is None:
             pygame.init()
@@ -278,31 +267,6 @@ class noisyPendulumEnv(gym.Env):
             return np.transpose(
                 np.array(pygame.surfarray.pixels3d(self.screen)), axes=(1, 0, 2)
             )
-
-    def visualize(self, init_state, cmd, seed = None, dt: float =None):
-        """
-        Visualize the movement associated to a sequence of control variables
-        :param cmd: sequence of controls to be applied on the system given as an numpy array
-        :param dt: time step to visualize the movement (default is to use the time step defined in the environment)
-        seed: random seed for noise in env (if any)
-        """
-        if dt is None:
-            dt = self.dt
-        self.render_mode = "human"
-        self.reset(init_state = init_state)
-        print("self.state", self.state)
-        t = 0
-        np.random.seed(seed)
-        for ctrl in cmd:
-            ctrl = np.array([ctrl])
-            self.render()
-            time.sleep(dt)
-            self.step(ctrl)
-            print("self.action (time %d)"%t, ctrl)
-            print("self.state (time %d)"%t, self.state)
-            t += 1
-        self.render()
-        self.close()
 
     def close(self):
         if self.screen is not None:

@@ -162,12 +162,19 @@ def env_creator_quad2d(env_config):
 
 
 def env_creator_pendulum(env_config):
-    env = gymnasium.make('Pendulum-v1')
+    from gymnasium.envs.registration import register
+    register(
+    id="Pendulum-v2",
+    entry_point="envs:PendulumEnv",
+    max_episode_steps=200,
+    )
+    env = gymnasium.make('Pendulum-v2')
     env = RescaleAction(env, min_action=-1., max_action=1.)
+    env = TransformReward(env, lambda r: env_config.get('reward_scale') * r)
     if env_config.get('reward_exponential'):
-        env = TransformReward(env, lambda r: np.exp(env_config.get('reward_scale') * r))
-    else:
-        env = TransformReward(env, lambda r: env_config.get('reward_scale') * r)
+        env = TransformReward(env, lambda r: np.exp(r))
+    # else:
+    #     env = TransformReward(env, lambda r: env_config.get('reward_scale') * r)
     if env_config.get('noisy'):
         env = NoisyObservationWrapper(env, noise_scale=env_config.get('noise_scale', 1), noise_add_dim=[0])
     return env

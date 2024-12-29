@@ -6,3 +6,5 @@
 /.idea
 *.pyc
 */__pycache__/
+*.err
+*.out
