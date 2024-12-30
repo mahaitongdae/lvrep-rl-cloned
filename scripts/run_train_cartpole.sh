@@ -4,7 +4,7 @@
 #python main.py --alg sac --env Quadrotor2D-v2 --sigma 0.0 --seed 0
 
 for ALG in rfsac; do
-  for SIGMA in 2.0 3.0; do
+  for SIGMA in 1.0; do
     for RF_NUM in 8192; do
       for SEED in 1 2 3; do
         for LR in 3e-4; do

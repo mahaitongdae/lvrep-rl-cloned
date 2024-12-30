@@ -97,13 +97,14 @@ class PendulumEnv(gym.Env):
         "render_fps": 30,
     }
 
-    def __init__(self, render_mode: Optional[str] = None, g=10.0):
+    def __init__(self, render_mode: Optional[str] = None, g=10.0, sigma=0.0):
         self.max_speed = 8
         self.max_torque = 2.0
         self.dt = 0.05
         self.g = g
         self.m = 1.0
         self.l = 1.0
+        self.sigma = sigma
 
         self.render_mode = render_mode
 
@@ -138,6 +139,7 @@ class PendulumEnv(gym.Env):
         newth = th + newthdot * dt
 
         self.state = np.array([newth, newthdot])
+        self.state += np.random.normal(size=(2,), scale=self.sigma * dt)
 
         if self.render_mode == "human":
             self.render()

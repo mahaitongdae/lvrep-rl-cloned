@@ -17,7 +17,7 @@ def eval(log_path, ):
     env_name = kwargs['env']
     
     eval_config = ENV_CONFIG.copy()
-    eval_config.update({'reward_scale': 0.3,
+    eval_config.update({'reward_scale': 1.0,
                         'eval': True,
                         'reward_exponential': False,
                         'reward_type': 'energy',
@@ -108,7 +108,7 @@ if __name__ == '__main__':
     # Suppress all UserWarnings
     warnings.filterwarnings("ignore", category=UserWarning)
 
-    path = '/home/naliseas-workstation/Documents/haitong/lvrep-rl-cloned/log/CartPendulum-v0_sigma_1.0_rew_scale_0.3/sac'
+    path = '/n/home05/haitongma/src/lvrep-rl-cloned/log/Pendulum-v1_sigma_1.0_rew_scale_0.2/sac'
     ep_rets = []
     for dir in  os.listdir(path):
         print(dir)
