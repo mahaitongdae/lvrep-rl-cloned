@@ -26,14 +26,14 @@ ENV_CONFIG = {'sin_input': True,  # fixed
               'noise_scale': 0.  # should be same with sigma
               }
 
-DEVICE = "cpu"
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--dir", default='main', type=str)
     parser.add_argument("--alg", default="sac")  # Alg name (sac, vlsac)
-    parser.add_argument("--env", default="CartPendulum-v0")  # Environment name
+    parser.add_argument("--env", default="Pendulum-v1")  # Environment name
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--start_timesteps", default=5e3, type=float)  # Time steps initial random policy is used
     parser.add_argument("--eval_freq", default=5000, type=int)  # How often (time steps) we evaluate
@@ -197,6 +197,7 @@ if __name__ == "__main__":
     best_eval_reward = -1e6
     best_actor = None
     best_critic = None
+    logger = util.Logger(log_path)
 
     for t in range(int(args.max_timesteps)):
 
@@ -244,17 +245,18 @@ if __name__ == "__main__":
         # Evaluate episode
         if (t + 1) % args.eval_freq == 0:
             steps_per_sec = timer.steps_per_sec(t + 1)
-            eval_len, eval_ret, _, _ = util.eval_policy(agent, eval_env, eval_episodes=50)
-            evaluations.append(eval_ret)
+            avg_len, avg_ret, std_ret, ep_rets = util.eval_policy(agent, eval_env, eval_episodes=50)
+            evaluations.append(avg_ret)
+            logger.log(t + 1, avg_ret, std_ret)
 
             if t >= args.start_timesteps:
-                info.update({'eval_len': eval_len,
-                             'eval_ret': eval_ret})
+                info.update({'eval_len': avg_len,
+                             'eval_ret': avg_ret})
 
 
             print('Step {}. Steps per sec: {:.4g}.'.format(t + 1, steps_per_sec))
 
-            if eval_ret > best_eval_reward:
+            if avg_ret > best_eval_reward:
                 best_actor = agent.actor.state_dict()
                 best_critic = agent.critic.state_dict()
 

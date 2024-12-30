@@ -5,6 +5,8 @@ import numpy as np
 
 from torch import nn
 from torch.nn import functional as F
+import csv
+import os
 
 
 def unpack_batchv2(batch):
@@ -67,6 +69,20 @@ def eval_policy(policy, eval_env, eval_episodes=100):
 	print(f"Evaluation over {eval_episodes} episodes: avg eplen {avg_len}, avg return {avg_ret:.3f} $\pm$ {std_ret:.3f}")
 	print("---------------------------------------")
 	return avg_len, avg_ret, std_ret, ep_rets
+
+class Logger(object):
+
+	def __init__(self, log_dir):
+		self.path = os.path.join(log_dir, 'log.csv')
+		with open(self.path, mode='w', newline='') as f:
+			writer = csv.writer(f)
+			writer.writerow(['step', 'avg_ret', 'std_ret'])
+
+	def log(self, step, avg_ret, std_ret):
+		with open(self.path, mode='a', newline='') as f:
+			writer = csv.writer(f)
+			writer.writerow([step, avg_ret, std_ret])
+
 
 
 
