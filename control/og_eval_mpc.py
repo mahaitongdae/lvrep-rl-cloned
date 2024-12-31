@@ -218,12 +218,12 @@ def main(tr_seed = 0, save_traj = False, samples = 80000, sigma = 0.0, euler = F
 	eval_seed = 0
 	np.random.seed(eval_seed)
 	max_steps = 200
-	# n_init_states = 100
-	# init_states = np.random.uniform(low = [-np.pi,-1.],
-	# 	high = [np.pi, 1.], size = (n_init_states, 2))
+	n_init_states = 10
+	init_states = np.random.uniform(low = [-np.pi,-1.],
+		high = [np.pi, 1.], size = (n_init_states, 2))
 
-	n_init_states = 1
-	init_states = np.array([[np.pi,0.]])
+	# n_init_states = 1
+	# init_states = np.array([[np.pi,0.]])
 
 	final_costs = np.empty(n_init_states)
 
@@ -269,7 +269,7 @@ def main(tr_seed = 0, save_traj = False, samples = 80000, sigma = 0.0, euler = F
 		# # vis_env = noisyPendulumEnv(dt = dt)
 		# # vis_env.visualize(init_state = init_states[i], cmd = u_list)
 
-	print(f"mean cost for tr_seed = {tr_seed}, sigma = {sigma}, euler={euler}", np.mean(final_costs))
+	print(f"mean cost for tr_seed = {tr_seed}, sigma = {sigma}, euler={euler}", np.mean(final_costs), np.std(final_costs))
 	# print("final costs", final_costs)
 	if save_traj == True:
 		filename = f"traj_log/samples={samples}_koopman_tr_seed={tr_seed}_eval_seed={eval_seed}_sigma={sigma}_euler={euler}.npy"
@@ -287,8 +287,8 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--tr_seed", default=0, type=int) # specifies training seed to evalute
 	parser.add_argument("--save_traj", default = "True")
-	parser.add_argument("--samples", default = 80000) #tr samples with which model trained
-	parser.add_argument("--sigma", type = float, default = 0.0)
+	parser.add_argument("--samples", default = 100000) #tr samples with which model trained
+	parser.add_argument("--sigma", type = float, default = 3.0)
 	parser.add_argument("--euler", default = "False")
 	args = parser.parse_args()
 	save_traj = True if args.save_traj == "True" else False

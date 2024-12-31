@@ -214,8 +214,8 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env",type=str,default="Pendubot-v0")
-    parser.add_argument("--suffix",type=str,default="Pendubot-v0")
+    parser.add_argument("--env",type=str,default="Pendulum-v1")
+    parser.add_argument("--suffix",type=str,default="Pendulum-v1")
     parser.add_argument("--all_loss",type=int,default=1)
     # parser.add_argument("--K_train_samples",type=int,default=50000)
     parser.add_argument("--K_train_samples",type=int,default=100000)
@@ -227,7 +227,7 @@ if __name__ == "__main__":
     parser.add_argument("--dt", type=float, default=0.05)
     parser.add_argument("--seed", type = int, default = 0)
     parser.add_argument("--return_norm_th", default = "False")
-    parser.add_argument("--sigma", type = float, default = 0.0)
+    parser.add_argument("--sigma", type = float, default = 3.0)
     parser.add_argument("--euler", default = "False") 
     args = parser.parse_args()
     t1 = time.time()
