@@ -64,6 +64,7 @@ if __name__ == "__main__":
     parser.set_defaults(euler=False)
     parser.set_defaults(learn_rf=False)  # if want to add these, just add --use_nystrom to the scripts.
     parser.set_defaults(reward_exponential=ENV_CONFIG['reward_exponential'])
+    parser.add_argument("--alpha_scale", default=0.5, type=float)  # Max time steps to run environment
     args = parser.parse_args()
     print(args.reward_exponential)
 
@@ -199,6 +200,11 @@ if __name__ == "__main__":
     best_critic = None
     logger = util.Logger(log_path)
 
+    # save parameters
+    # kwargs.update({"action_space": None}) # action space might not be serializable
+    with open(os.path.join(log_path, 'train_params.pkl'), 'wb') as fp:
+        pkl.dump(kwargs, fp)
+
     for t in range(int(args.max_timesteps)):
 
         episode_timesteps += 1
@@ -282,7 +288,4 @@ if __name__ == "__main__":
     torch.save(agent.actor.state_dict(), log_path + "/actor_last.pth")
     torch.save(agent.critic.state_dict(), log_path + "/critic_last.pth")
 
-    # save parameters
-    # kwargs.update({"action_space": None}) # action space might not be serializable
-    with open(os.path.join(log_path, 'train_params.pkl'), 'wb') as fp:
-        pkl.dump(kwargs, fp)
+    

@@ -270,9 +270,11 @@ class RFVCritic(RLNetwork):
 
         self.norm = nn.LayerNorm(self.feature_dim)
         self.norm.bias.requires_grad = False
+        self.alpha = kwargs.get('alpha_scale', 0.)
+        print('critic alpha: {}'.format(self.alpha))
 
     def forward(self, states: torch.Tensor):
-        x = states
+        x = states / (1 - self.alpha ** 2) ** 0.5
         # print("x initial norm",torch.linalg.norm(x))
         # x = torch.cat([states,actions],axis = -1)
         # x = F.batch_norm(x) #perform batch normalization (or is dbn better?)
