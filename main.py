@@ -32,6 +32,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--dir", default='main', type=str)
+    parser.add_argument("--suffix", default='', type=str)
     parser.add_argument("--alg", default="sac")  # Alg name (sac, vlsac)
     parser.add_argument("--env", default="Pendulum-v1")  # Environment name
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
@@ -128,7 +129,7 @@ if __name__ == "__main__":
         alg_name = f'{args.alg}_nystrom_{use_nystrom}_rf_num_{args.rf_num}_learn_rf_{args.learn_rf}'
         if use_nystrom:
             alg_name = alg_name + f'_sample_dim_{args.nystrom_sample_dim}'
-    exp_name = f'seed_{args.seed}_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}'
+    exp_name = f'seed_{args.seed}_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}_{args.suffix}'
 
     # setup log
     log_path = f'log/{env_name}/{alg_name}/{exp_name}'
