@@ -83,7 +83,6 @@ def collect_info(metrics: dict, env: DiffEnv, cmd: torch.Tensor, costs: List[tor
     cumul_time = 0. if iteration == 0 else metrics['time'][-1]
     cost = sum(costs) if costs is not None else torch.tensor(float('nan'))
     # normalized_cost = sum(normalized_costs) if normalized_costs is not None else torch.tensor(float('nan'))
-    print("cost rn", cost)
 
     if algo != 'gd':
         norm_grad_obj = torch.sqrt(sum([cost.grad_ctrl.dot(cost.grad_ctrl) + cost.grad_state.dot(cost.grad_state)

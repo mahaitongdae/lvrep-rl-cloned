@@ -27,8 +27,11 @@ def main():
     torch.set_default_tensor_type(torch.DoubleTensor)
 
     np.random.seed(seed)
-    n_init_states = 1
-    init_states = np.array([np.pi,0.]).reshape(1,2)
+    # n_init_states = 1
+    # init_states = np.array([np.pi,0.]).reshape(1,2)
+    n_init_states = 10
+    init_states = np.random.uniform(low = [-np.pi,-1.],
+		high = [np.pi, 1.], size = (n_init_states, 2))
 
     max_steps = 200
     final_opt_cost = np.empty(n_init_states)
@@ -56,7 +59,7 @@ def main():
         # Visualize the movement
         # env.visualize(cmd_opt)
 
-    print(f"mean cost for seed={seed}, euler = {euler}, sigma = {sigma}", np.mean(final_opt_cost))
+    print(f"mean cost for seed={seed}, euler = {euler}, sigma = {sigma}", np.mean(final_opt_cost), np.std(final_opt_cost))
 
     traj_file = f"traj_log/ilqr_seed={seed}_euler={euler}_sigma={sigma}.npy"
     os.makedirs(os.path.dirname(traj_file), exist_ok = True)
@@ -77,7 +80,7 @@ def main():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type = int, default = 0)
-    parser.add_argument("--sigma", type = float, default = 1.0)
+    parser.add_argument("--sigma", type = float, default = 3.0)
     parser.add_argument("--euler", default = False)
     args = parser.parse_args()
     main()
