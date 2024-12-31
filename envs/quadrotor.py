@@ -49,11 +49,13 @@ class Quadrotor2D(gymnasium.Env):
         options: dict[str, Any] | None = None,
     ) -> tuple[ObsType, dict[str, Any]]:
         if seed is not None:
+            self.seed = seed
             np.random.seed(seed)
         self.state = np.array([0., 0., 0.5, 0., 0., 0.])
-        init_rand = np.random.uniform(size=(6,))
-        init_rand = np.multiply(np.array([0.1, 0.01, 0.1, 0.01, 0.1, 0.01]), init_rand)
-        self.state = self.state + init_rand
+        if not self.eval:
+            init_rand = np.random.uniform(size=(6,))
+            init_rand = np.multiply(np.array([0.1, 0.01, 0.1, 0.01, 0.1, 0.01]), init_rand)
+            self.state = self.state + init_rand
         return self.state, {}
 
     def quadrotor_f_star_6d(self, states, action):

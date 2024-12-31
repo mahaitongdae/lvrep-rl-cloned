@@ -70,6 +70,30 @@ def eval_policy(policy, eval_env, eval_episodes=100):
 	print("---------------------------------------")
 	return avg_len, avg_ret, std_ret, ep_rets
 
+def get_traj(policy, eval_env, seed):
+	"""
+	Eval a policy
+	"""
+	states = []
+	ep_ret = 0.
+	avg_len = 0.
+	# eval_env.seed(i)
+	state, done = eval_env.reset(seed=seed), False
+	# print("eval_policy state", state)
+	while not done:
+		action = policy.select_action(np.array(state))
+		state, reward, done, _ = eval_env.step(action)
+		states.append(state)
+		ep_ret += reward
+		avg_len += 1
+
+
+
+	print("---------------------------------------")
+	print(f"Evaluation : avg eplen {avg_len}, return{ep_ret:.3f}")
+	print("---------------------------------------")
+	return np.array(states)
+
 class Logger(object):
 
 	def __init__(self, log_dir):
