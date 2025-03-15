@@ -389,8 +389,9 @@ class ModelBasedDPGAgentTerminalConstraints(ModelBasedDPGAgent):
 					initial_distribution, 
 					terminal_constraints,
 					action_noise,
+					add_init_state=True,
 					lr_schedule=False,
-					statewise_weights=True,
+					statewise_weights=False,
 					horizon=250, 
 					lr=0.0003, 
 					discount=0.99, 
@@ -413,13 +414,18 @@ class ModelBasedDPGAgentTerminalConstraints(ModelBasedDPGAgent):
 				   discount, 
 				   target_update_period, tau, alpha, auto_entropy_tuning, hidden_dim, hidden_depth, device, **kwargs)
 		
-		self.actor = DeterministicActor(state_dim+state_dim, action_dim, hidden_dim, hidden_depth).to(self.device)
-		self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),
-												lr=lr,
-												betas=[0.9, 0.999])
-		self.actor_supervised_optimizer = torch.optim.Adam(self.actor.parameters(),
-														   lr=1e-3,
-														   betas=[0.9, 0.999])
+		if add_init_state:
+
+			self.actor = DeterministicActor(state_dim+state_dim, action_dim, hidden_dim, hidden_depth).to(self.device)
+			self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),
+													lr=lr,
+													betas=[0.9, 0.999])
+			self.actor_supervised_optimizer = torch.optim.Adam(self.actor.parameters(),
+															lr=1e-3,
+															betas=[0.9, 0.999])
+			
+		self.add_init_state = add_init_state
+
 		self.action_noise_std = action_noise
 
 		self.terminal_constraints = terminal_constraints
@@ -444,7 +450,10 @@ class ModelBasedDPGAgentTerminalConstraints(ModelBasedDPGAgent):
 			weights = self.terminal_constraint_weights(obs)
 		rewards = torch.zeros([obs.shape[0]]).to(self.device)
 		for i in range(self.horizon):
-			action = self.actor(torch.hstack([obs, init_state]))
+			if self.add_init_state:
+				action = self.actor(torch.hstack([obs, init_state]))
+			else:
+				action = self.actor(obs)
 			if self.action_noise_std > 0:
 				noise = self.action_noise_std * torch.randn_like(action)
 				action = torch.clamp(action + noise, min=-1, max=1)
@@ -504,5 +513,26 @@ class ModelBasedDPGAgentTerminalConstraints(ModelBasedDPGAgent):
 				'weights_3th': self.terminal_constraint_weights[:, 2].item(),
 				'weights_4th0': self.terminal_constraint_weights[:, 3].item(),
 			})
+
+		return info
+
+	def supervised_from_mpc(self, batch):
+
+		obs, action = batch
+		if obs.device == torch.device('cpu'):
+			obs = obs.float().to(self.device)
+			action = action.float().to(self.device)
+
+		if not self.add_init_state:
+			obs = obs[:, :6]
+		output = self.actor(obs)
+		loss = F.mse_loss(output, action)
+
+		# optimize the actor
+		self.actor_supervised_optimizer.zero_grad()
+		loss.backward()
+		self.actor_supervised_optimizer.step()
+
+		info = {'supervised_loss': loss.item()}
 
 		return info

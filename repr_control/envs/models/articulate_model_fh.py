@@ -88,6 +88,16 @@ def one_hot_rewards(state, action):
 def terminal_constraints(state):
     x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
     constraints = torch.vstack([
+        torch.abs(x) - 0.05,
+        torch.abs(y) - 0.05,
+        torch.abs(th0) - 1 * torch.pi / 180,
+        torch.abs(dth) - 1 * torch.pi / 180,
+    ]).T
+    return constraints
+
+def true_terminal_constraints(state):
+    x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
+    constraints = torch.vstack([
         torch.abs(x) - 0.1,
         torch.abs(y) - 0.1,
         torch.abs(th0) - 2 * torch.pi / 180,
