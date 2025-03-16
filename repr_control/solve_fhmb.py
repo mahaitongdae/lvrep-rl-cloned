@@ -29,7 +29,7 @@ if __name__ == "__main__":
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--horizon", default=480, type=int,
                         help="The algorithm to use. rfsac or sac.")
-    parser.add_argument("--action_noise", default=0., type=float,
+    parser.add_argument("--action_noise", default=0.05, type=float,
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--lr_schedule", action='store_true', default=True, help="add learning rate schedule.")
     parser.add_argument("--add_init_state", action='store_true', default=True, help="add initial state to policy.")
@@ -39,14 +39,14 @@ if __name__ == "__main__":
     #                     help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--env", default='parking',
                         help="Name your env/dynamics, only for folder names.")  # Alg name (sac, vlsac)
-    parser.add_argument("--device", default='cpu', type=str,
+    parser.add_argument("--device", default='cuda', type=str,
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
 
     parser.add_argument("--supervised", action='store_true',
                         help="add supervised learning.")
-    parser.add_argument("--supervised_datasets", type=str, default="/datasets/2024-11-07_06-49-15/10_0.500_240000.pt",)
-    parser.set_defaults(supervised=True)
+    parser.add_argument("--supervised_datasets", type=str, default="/datasets/data/2024-11-07_06-49-15/10_0.500_240000.pt",)
+    parser.set_defaults(supervised=False)
 
     ### Parameters that usually don't need to be changed.
     parser.add_argument("--dir", default='main', type=str)
@@ -101,8 +101,8 @@ if __name__ == "__main__":
         from repr_control.envs.models.articulate_model_fh import dynamics, rewards, initial_distribution
         agent = dpg_agent.ModelBasedDPGAgent(6, 2, [[-1, -1], [1, 1]], dynamics, rewards, initial_distribution, **kwargs)
     elif args.alg == "mbdpgtc":
-        from repr_control.envs.models.articulate_model_fh import dynamics, xy_rewards, initial_distribution, terminal_constraints
-        agent = dpg_agent.ModelBasedDPGAgentTerminalConstraints(6, 2, [[-1, -1], [1, 1]], dynamics, xy_rewards, initial_distribution, terminal_constraints, **kwargs)
+        from repr_control.envs.models.articulate_model_fh import dynamics, xy_rewards, initial_distribution, true_terminal_constraints
+        agent = dpg_agent.ModelBasedDPGAgentTerminalConstraints(6, 2, [[-1, -1], [1, 1]], dynamics, xy_rewards, initial_distribution, true_terminal_constraints, **kwargs)
     elif args.alg == "mbdpgqp":
         from repr_control.envs.models.articulate_model_fh import dynamics, rewards, initial_distribution
 
