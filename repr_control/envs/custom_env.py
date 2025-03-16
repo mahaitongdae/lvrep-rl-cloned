@@ -134,7 +134,7 @@ class CustomVecEnv(CustomEnv):
         return self.state, reward, done, truncated, info
 
 def test_vec_env():
-    from repr_control.envs.models.articulate_model import dynamics, rewards, initial_distribution, state_range, action_range, sigma, get_done
+    from repr_control.envs.parking.models.articulate_model import dynamics, rewards, initial_distribution, state_range, action_range, sigma, get_done
     env = CustomVecEnv(dynamics, rewards, initial_distribution, get_done, state_range, action_range, sigma)
     state, _ = env.reset()
     print(state.shape, state.device)

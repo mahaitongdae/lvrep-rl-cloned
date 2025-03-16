@@ -97,14 +97,14 @@ if __name__ == "__main__":
 
     # Initialize policy
     if args.alg == "sac":
-        from repr_control.envs.models.articulate_model_fh import dynamics, reward, initial_distribution
+        from repr_control.envs.parking.models.articulate_model_fh import dynamics, reward, initial_distribution
 
         agent = sac_agent.ModelBasedSACAgent(6, 2, [[-1, -1], [1, 1]], dynamics, reward, initial_distribution, **kwargs)
     elif args.alg == "mbdpg":
-        from repr_control.envs.models.articulate_model_fh import dynamics, rewards, initial_distribution
+        from repr_control.envs.parking.models.articulate_model_fh import dynamics, rewards, initial_distribution
         agent = dpg_agent.ModelBasedDPGAgent(6, 2, [[-1, -1], [1, 1]], dynamics, rewards, initial_distribution, **kwargs)
     elif args.alg == "mbdpgtc":
-        from repr_control.envs.models.articulate_model_fh import dynamics, xy_rewards, one_hot_rewards, initial_distribution, terminal_constraints
+        from repr_control.envs.parking.models.articulate_model_fh import dynamics, xy_rewards, one_hot_rewards, initial_distribution, terminal_constraints
         agent = dpg_agent.ModelBasedDPGAgentTerminalConstraints(6, 2, [[-1, -1], [1, 1]],
                                                                 dynamics,
                                                                 one_hot_rewards,
@@ -112,7 +112,7 @@ if __name__ == "__main__":
                                                                 terminal_constraints,
                                                                 **kwargs)
     elif args.alg == "mbdpgqp":
-        from repr_control.envs.models.articulate_model_fh import dynamics, rewards, initial_distribution
+        from repr_control.envs.parking.models.articulate_model_fh import dynamics, rewards, initial_distribution
 
         agent = dpg_agent.ModelBasedQPDPGAgent(6, 2, [[-1, -1], [1, 1]], dynamics, rewards, initial_distribution,
                                              **kwargs)
