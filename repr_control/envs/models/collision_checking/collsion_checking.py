@@ -1,5 +1,8 @@
 import torch
 from repr_control.envs.models.articulate_model_fh import *
+import matplotlib.pyplot as plt
+
+
 def collision_checking_one_direction(rect1, rect2):
     # %order of rectangle vertices
     # B ------ C
@@ -36,12 +39,46 @@ def collision_checking_one_direction(rect1, rect2):
 
 
 def collision_checking_two_directions(rect1, rect2):
+    """
+    check collision between two rectangles, batch version
+
+    Args:
+        rect1: [batch_size, 4, 2]
+        rect2: [batch_size, 4, 2]
+
+    Returns: [batch_size, 1] which is the distance.
+
+    """
     if len(rect2.shape) == 2:
         rect2.unsqueeze_(0)
         rect2.expand_as(rect1)
     dist1 = collision_checking_one_direction(rect1, rect2)
     dist2 = collision_checking_one_direction(rect2, rect1)
     return torch.where(dist1 > dist2, dist1, dist2)  # select the larger one, if still lower then collision
+
+def collision_checking_tt(states, rect_obstacles):
+    """
+    check collision between tractor-trailer (given states) and obstacles.
+    Args:
+        states: [batch_size, 6]
+        rect_obstacles: [batch_size, 16, 2]
+
+    Returns: dist, [batch_size, 1].
+
+    """
+    rect_tractor, rect_trailer = get_rectangles_tt(states)
+    assert len(rect_obstacles.shape) == 3
+    dists = []
+    for i in range(4):
+        obstacles = rect_obstacles[:, 4 * i : 4 * i + 4]
+        dist_tractor = collision_checking_two_directions(rect_tractor, obstacles)
+        dist_trailer = collision_checking_two_directions(rect_trailer, obstacles)
+        dists.append(dist_tractor)
+        dists.append(dist_trailer)
+    dists = torch.vstack(dists).T
+    min_dist = torch.min(dists, dim=1)[0]
+    return min_dist
+
 
 
 def get_rectangles_tt(states):
@@ -55,7 +92,7 @@ def get_rectangles_tt(states):
         # pos: [bs, 1, 2]
         # theta: [bs,]
         eL = torch.vstack([torch.cos(theta), torch.sin(theta)]).T.unsqueeze(1)
-        eW = torch.vstack([torch.cos(theta), torch.sin(theta)]).T.unsqueeze(1)
+        eW = torch.vstack([-torch.sin(theta), torch.cos(theta)]).T.unsqueeze(1)
 
         def innerprod_dim1(batchvec1, batchvec2):
             # return a [batchsize, 4, 2] rectangles of car
@@ -79,6 +116,7 @@ def get_rectangles_tt(states):
 
     return rect_tractor, rect_trailer
 
+
 def global_to_local(states, inputs):
     '''
     convert rectangles from global frame to local frame,
@@ -97,25 +135,39 @@ def global_to_local(states, inputs):
     local_coord_pos = torch.bmm(inputs - pos, rotmat_T)
     return local_coord_pos
 
-def test_get_rectangles_tt():
-    states = initial_distribution(256)
-    rect_tractor, rect_trailor = get_rectangles_tt(states)
-    print(rect_tractor.shape, rect_trailor.shape)
+
+# def test_get_rectangles_tt():
+#     states = initial_distribution(256)
+#     rect_tractor, rect_trailor = get_rectangles_tt(states)
+#     print(rect_tractor.shape, rect_trailor.shape)
+
+
+def plot_rect(rect):
+    from matplotlib.patches import Rectangle
+    if isinstance(rect, torch.Tensor):
+        rect = rect.numpy()
+    # rectangle = Rectangle((x, y), width, height, edgecolor='blue', facecolor='none', linewidth=2)
+    plt.scatter(rect[:, 0], rect[:, 1])
 
 
 def test_collision_checking():
-    states = initial_distribution(4)
+    import matplotlib.pyplot as plt
+    states = initial_distribution(1)
     rect_tractor, rect_trailor = get_rectangles_tt(states)
     rect_obstacle = torch.tensor([[-40, -40, ],
                                   [-40, -5, ],
                                   [-5, -5, ],
                                   [-5, -40]]).float()
-    dist = collision_checking_two_directions(rect_trailor, rect_obstacle)
-    print(dist)
-
-
-
-
+    dist1 = collision_checking_two_directions(rect_trailor, rect_obstacle)
+    dist2 = collision_checking_two_directions(rect_tractor, rect_obstacle)
+    fig, ax = plt.subplots()
+    print(states)
+    plot_rect(rect_tractor[0])
+    plot_rect(rect_trailor[0])
+    plot_rect(rect_obstacle[0])
+    plt.axis('equal')
+    plt.show()
+    print(dist1, dist2)
 
 
 if __name__ == '__main__':

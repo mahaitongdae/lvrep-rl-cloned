@@ -308,7 +308,7 @@ class ModelBasedSACAgent(SACAgent):
 				 dynamics,
 				 rewards,
 				 initial_distribution,
-				 horizon=250,
+				 horizon=900,
 				 lr=0.0003,
 				 discount=0.99,
 				 target_update_period=2,
