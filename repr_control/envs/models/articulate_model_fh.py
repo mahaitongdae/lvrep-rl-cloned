@@ -177,22 +177,23 @@ def goal_distribution(batch_size):
     return torch.from_numpy(goal)
 
 def obstacle_distribution(batch_size):
-    obstacle = np.array([[ 15.,  35.],
-                           [ 15.,   5.],
-                           [-20.,   5.],
-                           [-20.,  35.],
-                           [ 15.,  -5.],
-                           [ 15., -40.],
-                           [-20., -40.],
-                           [-20.,  -5.],
-                           [ 35.,  10.],
-                           [ 80.,  10.],
-                           [ 80., -40.],
-                           [ 35., -40.],
-                           [ 35.,  80.],
-                           [ 80.,  80.],
-                           [ 80.,  30.],
-                           [ 35.,  30.]])
+    obstacle = np.array([
+        [-20., 5.],
+        [-20., 35.],
+        [ 15.,  35.],
+        [15., 5.],
+        [-20., -40.],
+        [-20., -5.],
+        [15., -5.],
+        [15., -40.],
+        [35., -40.],
+        [35., 10.],
+        [80., 10.],
+        [ 80., -40.],
+        [35., 30.],
+        [35., 80.],
+        [80., 80.],
+        [80., 30.], ])
     flatten_obs = np.reshape(obstacle, [1, -1])
     batch_flatten_obs = torch.from_numpy(np.repeat(flatten_obs, batch_size, axis=0))
     return batch_flatten_obs
@@ -216,6 +217,22 @@ def evaluate_initial_states(grid_size):
 
     return torch.from_numpy(init_states)
 
+def plot_obstacles():
+    from matplotlib import pyplot as plt
+    obstacle = obstacle_distribution(1).squeeze().numpy().reshape([-1, 2])
+    obstacles = np.split(obstacle, 4, axis=0)
+    print(obstacles)
+    plt.figure(figsize=(8, 8))
+    for obs in obstacles:
+        plt.scatter(obs[:, 0], obs[:, 1])
+    plt.axis('equal')
+    plt.show()
+
+# def test_collision_checking_models():
+
+
+
 if __name__ == '__main__':
-    print(initial_distribution(256).shape)
+    # print(initial_distribution(256).shape)
+    plot_obstacles()
 

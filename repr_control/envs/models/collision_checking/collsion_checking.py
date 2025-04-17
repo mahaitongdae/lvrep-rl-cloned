@@ -153,6 +153,7 @@ def plot_rect(rect):
 def test_collision_checking():
     import matplotlib.pyplot as plt
     states = initial_distribution(1)
+    states[:, :3] -= torch.tensor([5.0, 5.0, 0.1])
     rect_tractor, rect_trailor = get_rectangles_tt(states)
     rect_obstacle = torch.tensor([[-40, -40, ],
                                   [-40, -5, ],
@@ -169,6 +170,23 @@ def test_collision_checking():
     plt.show()
     print(dist1, dist2)
 
+def collision_checking_real():
+    from repr_control.envs.models.articulate_model_fh import dynamics, rewards, initial_distribution
+    states = initial_distribution(1)
+
+    tt_states = states[:, :6]
+    rect_tractor, rect_trailor = get_rectangles_tt(tt_states)
+    obstacles = states[:, -32:]
+    obstacles = obstacles.reshape([1, -1, 2])
+    obstacles = torch.split(obstacles, 4, dim=1)
+    dists = []
+    for obstacle in obstacles:
+        dist1 = collision_checking_two_directions(rect_tractor, obstacle)
+        dist2 = collision_checking_two_directions(rect_trailor, obstacle)
+        dists.append(dist1)
+        dists.append(dist2)
+    print(torch.vstack(dists))
+
 
 if __name__ == '__main__':
-    test_collision_checking()
+    collision_checking_real()
