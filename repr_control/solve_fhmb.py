@@ -24,7 +24,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     ### parameter that
-    parser.add_argument("--alg", default="mbdpgtc",
+    parser.add_argument("--alg", default="mbdpgtcobs",
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--notes", type=str, default="change init dist",
                         help="The algorithm to use. rfsac or sac.")
@@ -32,15 +32,18 @@ if __name__ == "__main__":
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--action_noise", default=0.05, type=float,
                         help="The algorithm to use. rfsac or sac.")
-    parser.add_argument("--lr_schedule", action='store_true', default=True, help="add learning rate schedule.")
-    parser.add_argument("--add_init_state", action='store_true', default=True, help="add initial state to policy.")
-    parser.add_argument("--statewise_weights", action='store_true', default=True, help="add initial state to policy.")
+    parser.add_argument("--lr_schedule", action='store_true', default=True,
+                        help="add learning rate schedule.")
+    parser.add_argument("--add_init_state", action='store_true', default=True,
+                        help="add initial state to policy.")
+    parser.add_argument("--statewise_weights", action='store_true', default=True,
+                        help="add initial state to policy.")
     
     # parser.add_argument("--notes", default="change init dist", type=str,
     #                     help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--env", default='parking',
                         help="Name your env/dynamics, only for folder names.")  # Alg name (sac, vlsac)
-    parser.add_argument("--device", default='cuda', type=str,
+    parser.add_argument("--device", default='cpu', type=str,
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
 
@@ -48,7 +51,7 @@ if __name__ == "__main__":
                         help="add supervised learning.")
     parser.add_argument("--supervised_epochs", type=int, default=10000,
                         help="number of epochs for supervised learning.")
-    parser.add_argument("--supervised_datasets", type=str, default="/datasets/data/2024-11-26_02-18-52/test.pt",)
+    parser.add_argument("--supervised_datasets", type=str, default="/datasets/2025-04-18_00-51-08/2_1.000_2000_15.000.pt",)
     parser.set_defaults(supervised=True)
 
     ### Parameters that usually don't need to be changed.
@@ -65,9 +68,6 @@ if __name__ == "__main__":
     parser.add_argument("--tau", default=0.005)  # Target network update rate
     parser.add_argument("--embedding_dim", default=-1, type=int)  # if -1, do not add embedding layer
 
-    parser.add_argument("--use_nystrom", action='store_true')
-    parser.add_argument("--use_random_feature", dest='use_nystrom', action='store_false')
-    parser.set_defaults(use_nystrom=False)
     args = parser.parse_args()
 
 
@@ -111,6 +111,19 @@ if __name__ == "__main__":
                                                                 initial_distribution,
                                                                 terminal_constraints,
                                                                 **kwargs)
+    elif args.alg == "mbdpgtcobs":
+        from repr_control.envs.models.articulate_model_cstr import dynamics, xy_rewards, one_hot_rewards, \
+            initial_distribution, terminal_constraints
+        agent = dpg_agent.ModelBasedDPGAgentTerminalConstraintswithTrailer(
+            state_dim=6,
+            action_dim=2,
+            action_range=[[-1, -1], [1, 1]],
+            dynamics=dynamics,
+            rewards=one_hot_rewards,
+            initial_distribution=initial_distribution,
+            terminal_constraints=terminal_constraints,
+            **kwargs
+        )
     elif args.alg == "mbdpgqp":
         from repr_control.envs.models.articulate_model_fh import dynamics, rewards, initial_distribution
 
