@@ -17,6 +17,7 @@ from repr_control.datasets.load_iagt_mat import SupervisedParkingDatasetV2
 import torch
 import numpy as np
 import yaml
+from tqdm import tqdm
 
 
 if __name__ == "__main__":
@@ -24,7 +25,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     ### parameter that
-    parser.add_argument("--alg", default="mbdpgtcobs",
+    parser.add_argument("--alg", default="mbdpgtc",
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--notes", type=str, default="change init dist",
                         help="The algorithm to use. rfsac or sac.")
@@ -43,15 +44,15 @@ if __name__ == "__main__":
     #                     help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--env", default='parking',
                         help="Name your env/dynamics, only for folder names.")  # Alg name (sac, vlsac)
-    parser.add_argument("--device", default='cpu', type=str,
+    parser.add_argument("--device", default='cuda', type=str,
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
 
     parser.add_argument("--supervised", action='store_true',
                         help="add supervised learning.")
-    parser.add_argument("--supervised_epochs", type=int, default=10000,
+    parser.add_argument("--supervised_epochs", type=int, default=1000,
                         help="number of epochs for supervised learning.")
-    parser.add_argument("--supervised_datasets", type=str, default="/datasets/2025-04-18_00-51-08/2_1.000_2000_15.000.pt",)
+    parser.add_argument("--supervised_datasets", type=str, default="/datasets/data/2025-04-18_03-04-17/20_1.000_200000_15.000.pt",)
     parser.set_defaults(supervised=True)
 
     ### Parameters that usually don't need to be changed.
@@ -107,7 +108,7 @@ if __name__ == "__main__":
         from repr_control.envs.models.articulate_model_fh import dynamics, xy_rewards, one_hot_rewards, initial_distribution, terminal_constraints
         agent = dpg_agent.ModelBasedDPGAgentTerminalConstraints(6, 2, [[-1, -1], [1, 1]],
                                                                 dynamics,
-                                                                one_hot_rewards,
+                                                                xy_rewards,
                                                                 initial_distribution,
                                                                 terminal_constraints,
                                                                 **kwargs)
@@ -119,7 +120,7 @@ if __name__ == "__main__":
             action_dim=2,
             action_range=[[-1, -1], [1, 1]],
             dynamics=dynamics,
-            rewards=one_hot_rewards,
+            rewards=xy_rewards,
             initial_distribution=initial_distribution,
             terminal_constraints=terminal_constraints,
             **kwargs
@@ -163,7 +164,7 @@ if __name__ == "__main__":
         cur_path = os.path.dirname(__file__)
         dataset = torch.load(cur_path + args.supervised_datasets)
         loader = DataLoader(dataset, batch_size=512, shuffle=True)
-        for supervised_epoch in range(args.supervised_epochs):
+        for supervised_epoch in tqdm(range(args.supervised_epochs)):
             for supervised_t, supervised_data in enumerate(loader):
                 info = agent.supervised_train(supervised_data)
                 for key, value in info.items():
@@ -174,7 +175,7 @@ if __name__ == "__main__":
         torch.save(actor, os.path.join(log_path, 'actor_after_supervised.pth'))
 
 
-    for t in range(int(args.max_timesteps + args.start_timesteps)):
+    for t in tqdm(range(int(args.max_timesteps + args.start_timesteps))):
 
         # episode_timesteps += 1
 
@@ -184,7 +185,9 @@ if __name__ == "__main__":
         if t % 10 == 0:
             # +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
             print(
-                f"Total T: {t + 1} Rollout cost: {info['actor_loss']:.3f} Terminal cost: {info['terminal_cost']:.3f}") # , cost2go cost: {info['critic_loss']:.3f}
+                f"Total T: {t + 1} Rollout cost: {info['actor_loss']:.3f} "
+                + f"Terminal cost: {info['terminal_cost']:.3f} "
+                +f"Min dist to cstr: {info['average_min_dist']:.3f}") # , cost2go cost: {info['critic_loss']:.3f}
             # Reset environment
 
         if info['terminal_cost'] > best_eval_reward:
@@ -197,7 +200,7 @@ if __name__ == "__main__":
 
         if (t + 1) % 2 == 0:
             for key, value in info.items():
-                if 'dist' not in key:
+                if not key.startswith('dist'):
                     summary_writer.add_scalar(f'info/{key}', value, t + 1)
                 else:
                     for dist_key, dist_val in value.items():

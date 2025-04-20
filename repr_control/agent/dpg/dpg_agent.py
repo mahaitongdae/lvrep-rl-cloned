@@ -657,7 +657,6 @@ class ModelBasedDPGAgentTerminalConstraintswithTrailer(ModelBasedDPGAgent):
 		x_init = batch.state[:, self.tractor_trailer_dim: self.tractor_trailer_dim + self.xf_dim]
 		flattern_obstacle = batch.state[:, -self.obstacle_dim-1:-1]
 		obstacle = flattern_obstacle.reshape(-1, 16, 2)
-		# obstacles = torch.split(obstacle, 4, dim=1)
 		trailer_length = batch.state[:, [-1]]
 		if self.statewise_weights:
 			weights = self.terminal_constraint_weights(obs)

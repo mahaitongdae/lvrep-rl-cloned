@@ -66,7 +66,7 @@ def rewards(state, action, terminal = False):
         reward = -1 * (1 * x ** 2 + 10 * y ** 2 + 100 * th0 ** 2 + 100 * (th0 + dth) ** 2)
     return reward
 
-def xy_rewards(state,action):
+def xy_rewards(state,action, xf=None):
     x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
     acc, delta_rate = torch.unbind(action, dim=1)
     reward = -1e-3 * (x ** 2 + y ** 2
@@ -123,6 +123,15 @@ def true_terminal_constraints(state, xf=None):
     return constraints
 
 def initial_distribution(batch_size):
+    """
+    Parameters
+    ----------
+    batch_size: int,
+    
+    Returns
+    -------
+    init_state: torch.Tensor [bs, 6], x, y, theta, dtheta, v, delta
+    """
 
     state = np.random.uniform(low=np.array([ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
                                   high=np.array([ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
@@ -136,9 +145,18 @@ def initial_distribution(batch_size):
                                         high=np.array([16.0]),
                                         size=(batch_size, 1))
     trailer_length = torch.from_numpy(trailer_length)# .float()
-    return torch.hstack([state, init_from_goal, obstacle, trailer_length])
+    return torch.hstack([init_from_goal, init_from_goal, obstacle, trailer_length])
 
-def goal_distribution(batch_size):
+def goal_distribution(batch_size: int):
+    """
+    Parameters
+    ----------
+    batch_size: int,
+    
+    Returns
+    -------
+    goal: torch.Tensor [bs, 6], x, y, theta, dtheta, v, delta
+    """
 
     goal = np.random.uniform(low=np.array([20.0, 17.11, np.pi / 2, 0.0, 0.0, 0.0]),
                               high=np.array([20.0, 17.11, np.pi / 2, 0.0, 0.0, 0.0]),
@@ -178,7 +196,18 @@ def obstacle_distribution(batch_size):
     batch_flatten_obs = torch.from_numpy(np.repeat(flatten_obs, batch_size, axis=0))
     return batch_flatten_obs
 
-def obstacle_distribution_goal_frame(batch_size, goal_xyt):
+def obstacle_distribution_goal_frame(batch_size: int, goal_xyt: torch.Tensor):
+    """
+    Get obstacle distribution in goal frame.
+    Parameters
+    ----------
+    batch_size: int,
+    goal_xyt: torch.Tensor [bs, 3], x, y, theta
+    
+    Returns
+    -------
+    obstacles_goal_frame: torch.Tensor [bs, 32]
+    """
 
     obstacles = obstacle_distribution(batch_size)
     assert obstacles.shape[0] == goal_xyt.shape[0]
@@ -187,24 +216,27 @@ def obstacle_distribution_goal_frame(batch_size, goal_xyt):
     return obstacles_goal_frame.reshape((batch_size, -1))
 
 
-def evaluate_initial_states(grid_size):
+# def evaluate_initial_states(grid_size):
 
-    x = np.linspace(2., 5, grid_size)
-    y = np.linspace(0.5, 1.5, grid_size)
-    th0 = np.linspace(-np.pi / 12, np.pi / 12, grid_size)
-    # Create the grid
-    X, Y, TH0 = np.meshgrid(x, y, th0, indexing='ij')
+#     x = np.linspace(2., 5, grid_size)
+#     y = np.linspace(0.5, 1.5, grid_size)
+#     th0 = np.linspace(-np.pi / 12, np.pi / 12, grid_size)
+#     # Create the grid
+#     X, Y, TH0 = np.meshgrid(x, y, th0, indexing='ij')
 
-    grid_x = X.ravel()
-    grid_y = Y.ravel()
-    grid_th0 = TH0.ravel()
-    grid_dth = -1 * grid_th0
-    grid_v = np.zeros_like(grid_x)
-    grid_delta = np.zeros_like(grid_x)
+#     grid_x = X.ravel()
+#     grid_y = Y.ravel()
+#     grid_th0 = TH0.ravel()
+#     grid_dth = -1 * grid_th0
+#     grid_v = np.zeros_like(grid_x)
+#     grid_delta = np.zeros_like(grid_x)
 
-    init_states = np.vstack([grid_x, grid_y, grid_th0, grid_dth, grid_v, grid_delta]).T
+#     init_states = np.vstack([grid_x, grid_y, grid_th0, grid_dth, grid_v, grid_delta]).T
 
-    return torch.from_numpy(init_states)
+#     return torch.from_numpy(init_states)
+
+def evaluate_initial_states(bs):
+    return initial_distribution(bs)
 
 def transform_from_intial_to_goal(goal_xyt: torch.Tensor, points_initial: torch.Tensor):
     """

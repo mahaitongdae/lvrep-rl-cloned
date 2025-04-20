@@ -5,9 +5,12 @@ import time
 import pygame
 import torch
 from pygame import gfxdraw, freetype
+from datetime import datetime
+import imageio
+import os
 class Renderer(object):
 
-    def __init__(self, vehicle_length = None, trailer_length = None):
+    def __init__(self, vehicle_length = None, trailer_length = None, save_video = False):
         self.screen_dim = 1200
         self.screen = None
         self.clock = None
@@ -24,6 +27,8 @@ class Renderer(object):
             self.trailer_length = 2.
 
         self.obstacles = None
+        self.frames = []
+        self.save_video = save_video
 
     def set_state(self, state):
         self.state = state
@@ -139,17 +144,29 @@ class Renderer(object):
             return np.transpose(
                 np.array(pygame.surfarray.pixels3d(self.screen)), axes=(1, 0, 2)
             )
-        # if self.save_video:
-        #     frame = pygame.surfarray.array3d(self.surf)
-        #
-        #     # frame = np.flip(frame, axis=1)
-        #     frame = np.transpose(frame, (1, 0, 2))  # Transpose the frame
-        #     self.frames.append(frame)
+        if self.save_video:
+            frame = pygame.surfarray.array3d(self.surf)
+        
+            # frame = np.flip(frame, axis=1)
+            frame = np.transpose(frame, (1, 0, 2))  # Transpose the frame
+            self.frames.append(frame)
         #
         #     self.frame_count += 1
+    
+    def save(self, fname=None):
+        if self.save_video:
+            os.makedirs('videos', exist_ok=True)
+            now = datetime.now()
+            # Format date and time
+            formatted_now = now.strftime("%Y-%m-%d_%H-%M-%S")
+            video_name = fname if fname is not None else formatted_now
+            output_filename = f'./videos/pygame_video_{video_name}.mp4'
+            imageio.mimsave(output_filename, self.frames, fps=self.metadata["render_fps"])
 
 def test_rendering():
-    renderer = Renderer(vehicle_length=4.9276, trailer_length=15.8496)
+    renderer = Renderer(vehicle_length=4.9276, 
+                        trailer_length=15.8496,
+                        save_video=True)
     from repr_control.envs.models.articulate_model_fh import obstacle_distribution
     obstacles = obstacle_distribution(1).squeeze().reshape((-1, 2)).numpy()
     obstacles = np.split(obstacles, 4, axis=0)
@@ -160,6 +177,8 @@ def test_rendering():
         renderer.set_obstacles(obstacles)
         renderer.render()
         time.sleep(0.01)
+        
+    renderer.save("test")
 
 if __name__ == '__main__':
     test_rendering()
