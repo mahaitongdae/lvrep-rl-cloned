@@ -594,7 +594,7 @@ class ModelBasedDPGAgentTerminalConstraintswithTrailer(ModelBasedDPGAgent):
 				 alpha=0.1,
 				 auto_entropy_tuning=True,
 				 hidden_dim=1024,
-				 hidden_depth=2,
+				 hidden_depth=3,
 				 device='cpu',
 				 **kwargs):
 		super().__init__(state_dim,
@@ -610,6 +610,7 @@ class ModelBasedDPGAgentTerminalConstraintswithTrailer(ModelBasedDPGAgent):
 						 **kwargs)
 
 		from repr_control.envs.models.collision_checking import collsion_checking
+		self.check_collision = False
 		self.tractor_trailer_dim = 6
 		self.xf_dim = 6
 		self.obstacle_dim = 32  # 4 * 4 * 2
@@ -638,7 +639,7 @@ class ModelBasedDPGAgentTerminalConstraintswithTrailer(ModelBasedDPGAgent):
 			self.terminal_constraint_weights = util.mlp(self.obs_dim, hidden_dim, 5, hidden_depth,
 														output_mod=torch.nn.Softplus()).to(self.device)
 			self.terminal_constraint_weights_optimizer = torch.optim.Adam(
-				params=self.terminal_constraint_weights.parameters(), lr=0.3 * lr)
+				params=self.terminal_constraint_weights.parameters(), lr=lr)
 		self.statewise_weights = statewise_weights
 		self.lr_schedule = lr_schedule
 		if lr_schedule:
@@ -649,6 +650,13 @@ class ModelBasedDPGAgentTerminalConstraintswithTrailer(ModelBasedDPGAgent):
 												 end_factor=0.1, total_iters=int(kwargs['max_timesteps'] / 10))
 
 		self.collision_checking = collsion_checking
+  
+	def preprocess_observation(self, obs):
+		scale_state = torch.tensor([1/20, 1/20, 1/torch.pi, 1/torch.pi, 1.0, 1.0])
+		scale_obs = 1 / 80 * torch.ones([32,])
+		scale_para = 1 / 16 * torch.ones([1,])
+		scale = torch.hstack([scale_state, scale_state, scale_obs, scale_para]).to(self.device).unsqueeze(dim=0)
+		return scale * obs
 
 	def update_actor_and_alpha(self, batch):
 		obs = batch.state
@@ -659,7 +667,7 @@ class ModelBasedDPGAgentTerminalConstraintswithTrailer(ModelBasedDPGAgent):
 		obstacle = flattern_obstacle.reshape(-1, 16, 2)
 		trailer_length = batch.state[:, [-1]]
 		if self.statewise_weights:
-			weights = self.terminal_constraint_weights(obs)
+			weights = self.terminal_constraint_weights(self.preprocess_observation(obs))
 
 		rewards = torch.zeros([obs.shape[0]]).to(self.device)
 		dists = []
@@ -667,24 +675,27 @@ class ModelBasedDPGAgentTerminalConstraintswithTrailer(ModelBasedDPGAgent):
 
 		# start rollout
 		for i in range(self.horizon):
-			action = self.actor(torch.hstack([state, x_init, flattern_obstacle, trailer_length]))
+			action = self.actor(self.preprocess_observation(torch.hstack([state, x_init, flattern_obstacle, trailer_length])))
 
 			if self.action_noise_std > 0:
 				noise = self.action_noise_std * torch.randn_like(action)
 				action = torch.clamp(action + noise, min=-1, max=1)
 
-			# for o in obstacles:
-			dist = self.collision_checking.collision_checking_tt(state, obstacle)
-			dists.append(dist)
+			if self.check_collision:
+				# for o in obstacles:
+				dist = self.collision_checking.collision_checking_tt(state, obstacle)
+				dists.append(dist)
+			else:
+				dists.append(torch.ones_like(state[:, 0]))
 			dths.append(state[:, 3].unsqueeze(dim=1))
 
 			# update state and obs
 			state = self.dynamics(state, action,trailer_length.squeeze())
 			obs = torch.hstack([state, x_init, flattern_obstacle, trailer_length])
 
-			rewards += self.rewards(state, action, x_init)
+			rewards += self.rewards(state, action)
 
-		terminal_constraint = self.terminal_constraints(state, x_init)
+		terminal_constraint = self.terminal_constraints(state)
 
 		# handle maximum constraints
 		# dists = torch.vstack(dists).T
@@ -753,6 +764,14 @@ class ModelBasedDPGAgentTerminalConstraintswithTrailer(ModelBasedDPGAgent):
 				'weights_3th': self.terminal_constraint_weights[:, 2].item(),
 				'weights_4th0': self.terminal_constraint_weights[:, 3].item(),
 			})
+		else:
+			info.update({
+				'weights_1x': weights[:, 0].mean().item(),
+				'weights_2y': weights[:, 1].mean().item(),
+				'weights_3th': weights[:, 2].mean().item(),
+				'weights_4th0': weights[:, 3].mean().item(),
+				'weights_5dist': weights[:, 4].mean().item(),
+			})
 
 		return info
 
@@ -769,7 +788,7 @@ class ModelBasedDPGAgentTerminalConstraintswithTrailer(ModelBasedDPGAgent):
 		fake_init = self.initial_dist(bs).float().to(self.device)
 		fake_obstacle = fake_init[:, self.tractor_trailer_dim + self.xf_dim: self.tractor_trailer_dim + self.xf_dim + self.obstacle_dim]
 		total_obs = torch.hstack([state, x_init, fake_obstacle, trailer_length])
-		output = self.actor(total_obs)
+		output = self.actor(self.preprocess_observation(total_obs))
 		loss = F.mse_loss(output, action)
 
 		# optimize the actor

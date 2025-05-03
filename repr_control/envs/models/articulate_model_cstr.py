@@ -31,7 +31,7 @@ W = 3.1162
 assert len(action_range[0]) == len(action_range[1]) == action_dim
 def dynamics(state, action, trailer_length):
     delta_max = np.pi / 6
-    dt = 0.05
+    dt = 0.1
     x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
     acc = action[:, 0] * 2
     delta_rate = action[:, 1] * delta_max / 2
@@ -74,7 +74,10 @@ def xy_rewards(state,action, xf=None):
                       +  delta_rate ** 2)
     return reward
 
-def one_hot_rewards(state, action, xf):
+def zero_rewards(state, action):
+    return torch.zeros_like(state[:, 0])
+
+def one_hot_rewards(state, action, xf=None):
     # x, y, th0, dth, v, delta = torch.unbind(state, dim=1)
     acc, delta_rate = torch.unbind(action, dim=1)
     # if not terminal:
@@ -92,8 +95,8 @@ def one_hot_rewards(state, action, xf):
     constraints = terminal_constraints(state, xf)
     max_constraints = torch.max(constraints, dim=1)[0]
     penalty = torch.where(max_constraints > torch.zeros_like(max_constraints),
-                          -1 * torch.ones_like(max_constraints),
-                          torch.zeros_like(max_constraints))
+                          torch.zeros_like(max_constraints),
+                          torch.ones_like(max_constraints))
     return rewards + penalty
 
 def terminal_constraints(state, xf=None):
@@ -128,26 +131,48 @@ def initial_distribution(batch_size):
     ----------
     batch_size: int,
     
+    return state from goal coord, initial states from goal coord, obstacle in goal coord, and trailer length
+    
     Returns
     -------
     init_state: torch.Tensor [bs, 6], x, y, theta, dtheta, v, delta
     """
 
-    state = np.random.uniform(low=np.array([ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
-                                  high=np.array([ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
-                                  size=(batch_size, 6))
-    state = torch.from_numpy(state)# .float()
-    goal = goal_distribution(batch_size)
-    init_from_goal = torch.vmap(transform_from_intial_to_goal_full_state)(goal[:, :3], state.unsqueeze(1))
+    init_state_world = initial_state_distribution(batch_size)
+    # init_state_world = torch.from_numpy(init_state_world)# .float()
+    goal_world = goal_state_distribution(batch_size)
+    init_from_goal = torch.vmap(transform_to_goal_full_state)(goal_world[:, :3], init_state_world.unsqueeze(1)) 
+    # The function can transfer N points and we actually transfer one, so it is [bs, 1, 6]
     init_from_goal = init_from_goal.squeeze(1)
-    obstacle = obstacle_distribution_goal_frame(batch_size, goal)
-    trailer_length = np.random.uniform(low=np.array([12.0]),
-                                        high=np.array([16.0]),
+    obstacle = obstacle_distribution_goal_frame(batch_size, goal_world[:, :3])
+    trailer_length = np.random.uniform(low=np.array([15.0]),
+                                        high=np.array([15.0]),
                                         size=(batch_size, 1))
     trailer_length = torch.from_numpy(trailer_length)# .float()
     return torch.hstack([init_from_goal, init_from_goal, obstacle, trailer_length])
 
-def goal_distribution(batch_size: int):
+def initial_state_distribution(batch_size: int):
+    """
+    Parameters
+    ----------
+    batch_size: int,
+    
+    Returns
+    -------
+    init_state: torch.Tensor [bs, 6], x, y, theta, dtheta, v, delta
+    """
+    # forward
+    # state = np.random.uniform(low=np.array([ 20.0, -20.0, np.pi / 2, 0.0, 0.0, 0.0]),
+    #                               high=np.array([  20.0, -5.0, np.pi / 2, 0.0, 0.0, 0.0]),
+    #                               size=(batch_size, 6))
+    # reverse
+    state = np.random.uniform(low=np.array([ 0.0, 35.0, np.pi / 2, 0.0, 0.0, 0.0]),
+                                  high=np.array([  0.0, 25.0, np.pi / 2, 0.0, 0.0, 0.0]),
+                                  size=(batch_size, 6))
+    state = torch.from_numpy(state)# .float()
+    return state
+
+def goal_state_distribution(batch_size: int):
     """
     Parameters
     ----------
@@ -158,14 +183,27 @@ def goal_distribution(batch_size: int):
     goal: torch.Tensor [bs, 6], x, y, theta, dtheta, v, delta
     """
 
-    goal = np.random.uniform(low=np.array([20.0, 17.11, np.pi / 2, 0.0, 0.0, 0.0]),
-                              high=np.array([20.0, 17.11, np.pi / 2, 0.0, 0.0, 0.0]),
+    # goal = np.random.uniform(low=np.array([4.0, 0.0, np.pi, 0.0, 0.0, 0.0]),
+    #                           high=np.array([12.0, 0.0, np.pi, 0.0, 0.0, 0.0]),
+    #                           size=(batch_size, 6))
+    # right turn
+    # goal = np.random.uniform(low=np.array([24.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+    #                           high=np.array([42.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+    #                           size=(batch_size, 6))
+    # reverse left
+    # goal = np.random.uniform(low=np.array([8.0, 5.0, np.pi, 0.0, 0.0, 0.0]),
+    #                           high=np.array([12.0, 5.0, np.pi, 0.0, 0.0, 0.0]),
+    #                           size=(batch_size, 6))
+    # reverse right
+    goal = np.random.uniform(low=np.array([-12.0, 10.0, 0.0, 0.0, 0.0, 0.0]),
+                              high=np.array([-12.0, 10.0, 0.0, 0.0, 0.0, 0.0]),
                               size=(batch_size, 6))
     return torch.from_numpy(goal)
 
 def obstacle_distribution(batch_size):
     """
-
+    Obstacle distribution in the world frame.
+    
     Parameters
     ----------
     batch_size: int,
@@ -175,23 +213,41 @@ def obstacle_distribution(batch_size):
     batch_flatten_obs: torch.Tensor [bs, 32]
 
     """
+    # obstacle = np.array([
+    #     [-20., 5.],
+    #     [-20., 35.],
+    #     [ 15.,  35.],
+    #     [15., 5.],
+    #     [-20., -40.],
+    #     [-20., -5.],
+    #     [15., -5.],
+    #     [15., -40.],
+    #     [35., -40.],
+    #     [35., 10.],
+    #     [80., 10.],
+    #     [ 80., -40.],
+    #     [35., 30.],
+    #     [35., 80.],
+    #     [80., 80.],
+    #     [80., 30.], ])
     obstacle = np.array([
-        [-20., 5.],
-        [-20., 35.],
-        [ 15.,  35.],
-        [15., 5.],
-        [-20., -40.],
-        [-20., -5.],
-        [15., -5.],
-        [15., -40.],
-        [35., -40.],
-        [35., 10.],
-        [80., 10.],
-        [ 80., -40.],
-        [35., 30.],
-        [35., 80.],
-        [80., 80.],
-        [80., 30.], ])
+        [25., -40,],
+        [25., -5.],
+        [60, -5.],
+        [60, -40],
+        [10, 15],
+        [10, 35],
+        [60, 35],
+        [60, 15],
+        [-15, -40],
+        [-15, -5.],
+        [15, -5],
+        [15, -40],
+        [-60, 15],
+        [-60, 35],
+        [-10, 35],
+        [-10, 15],
+    ])
     flatten_obs = np.reshape(obstacle, [1, -1])
     batch_flatten_obs = torch.from_numpy(np.repeat(flatten_obs, batch_size, axis=0))
     return batch_flatten_obs
@@ -212,7 +268,7 @@ def obstacle_distribution_goal_frame(batch_size: int, goal_xyt: torch.Tensor):
     obstacles = obstacle_distribution(batch_size)
     assert obstacles.shape[0] == goal_xyt.shape[0]
     obstacles = obstacles.reshape((batch_size, -1, 2))
-    obstacles_goal_frame = torch.vmap(transform_from_intial_to_goal)(goal_xyt, obstacles)
+    obstacles_goal_frame = torch.vmap(transform_to_goal)(goal_xyt, obstacles)
     return obstacles_goal_frame.reshape((batch_size, -1))
 
 
@@ -238,13 +294,13 @@ def obstacle_distribution_goal_frame(batch_size: int, goal_xyt: torch.Tensor):
 def evaluate_initial_states(bs):
     return initial_distribution(bs)
 
-def transform_from_intial_to_goal(goal_xyt: torch.Tensor, points_initial: torch.Tensor):
+def transform_to_goal(goal_xyt: torch.Tensor, points: torch.Tensor):
     """
 
     Parameters
     ----------
     goal_xyt: torch.Tensor [3], x, y, theta
-    points_initial: torch.Tensor [N, 2], x, y
+    points_initial: torch.Tensor [N, 2], x, y, in world coordinate
 
     Returns
     -------
@@ -253,7 +309,7 @@ def transform_from_intial_to_goal(goal_xyt: torch.Tensor, points_initial: torch.
     """
     # goalx, goaly, goal_theta = goal_xyt
     goal_theta = goal_xyt[[2]]
-    goal_xy = goal_xyt[:2]
+    goal_xy = goal_xyt[:2].float()
     # rotmat_goal_to_init = np.array([[np.cos(goal_theta), -np.sin(goal_theta)],
     #                         [np.sin(goal_theta), np.cos(goal_theta)]])
     # rotmat_init_to_goal = torch.empty([2, 2])
@@ -261,25 +317,25 @@ def transform_from_intial_to_goal(goal_xyt: torch.Tensor, points_initial: torch.
     # rotmat_init_to_goal[0, 1] = torch.sin(goal_theta)
     # rotmat_init_to_goal[1, 0] = - torch.sin(goal_theta)
     # rotmat_init_to_goal[1, 1] = torch.cos(goal_theta)
-    rotmat_init_to_goal = torch.cat((torch.cos(goal_theta),
+    rotmat_world_from_goal = torch.cat((torch.cos(goal_theta),
                         torch.sin(goal_theta),
                         - torch.sin(goal_theta),
-                        torch.cos(goal_theta))).reshape((2, 2))
+                        torch.cos(goal_theta))).reshape((2, 2)).float()
     # rotmat_init_to_goal = torch.tensor([[torch.cos(goal_theta), torch.sin(goal_theta)],
     #                         [-torch.sin(goal_theta), torch.cos(goal_theta)]])
-    translation_init_to_goal = rotmat_init_to_goal @ goal_xy.reshape([2, 1]) # 2 * 1
-    points_goal = rotmat_init_to_goal @ points_initial.T - translation_init_to_goal # 2 * N
+    translation_init_to_goal = rotmat_world_from_goal @ goal_xy.reshape([2, 1]) # 2 * 1
+    points_goal = rotmat_world_from_goal @ points.float().T - rotmat_world_from_goal @ goal_xy.reshape([2, 1]) # 2 * N
     points_goal = points_goal.T
     return points_goal
 
-def transform_from_intial_to_goal_full_state(goal_xyt: torch.Tensor,
-                                             states_initial: torch.Tensor):
+def transform_to_goal_full_state(goal_xyt: torch.Tensor,
+                                states_world: torch.Tensor):
     """
 
     Parameters
     ----------
     goal_xyt: torch.Tensor [3], x, y, theta
-    states_initial: torch.Tensor [N, 6], x, y, theta, dtheta, v, delta
+    states_world: torch.Tensor [N, 6], x, y, theta, dtheta, v, delta
 
     Returns
     -------
@@ -288,10 +344,10 @@ def transform_from_intial_to_goal_full_state(goal_xyt: torch.Tensor,
     # goalx, goaly, goal_theta = goal_state
     # rotmat_goal_to_init = np.array([[np.cos(goal_theta), -np.sin(goal_theta)],
     #                         [np.sin(goal_theta), np.cos(goal_theta)]])
-    points_initial = states_initial[:, :2]
-    points_goal = transform_from_intial_to_goal(goal_xyt, points_initial)
-    theta_goal = states_initial[:, [2]] - goal_xyt[2]
-    other_states = states_initial[:, 3:]
+    points_initial = states_world[:, :2]
+    points_goal = transform_to_goal(goal_xyt, points_initial)
+    theta_goal = states_world[:, [2]] - goal_xyt[2]
+    other_states = states_world[:, 3:]
 
     return torch.cat([points_goal, theta_goal, other_states], dim=-1)
 
@@ -301,7 +357,7 @@ def plot_obstacles(frame = 'goal'):
     # goal = goal_distribution(1).squeeze()[:3]
     # if frame == 'goal':
     #     obstacle = transform_from_intial_to_goal(goal, obstacle)
-    goal = goal_distribution(1)
+    goal = goal_state_distribution(1)
     obstacle = obstacle_distribution_goal_frame(1, goal[:, :3]).squeeze().reshape((-1, 2))
 
     obstacles = torch.split(obstacle, 4, dim=0)
@@ -310,20 +366,23 @@ def plot_obstacles(frame = 'goal'):
     for obs in obstacles:
         plt.scatter(obs[:, 0], obs[:, 1])
     plt.axis('equal')
-    plt.show()
+    plt.savefig('obstacles.png')
 
 def test_transform_full_state():
-    goal_from_init = goal_distribution(1)
-    goal_from_goal = torch.vmap(transform_from_intial_to_goal_full_state)(goal_from_init[:, :3], goal_from_init.unsqueeze(1))
+    goal_world = goal_state_distribution(1)
+    print("goal state:", goal_world)
+    goal_from_goal = torch.vmap(transform_to_goal_full_state)(goal_world[:, :3], goal_world.unsqueeze(1))
     print(goal_from_goal)
-    init_from_init = torch.zeros((1, 6))
-    init_from_goal = torch.vmap(transform_from_intial_to_goal_full_state)(goal_from_init[:, :3], init_from_init.unsqueeze(1))
+    init_world = initial_state_distribution(1)
+    print("init state:", init_world)
+    init_from_goal = torch.vmap(transform_to_goal_full_state)(goal_world[:, :3], init_world.unsqueeze(1))
     print(init_from_goal)
 
 
 if __name__ == '__main__':
     # print(initial_distribution(256).shape)
-    print(initial_distribution(1))
+    # print(initial_distribution(1))
+    test_transform_full_state()
 
     # goal = goal_distribution(1)
     # obstacle_distribution_goal_frame(1, goal[:, :3])

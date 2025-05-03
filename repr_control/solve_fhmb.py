@@ -5,6 +5,7 @@ import pickle as pkl
 import gymnasium.wrappers.transform_reward
 from tensorboardX import SummaryWriter
 from datetime import datetime
+import repr_control
 from repr_control.utils import util, buffer
 from repr_control.agent.sac import sac_agent
 from repr_control.agent.rfsac import rfsac_agent
@@ -18,6 +19,11 @@ import torch
 import numpy as np
 import yaml
 from tqdm import tqdm
+import warnings
+
+pkg_dir = os.path.dirname(repr_control.__file__)
+# warnings.filterwarnings("ignore", category=UserWarning, module="gymnasium")
+# warnings.
 
 
 if __name__ == "__main__":
@@ -25,11 +31,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     ### parameter that
-    parser.add_argument("--alg", default="mbdpgtc",
+    parser.add_argument("--alg", default="mbdpgtcobs",
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--notes", type=str, default="change init dist",
                         help="The algorithm to use. rfsac or sac.")
-    parser.add_argument("--horizon", default=900, type=int,
+    parser.add_argument("--horizon", default=500, type=int,
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--action_noise", default=0.05, type=float,
                         help="The algorithm to use. rfsac or sac.")
@@ -44,23 +50,31 @@ if __name__ == "__main__":
     #                     help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--env", default='parking',
                         help="Name your env/dynamics, only for folder names.")  # Alg name (sac, vlsac)
-    parser.add_argument("--device", default='cuda', type=str,
+    parser.add_argument("--device", default='cuda:1', type=str,
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
 
     parser.add_argument("--supervised", action='store_true',
                         help="add supervised learning.")
-    parser.add_argument("--supervised_epochs", type=int, default=1000,
+    parser.add_argument("--supervised_epochs", type=int, default=500,
                         help="number of epochs for supervised learning.")
-    parser.add_argument("--supervised_datasets", type=str, default="/datasets/data/2025-04-18_03-04-17/20_1.000_200000_15.000.pt",)
-    parser.set_defaults(supervised=True)
+    parser.add_argument("--supervised_datasets", type=str, default="/datasets/data/2025-04-27_17-26-04/512_1.000_256000_15.000.pt",)
+    parser.set_defaults(supervised=False)
+    parser.add_argument("--rl_finetune", action='store_true',)
+    parser.set_defaults(rl_finetune=True)
+    
+    parser.add_argument("--load_pretrained", action='store_true',
+                        help="load pretrained model.")
+    parser.set_defaults(load_pretrained=True)
+    parser.add_argument("--pretrained_path", type=str, default="/home/naliseas-workstation/Documents/haitong/repr_control/lvrep-rl-cloned/repr_control/log/mbdpgtcobs/parking/seed_0_2025-04-27-20-35-53/actor_after_supervised.pth",
+                        help="path to pretrained model.")
 
     ### Parameters that usually don't need to be changed.
     parser.add_argument("--dir", default='main', type=str)
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--start_timesteps", default=0, type=float)  # Time steps initial random policy is used
     parser.add_argument("--eval_freq", default=1000, type=int)  # How often (time steps) we evaluate
-    parser.add_argument("--max_timesteps", default=2e4, type=float)  # Max time steps to run environment
+    parser.add_argument("--max_timesteps", default=1000, type=float)  # Max time steps to run environment
     parser.add_argument("--batch_size", default=1024, type=int)  # Batch size for both actor and critic
     parser.add_argument("--hidden_dim", default=512, type=int)  # Network hidden dims
     parser.add_argument("--hidden_depth", default=3, type=int)  # Latent feature dim
@@ -76,7 +90,8 @@ if __name__ == "__main__":
     exp_name = f'seed_{args.seed}_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}'
 
     # setup example_results
-    log_path = f'log/{alg_name}/{args.env}/{exp_name}'
+    log_path = f'{pkg_dir}/log/{alg_name}/{args.env}/{exp_name}'
+    print(f"Logging to {log_path}")
     summary_writer = SummaryWriter(log_path + "/summary_files")
 
     # set seeds
@@ -114,15 +129,16 @@ if __name__ == "__main__":
                                                                 **kwargs)
     elif args.alg == "mbdpgtcobs":
         from repr_control.envs.models.articulate_model_cstr import dynamics, xy_rewards, one_hot_rewards, \
-            initial_distribution, terminal_constraints
+            initial_distribution, terminal_constraints, zero_rewards
         agent = dpg_agent.ModelBasedDPGAgentTerminalConstraintswithTrailer(
             state_dim=6,
             action_dim=2,
             action_range=[[-1, -1], [1, 1]],
             dynamics=dynamics,
-            rewards=xy_rewards,
+            rewards=zero_rewards,
             initial_distribution=initial_distribution,
             terminal_constraints=terminal_constraints,
+            # action_noise=args.action_noise,
             **kwargs
         )
     elif args.alg == "mbdpgqp":
@@ -157,6 +173,9 @@ if __name__ == "__main__":
 
     with open(os.path.join(log_path, 'train_params.yaml'), 'w') as fp:
         yaml.dump(kwargs, fp, default_flow_style=False)
+        
+    if args.load_pretrained:
+        agent.actor.load_state_dict(torch.load(args.pretrained_path, map_location=args.device))
 
     if args.supervised:
         from repr_control.datasets.datasets import SupervisedParkingDataset
@@ -175,41 +194,42 @@ if __name__ == "__main__":
         torch.save(actor, os.path.join(log_path, 'actor_after_supervised.pth'))
 
 
-    for t in tqdm(range(int(args.max_timesteps + args.start_timesteps))):
+    if args.rl_finetune:
+        for t in tqdm(range(int(args.max_timesteps + args.start_timesteps))):
 
-        # episode_timesteps += 1
+            # episode_timesteps += 1
 
 
-        info = agent.train(replay_buffer, batch_size=args.batch_size)
+            info = agent.train(replay_buffer, batch_size=args.batch_size)
 
-        if t % 10 == 0:
-            # +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
-            print(
-                f"Total T: {t + 1} Rollout cost: {info['actor_loss']:.3f} "
-                + f"Terminal cost: {info['terminal_cost']:.3f} "
-                +f"Min dist to cstr: {info['average_min_dist']:.3f}") # , cost2go cost: {info['critic_loss']:.3f}
-            # Reset environment
+            if t % 10 == 0:
+                # +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
+                print(
+                    f"Total T: {t + 1} Rollout cost: {info['actor_loss']:.3f} "
+                    + f"Terminal cost: {info['terminal_cost']:.3f} "
+                    +f"Min dist to cstr: {info['average_min_dist']:.3f}") # , cost2go cost: {info['critic_loss']:.3f}
+                # Reset environment
 
-        if info['terminal_cost'] > best_eval_reward:
-            best_actor = agent.actor.state_dict()
-            best_critic = agent.cost_to_go.state_dict()
+            if info['terminal_cost'] > best_eval_reward:
+                best_actor = agent.actor.state_dict()
+                best_critic = agent.cost_to_go.state_dict()
 
-            # save best actor/best critic
-            torch.save(best_actor, log_path + "/best_actor.pth")
-            torch.save(best_critic, log_path + "/best_cost_to_go.pth")
+                # save best actor/best critic
+                torch.save(best_actor, log_path + "/best_actor.pth")
+                torch.save(best_critic, log_path + "/best_cost_to_go.pth")
 
-        if (t + 1) % 2 == 0:
-            for key, value in info.items():
-                if not key.startswith('dist'):
-                    summary_writer.add_scalar(f'info/{key}', value, t + 1)
-                else:
-                    for dist_key, dist_val in value.items():
-                        summary_writer.add_histogram(dist_key, dist_val, t + 1)
-            summary_writer.flush()
+            if (t + 1) % 2 == 0:
+                for key, value in info.items():
+                    if not key.startswith('dist'):
+                        summary_writer.add_scalar(f'info/{key}', value, t + 1)
+                    else:
+                        for dist_key, dist_val in value.items():
+                            summary_writer.add_histogram(dist_key, dist_val, t + 1)
+                summary_writer.flush()
 
-    summary_writer.close()
+        summary_writer.close()
 
-    print('Total time cost {:.4g}s.'.format(timer.time_cost()))
+        print('Total time cost {:.4g}s.'.format(timer.time_cost()))
 
-    torch.save(agent.actor.state_dict(), log_path + "/actor_last.pth")
-    torch.save(agent.cost_to_go.state_dict(), log_path + "/cost_to_go_last.pth")
+        torch.save(agent.actor.state_dict(), log_path + "/actor_last.pth")
+        torch.save(agent.cost_to_go.state_dict(), log_path + "/cost_to_go_last.pth")

@@ -10,13 +10,17 @@ import imageio
 import os
 class Renderer(object):
 
-    def __init__(self, vehicle_length = None, trailer_length = None, save_video = False):
+    def __init__(self, 
+                 vehicle_length = None, 
+                 trailer_length = None, 
+                 save_video = False,
+                 render_mode = "human"):
         self.screen_dim = 1200
         self.screen = None
         self.clock = None
         self.isopen = True
         self.metadata = {"render_fps": 30,}
-        self.render_mode = "human"
+        self.render_mode = render_mode
         if vehicle_length:
             self.vehicle_length = vehicle_length
         else:
@@ -61,10 +65,16 @@ class Renderer(object):
         steering_length = vehicle_length / 4
         steering_width = vehicle_width / 6
 
-        def draw_vehicle(vehicle_length, vehicle_width, state, filled = True, steering = None):
+        def draw_vehicle(vehicle_length, vehicle_width, state, filled = True, steering = None, color='red'):
             """
             state: x, y, theta
             """
+            if color == 'red':
+                rgb = (204, 77, 77)
+            elif color == 'blue':
+                rgb = (77, 99, 205)
+            else:
+                rgb = (160, 160, 160)
             l, r, t, b = 0, vehicle_length, vehicle_width / 2, -vehicle_width / 2
             vehicle_coords = [(l, b), (l, t), (r, t), (r, b)]
             transformed_coords = []
@@ -74,9 +84,9 @@ class Renderer(object):
                 transformed_coords.append(c)
             # draw.polygon(self.surf, transformed_coords, (204, 77, 77))
 
-            gfxdraw.aapolygon(self.surf, transformed_coords, (204, 77, 77))
+            gfxdraw.aapolygon(self.surf, transformed_coords, rgb)
             if filled:
-                gfxdraw.filled_polygon(self.surf, transformed_coords, (204, 77, 77))
+                gfxdraw.filled_polygon(self.surf, transformed_coords, rgb)
 
             if steering:
                 steering_x1 = 0.5 * (transformed_coords [-2] [0] + transformed_coords [-1] [0])
@@ -98,7 +108,6 @@ class Renderer(object):
                 c = pygame.math.Vector2(tuple(point))
                 c = (scale * c[0] + offset, scale * c[1] + offset)
                 points.append(c)
-            print(points)
             gfxdraw.aapolygon(self.surf, points, (128, 128, 128))
             gfxdraw.filled_polygon(self.surf, points, (128, 128, 128))
 
@@ -122,7 +131,7 @@ class Renderer(object):
 
         trailer_length = self.trailer_length * scale
         trailer_width = 0.3 * self.vehicle_length * scale
-        draw_vehicle(trailer_length, trailer_width, trailer_state)
+        draw_vehicle(trailer_length, trailer_width, trailer_state, color='blue')
         draw_vehicle(trailer_length, trailer_width, [-trailer_length, 0, 0], filled=False)
 
         self.surf = pygame.transform.flip(self.surf, False, True)
@@ -139,34 +148,38 @@ class Renderer(object):
             pygame.event.pump()
             self.clock.tick(self.metadata ["render_fps"])
             pygame.display.flip()
-
-        else:  # mode == "rgb_array":
-            return np.transpose(
-                np.array(pygame.surfarray.pixels3d(self.screen)), axes=(1, 0, 2)
-            )
+            
         if self.save_video:
             frame = pygame.surfarray.array3d(self.surf)
         
             # frame = np.flip(frame, axis=1)
             frame = np.transpose(frame, (1, 0, 2))  # Transpose the frame
             self.frames.append(frame)
+
+        # else:  # mode == "rgb_array":
+        return np.transpose(
+            np.array(pygame.surfarray.pixels3d(self.screen)), axes=(1, 0, 2)
+        )
+        
         #
         #     self.frame_count += 1
     
-    def save(self, fname=None):
+    def save(self, dir=None, fname=None):
         if self.save_video:
             os.makedirs('videos', exist_ok=True)
             now = datetime.now()
             # Format date and time
             formatted_now = now.strftime("%Y-%m-%d_%H-%M-%S")
             video_name = fname if fname is not None else formatted_now
-            output_filename = f'./videos/pygame_video_{video_name}.mp4'
+            dir = dir if dir is not None else './videos'
+            output_filename = f'{dir}/pygame_video_{video_name}.mp4'
             imageio.mimsave(output_filename, self.frames, fps=self.metadata["render_fps"])
 
 def test_rendering():
     renderer = Renderer(vehicle_length=4.9276, 
                         trailer_length=15.8496,
-                        save_video=True)
+                        save_video=True,
+                        render_mode='rgb_array')
     from repr_control.envs.models.articulate_model_fh import obstacle_distribution
     obstacles = obstacle_distribution(1).squeeze().reshape((-1, 2)).numpy()
     obstacles = np.split(obstacles, 4, axis=0)

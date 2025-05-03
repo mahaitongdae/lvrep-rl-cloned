@@ -385,7 +385,7 @@ def try_openloop_solver():
     plt.tight_layout()
     plt.savefig('openloop.jpg')
     
-def try_openloop_solver_from_inital_dist(reverse=False):
+def try_openloop_solver_from_inital_dist():
     from repr_control.envs.models.articulate_model_cstr import initial_distribution
     obs_init = initial_distribution(1).squeeze().numpy()
     x_init = obs_init[:6].tolist()
@@ -395,9 +395,6 @@ def try_openloop_solver_from_inital_dist(reverse=False):
     solver = SolverAdaptiveTime()
     state, control, tf = solver.single_solve(x_init=x_init, predictive_steps=500)
     print(state[-1], tf)
-    # if reverse:
-    #     state[:, 0] = -state[:, 0]
-    #     state[:, 2] = np.pi / 2 - state[:, 1]
     from repr_control.envs.tractor_trailer_render import Renderer
     renderer = Renderer(vehicle_length=4.9276, trailer_length=length,save_video=True)
     renderer.set_obstacles(np.split(obstacles, 4, axis=0))
@@ -415,12 +412,12 @@ def try_openloop_solver_from_inital_dist(reverse=False):
 
 
 if __name__ == '__main__':
-    try_openloop_solver_from_inital_dist()
-    # import argparse
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--trailer_length', type=float, default=15.)
-    # parser.add_argument('--grid_size', type=int, default=20)
-    # args = parser.parse_args()
-    # solver = SolverAdaptiveTime(trailer_length=args.trailer_length)
-    # # solver.generate_dataset_from_grid(grid_size=args.grid_size)
-    # solver.generate_dataset_from_initial_dist(num=512)
+    # try_openloop_solver_from_inital_dist()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--trailer_length', type=float, default=15.)
+    parser.add_argument('--grid_size', type=int, default=20)
+    args = parser.parse_args()
+    solver = SolverAdaptiveTime(trailer_length=args.trailer_length)
+    # solver.generate_dataset_from_grid(grid_size=args.grid_size)
+    solver.generate_dataset_from_initial_dist(num=512)
