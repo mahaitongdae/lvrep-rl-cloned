@@ -1,3 +1,4 @@
+
 import numpy as np
 from  casadi import *
 import matplotlib.pyplot as plt
@@ -10,6 +11,10 @@ import seaborn as sns
 # import matplotlib.pyplot as plt
 import repr_control
 pkg_dir = os.path.dirname(repr_control.__file__)
+import yaml
+from repr_control.utils.util import FlowLastLayerList, represent_list_last_layer
+
+yaml.add_representer(FlowLastLayerList, represent_list_last_layer)
 
 class SolverAdaptiveTime(object):
     """
@@ -22,6 +27,7 @@ class SolverAdaptiveTime(object):
         self.action_dim = 2
         self.u_max = [1.0, 1.0]
         self.trailer_length = trailer_length
+        self.set_box()
         
     def set_trailer_length(self, trailer_length):
         self.trailer_length = trailer_length
@@ -60,6 +66,19 @@ class SolverAdaptiveTime(object):
         r = self.solve(x_init, predictive_steps)
         print(r['f'].full()[0][0])
         return self.extract_solution(r, predictive_steps)
+    
+    def set_box(self, box=[-inf, inf, -inf, inf]):
+        """
+        Set box for the solver
+        box: list
+            box for the solver, [x_min, x_max, y_min, y_max]
+        """
+        self.box = box
+        self.x_min = box[0]
+        self.x_max = box[1]
+        self.y_min = box[2]
+        self.y_max = box[3]
+        
 
     def solve(self, x_init, predict_steps):
         """
@@ -127,8 +146,10 @@ class SolverAdaptiveTime(object):
             #     ubw += [inf, 20, pi, 20, inf]
             if k != predict_steps:
                 w += [Xk]
-                lbw += [-inf] * (self.state_dim - 3) + [- np.pi / 2, - 2.0, - np.pi / 6]
-                ubw += [inf] * (self.state_dim - 3) + [np.pi / 2, 2.0, np.pi / 6]
+                # lbw += [-inf] * (self.state_dim - 3) + [- np.pi / 2, - 2.0, - np.pi / 6]
+                # ubw += [inf] * (self.state_dim - 3) + [np.pi / 2, 2.0, np.pi / 6]
+                lbw += [self.x_min, self.y_min, -inf, -np.pi / 2, -2.0, -np.pi / 6]
+                ubw += [self.x_max, self.y_max, inf, np.pi / 2, 2.0, np.pi / 6]
                 F_cost = Function('F_cost', [x, u], [self.cost(x, u)])
                 J += F_cost(w[1 + k * 2], w[1 + k * 2 - 1])
             else:
@@ -234,12 +255,17 @@ class SolverAdaptiveTime(object):
 
         print(f"feasible rate: {feasible_points / total_init_nums}")
         
-    def generate_dataset_from_initial_dist(self, num=512, horizon=500):
-        from repr_control.envs.models.articulate_model_cstr import initial_distribution
-        obs_init = initial_distribution(num)
+    def generate_dataset_from_initial_dist(self, map_id=1, task='forward_left', num=512, horizon=500):
+        from repr_control.envs.models.articulate_model_cstr_yaml import initial_distribution, load_config_from_map
+        task_config, obstacles_config, trailer_config = load_config_from_map(task, map_id)
+        data_config = {'task': task_config,
+                       'obstacles': obstacles_config,
+                       "trailer": trailer_config}
+        data_fname = f'map{str(map_id)}_task_{task}'
+        obs_init = initial_distribution(num, task_config, obstacles_config, trailer_config)
         x_init = obs_init[:, :6].numpy()
         length = obs_init[:, -1]
-        obstacles = obs_init[-33:-1].reshape([-1, 2])
+        obstacles = obs_init[:, -33:-1].reshape([num, -1, 2])
 
         # init_states = np.vstack([grid_x, grid_y, grid_th0, grid_dth, grid_v, grid_delta]).T
         total_init_nums = num
@@ -275,7 +301,10 @@ class SolverAdaptiveTime(object):
                                      controls,
                                      x_init,
                                      feasible_initials,
-                                     feasible_points / total_init_nums, num)
+                                     feasible_points / total_init_nums,
+                                     num,
+                                     data_config,
+                                     data_fname)
 
         print(f"feasible rate: {feasible_points / total_init_nums}")
 
@@ -302,7 +331,15 @@ class SolverAdaptiveTime(object):
         ax.set_yticklabels([0, 20])
         plt.savefig('{}/datasets/data/{}'.format(pkg_dir, formatted_now) + f'/feasibility.png')
         
-    def create_dataset_and_save_initial_dist(self, states, actions, x_init, feasible_initials, rate, size):
+    def create_dataset_and_save_initial_dist(self, 
+                                             states, 
+                                             actions, 
+                                             x_init, 
+                                             feasible_initials, 
+                                             rate, 
+                                             size,
+                                             configs,
+                                             name):
         import torch
         dataset = SupervisedParkingDataset(states, actions)
         feasibility_dataset = InitialStateFeasibilityDataset(x_init, feasible_initials)
@@ -311,11 +348,14 @@ class SolverAdaptiveTime(object):
 
         # Format date and time
         formatted_now = now.strftime("%Y-%m-%d_%H-%M-%S")
-        save_dir = '{}/datasets/data/{}'.format(pkg_dir, formatted_now)
+        save_dir = '{}/datasets/data/{}_{}'.format(pkg_dir, formatted_now, name)
         os.makedirs(save_dir, exist_ok=True)
         torch.save(dataset, f'{save_dir}/{str(size)}_{rate:.3f}_{len(states)}_{self.trailer_length:.3f}.pt')
         # np.save('./datas/{}'.format(formatted_now) + "/init.npy", initials)
         torch.save(feasibility_dataset, f'{save_dir}/feasibility.pt')
+        # for config in configs:
+        with open(f'{save_dir}/configs.yaml', 'w') as file:
+            yaml.dump(configs, file)
         # heatmap = feasible_initials.reshape([size, size])
         # init_xy = x_init[:, :2]
         # plt.scatter(x_init[:, 0], x_init[:, 1], feasible_initials, marker='o', s=1)
@@ -374,14 +414,18 @@ def try_openloop_solver():
     plt.tight_layout()
     plt.savefig('openloop.jpg')
     
-def try_openloop_solver_from_inital_dist(reverse=False):
-    from repr_control.envs.models.articulate_model_cstr import initial_distribution
+def try_openloop_solver_from_inital_dist(map_id=4, task='parking', reverse=False):
+    from repr_control.envs.models.articulate_model_cstr_yaml import initial_distribution, load_config_from_map
+    task_config, obstacles, trailer_config = load_config_from_map(task, map_id)
     obs_init = initial_distribution(1).squeeze().numpy()
     x_init = obs_init[:6].tolist()
     length = obs_init[-1]
     obstacles = obs_init[-33:-1].reshape([-1, 2])
     # x_init = [ -20   ,       -20.    , -np.pi / 2,  0 , 0.       ,   0.        ]
     solver = SolverAdaptiveTime()
+    # solver.set_box([-inf, 20, -15, inf]) # backward left
+    # solver.set_box([-21, inf, -8, inf])
+    solver.set_box([-inf, inf, -inf, inf])
     state, control, tf = solver.single_solve(x_init=x_init, predictive_steps=500)
     print(state[-1], tf)
     # if reverse:
@@ -393,7 +437,7 @@ def try_openloop_solver_from_inital_dist(reverse=False):
     for i in range(len(state)):
         renderer.set_state(state[i])
         renderer.render()
-    renderer.save()
+    renderer.save(fname=f'map{str(map_id)}_{task}')
     import matplotlib.pyplot as plt
     fig, axs = plt.subplots(1, 6, figsize=(10, 3))
     for i in range(6):
@@ -404,12 +448,12 @@ def try_openloop_solver_from_inital_dist(reverse=False):
 
 
 if __name__ == '__main__':
-    try_openloop_solver_from_inital_dist()
-    # import argparse
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--trailer_length', type=float, default=15.)
-    # parser.add_argument('--grid_size', type=int, default=20)
-    # args = parser.parse_args()
-    # solver = SolverAdaptiveTime(trailer_length=args.trailer_length)
-    # # solver.generate_dataset_from_grid(grid_size=args.grid_size)
-    # solver.generate_dataset_from_initial_dist(num=512)
+    # try_openloop_solver_from_inital_dist()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--trailer_length', type=float, default=15.)
+    parser.add_argument('--grid_size', type=int, default=20)
+    args = parser.parse_args()
+    solver = SolverAdaptiveTime(trailer_length=args.trailer_length)
+    # solver.generate_dataset_from_grid(grid_size=args.grid_size)
+    solver.generate_dataset_from_initial_dist(num=4)

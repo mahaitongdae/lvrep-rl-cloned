@@ -647,3 +647,5 @@ pygame_video*
 /datasets/2024*
 run.sh
 *.mat
+
+/.idea/

@@ -11,8 +11,8 @@ import os
 class Renderer(object):
 
     def __init__(self, 
-                 vehicle_length = None, 
-                 trailer_length = None, 
+                 vehicle_length = 4.9276, 
+                 trailer_length = 15.8496, 
                  save_video = False,
                  render_mode = "human"):
         self.screen_dim = 1200
@@ -21,14 +21,8 @@ class Renderer(object):
         self.isopen = True
         self.metadata = {"render_fps": 30,}
         self.render_mode = render_mode
-        if vehicle_length:
-            self.vehicle_length = vehicle_length
-        else:
-            self.vehicle_length = 2.4
-        if trailer_length:
-            self.trailer_length = trailer_length
-        else:
-            self.trailer_length = 2.
+        self.vehicle_length = vehicle_length
+        self.trailer_length = trailer_length
 
         self.obstacles = None
         self.frames = []
@@ -38,6 +32,14 @@ class Renderer(object):
         self.state = state
 
     def set_obstacles(self, obstacles: Union[np.ndarray, list]):
+        """set obstacles for the renderer
+
+        Args:
+            obstacles (Union[np.ndarray, list]): a list of obstacles, each is 
+            [4, 2] array of points
+        """
+        if not isinstance(obstacles, list):
+            obstacles = np.split(obstacles, 4, axis=0)
         self.obstacles = obstacles
 
     def render(self):
@@ -170,7 +172,7 @@ class Renderer(object):
             now = datetime.now()
             # Format date and time
             formatted_now = now.strftime("%Y-%m-%d_%H-%M-%S")
-            video_name = fname if fname is not None else formatted_now
+            video_name = formatted_now if fname is None else formatted_now + '_' + fname
             dir = dir if dir is not None else './videos'
             output_filename = f'{dir}/pygame_video_{video_name}.mp4'
             imageio.mimsave(output_filename, self.frames, fps=self.metadata["render_fps"])
