@@ -20,11 +20,11 @@ def load_config_from_map(task=TASK, map_id=MAP_ID):
     obstacles = config['obstacles']
     trailer_config = config['trailer_length']
     
-    return task_config, obstacles, trailer_config
+    return task_config, obstacles, trailer_config, config
 
 # load default config
 
-task_config, obstacles, trailer_config = load_config_from_map()
+task_config, obstacles, trailer_config, _ = load_config_from_map()
 
 state_dim = 6                       # state dimension
 action_dim = 2                      # action dimension

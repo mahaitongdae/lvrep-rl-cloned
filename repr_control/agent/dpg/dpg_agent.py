@@ -586,6 +586,8 @@ class ModelBasedDPGAgentTerminalConstraintswithTrailer(ModelBasedDPGAgent):
 				 add_init_state=True,
 				 lr_schedule=False,
 				 statewise_weights=False,
+				 collision_checking=False,
+				 collision_checking_interval=5,
 				 horizon=250,
 				 lr=0.0003,
 				 discount=0.99,
@@ -610,7 +612,8 @@ class ModelBasedDPGAgentTerminalConstraintswithTrailer(ModelBasedDPGAgent):
 						 **kwargs)
 
 		from repr_control.envs.models.collision_checking import collsion_checking
-		self.check_collision = False
+		self.check_collision = collision_checking
+		self.collision_checking_interval = collision_checking_interval
 		self.tractor_trailer_dim = 6
 		self.xf_dim = 6
 		self.obstacle_dim = 32  # 4 * 4 * 2
@@ -651,6 +654,9 @@ class ModelBasedDPGAgentTerminalConstraintswithTrailer(ModelBasedDPGAgent):
 
 		self.collision_checking = collsion_checking
   
+	def update_initial_distribution(self, init_distribution: callable):
+		self.initial_dist = init_distribution
+  
 	def preprocess_observation(self, obs):
 		scale_state = torch.tensor([1/20, 1/20, 1/torch.pi, 1/torch.pi, 1.0, 1.0])
 		scale_obs = 1 / 80 * torch.ones([32,])
@@ -681,7 +687,7 @@ class ModelBasedDPGAgentTerminalConstraintswithTrailer(ModelBasedDPGAgent):
 				noise = self.action_noise_std * torch.randn_like(action)
 				action = torch.clamp(action + noise, min=-1, max=1)
 
-			if self.check_collision:
+			if self.check_collision and i % self.collision_checking_interval == 0:
 				# for o in obstacles:
 				dist = self.collision_checking.collision_checking_tt(state, obstacle)
 				dists.append(dist)
@@ -750,6 +756,10 @@ class ModelBasedDPGAgentTerminalConstraintswithTrailer(ModelBasedDPGAgent):
 				'average_cstr_2y': terminal_constraint[:, 1].mean().item(),
 				'average_cstr_3th': terminal_constraint[:, 2].mean().item(),
 				'average_cstr_4dth': terminal_constraint[:, 3].mean().item(),
+    			'max_cstr_1x': terminal_constraint[:, 0].max().item(),
+				'max_cstr_2y': terminal_constraint[:, 1].max().item(),
+				'max_cstr_3th': terminal_constraint[:, 2].max().item(),
+				'max_cstr_4dth': terminal_constraint[:, 3].max().item(),
 				'average_min_dist': min_dists.mean().item(),
 
 				'avg_reward': rewards.mean().item(),
@@ -776,7 +786,7 @@ class ModelBasedDPGAgentTerminalConstraintswithTrailer(ModelBasedDPGAgent):
 		return info
 
 	def supervised_from_mpc(self, batch):
-		from repr_control.envs.models.articulate_model_cstr import obstacle_distribution_goal_frame
+		from repr_control.envs.models.articulate_model_cstr_yaml import obstacle_distribution_goal_frame
 		obs, action = batch
 		if obs.device == torch.device('cpu'):
 			obs = obs.float().to(self.device)

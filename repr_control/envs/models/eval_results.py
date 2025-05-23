@@ -13,7 +13,7 @@ from gymnasium.envs.registration import register
 import yaml
 
 
-def eval_mbdpg_agent(log_path, off_screen=False, actor='best'):
+def eval_mbdpg_agent(log_path, off_screen=False, load_actor_type='best'):
     try:
         with open(os.path.join(log_path, 'train_params.pkl'), 'rb') as f:
             kwargs = pkl.load(f)
@@ -37,11 +37,11 @@ def eval_mbdpg_agent(log_path, off_screen=False, actor='best'):
         device='cpu'
     )
     actor = DeterministicActor(45, 2, kwargs['hidden_dim'], kwargs['hidden_depth'])
-    if actor == 'best':
+    if load_actor_type == 'best':
         actor.load_state_dict(torch.load(log_path + "/best_actor.pth", map_location='cpu'))
-    elif actor == 'after_supervised':
+    elif load_actor_type == 'after_supervised':
         actor.load_state_dict(torch.load(log_path + "/actor_after_supervised.pth", map_location='cpu'))
-    elif actor == 'last':
+    elif load_actor_type == 'last':
         actor.load_state_dict(torch.load(log_path + "/actor_last.pth", map_location='cpu'))
     
     
@@ -77,6 +77,7 @@ def eval_mbdpg_agent(log_path, off_screen=False, actor='best'):
 
             # update state and obs
             state = dynamics(state, action,trailer_length.squeeze())
+            print(action)
             states.append(state)
             obs = torch.hstack([state, x_init, flattern_obstacle, trailer_length])
 
@@ -115,7 +116,9 @@ def eval_mbdpg_agent(log_path, off_screen=False, actor='best'):
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log_path', type=str, default='/home/naliseas-workstation/Documents/haitong/repr_control/lvrep-rl-cloned/repr_control/log/mbdpgtcobs/parking/seed_0_2025-04-27-21-03-52')
+    parser.add_argument('--log_path', type=str, 
+                        default='/home/naliseas-workstation/Documents/haitong/repr_control/lvrep-rl-cloned/repr_control/log/mbdpgtcobs/parking/seed_0_2025-05-10-14-11-59')
+    parser.add_argument('--actor', type=str, default='last')
     args = parser.parse_args()
 
-    eval_mbdpg_agent(args.log_path, actor='after_supervised')
+    eval_mbdpg_agent(args.log_path, load_actor_type=args.actor)

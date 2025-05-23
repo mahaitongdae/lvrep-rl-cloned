@@ -20,6 +20,7 @@ import numpy as np
 import yaml
 from tqdm import tqdm
 import warnings
+from functools import partial
 
 pkg_dir = os.path.dirname(repr_control.__file__)
 # warnings.filterwarnings("ignore", category=UserWarning, module="gymnasium")
@@ -33,11 +34,11 @@ if __name__ == "__main__":
     ### parameter that
     parser.add_argument("--alg", default="mbdpgtcobs",
                         help="The algorithm to use. rfsac or sac.")
-    parser.add_argument("--notes", type=str, default="change init dist",
+    parser.add_argument("--notes", type=str, default="reproduce success",
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--horizon", default=500, type=int,
                         help="The algorithm to use. rfsac or sac.")
-    parser.add_argument("--action_noise", default=0.05, type=float,
+    parser.add_argument("--action_noise", default=0.0, type=float,
                         help="The algorithm to use. rfsac or sac.")
     parser.add_argument("--lr_schedule", action='store_true', default=True,
                         help="add learning rate schedule.")
@@ -54,19 +55,26 @@ if __name__ == "__main__":
                         help="pytorch device, cuda if you have nvidia gpu and install cuda version of pytorch. "
                              "mps if you run on apple silicon, otherwise cpu.")
 
+    ### Collision checking
+    parser.add_argument("--collision_checking", default=True, type=bool, 
+                        help="whether check collsion.")
+    parser.add_argument("--collision_checking_interval", type=int, default=5, 
+                        help="interval to check collsion, 5 means check every 5 steps.")
+    
+    ### Pipelines
     parser.add_argument("--supervised", action='store_true',
                         help="add supervised learning.")
     parser.add_argument("--supervised_epochs", type=int, default=500,
                         help="number of epochs for supervised learning.")
     parser.add_argument("--supervised_datasets", type=str, default="/datasets/data/2025-04-27_17-26-04/512_1.000_256000_15.000.pt",)
-    parser.set_defaults(supervised=False)
+    parser.set_defaults(supervised=True)
     parser.add_argument("--rl_finetune", action='store_true',)
     parser.set_defaults(rl_finetune=True)
     
     parser.add_argument("--load_pretrained", action='store_true',
                         help="load pretrained model.")
-    parser.set_defaults(load_pretrained=True)
-    parser.add_argument("--pretrained_path", type=str, default="/home/naliseas-workstation/Documents/haitong/repr_control/lvrep-rl-cloned/repr_control/log/mbdpgtcobs/parking/seed_0_2025-04-27-20-35-53/actor_after_supervised.pth",
+    parser.set_defaults(load_pretrained=False)
+    parser.add_argument("--pretrained_path", type=str, default="/home/naliseas-workstation/Documents/haitong/repr_control/lvrep-rl-cloned/repr_control/log/mbdpgtcobs/parking/seed_0_2025-05-10-14-11-59/actor_last.pth",
                         help="path to pretrained model.")
 
     ### Parameters that usually don't need to be changed.
@@ -82,6 +90,7 @@ if __name__ == "__main__":
     parser.add_argument("--discount", default=0.99)  # Discount factor
     parser.add_argument("--tau", default=0.005)  # Target network update rate
     parser.add_argument("--embedding_dim", default=-1, type=int)  # if -1, do not add embedding layer
+    
 
     args = parser.parse_args()
 
@@ -128,7 +137,7 @@ if __name__ == "__main__":
                                                                 terminal_constraints,
                                                                 **kwargs)
     elif args.alg == "mbdpgtcobs":
-        from repr_control.envs.models.articulate_model_cstr import dynamics, xy_rewards, one_hot_rewards, \
+        from repr_control.envs.models.articulate_model_cstr_yaml import dynamics, xy_rewards, one_hot_rewards, \
             initial_distribution, terminal_constraints, zero_rewards
         agent = dpg_agent.ModelBasedDPGAgentTerminalConstraintswithTrailer(
             state_dim=6,
@@ -180,8 +189,19 @@ if __name__ == "__main__":
     if args.supervised:
         from repr_control.datasets.datasets import SupervisedParkingDataset
         from torch.utils.data import DataLoader
+        from repr_control.config.config_util import load_config_from_file
         cur_path = os.path.dirname(__file__)
         dataset = torch.load(cur_path + args.supervised_datasets)
+        
+        # Load configuration from supervised learning
+        config_fname = os.path.join(os.path.dirname(cur_path + args.supervised_datasets), 'configs.yaml')
+        task_config, obstacles, trailer_config, config = load_config_from_file(config_fname)
+        print("###### Loading config from supervised dataset ", args.supervised_datasets)
+        agent.update_initial_distribution(partial(agent.initial_dist,
+                                                  task_config=task_config,
+                                                  obstacles=obstacles,
+                                                  trailer_config=trailer_config))
+        
         loader = DataLoader(dataset, batch_size=512, shuffle=True)
         for supervised_epoch in tqdm(range(args.supervised_epochs)):
             for supervised_t, supervised_data in enumerate(loader):

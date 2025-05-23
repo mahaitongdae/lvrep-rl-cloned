@@ -162,13 +162,13 @@ def initial_state_distribution(batch_size: int):
     init_state: torch.Tensor [bs, 6], x, y, theta, dtheta, v, delta
     """
     # forward
-    # state = np.random.uniform(low=np.array([ 20.0, -20.0, np.pi / 2, 0.0, 0.0, 0.0]),
-    #                               high=np.array([  20.0, -5.0, np.pi / 2, 0.0, 0.0, 0.0]),
-    #                               size=(batch_size, 6))
-    # reverse
-    state = np.random.uniform(low=np.array([ 0.0, 35.0, np.pi / 2, 0.0, 0.0, 0.0]),
-                                  high=np.array([  0.0, 25.0, np.pi / 2, 0.0, 0.0, 0.0]),
+    state = np.random.uniform(low=np.array([ 20.0, -20.0, np.pi / 2, 0.0, 0.0, 0.0]),
+                                  high=np.array([  20.0, -5.0, np.pi / 2, 0.0, 0.0, 0.0]),
                                   size=(batch_size, 6))
+    # reverse
+    # state = np.random.uniform(low=np.array([ 0.0, 35.0, np.pi / 2, 0.0, 0.0, 0.0]),
+    #                               high=np.array([  0.0, 25.0, np.pi / 2, 0.0, 0.0, 0.0]),
+    #                               size=(batch_size, 6))
     state = torch.from_numpy(state)# .float()
     return state
 
@@ -183,9 +183,9 @@ def goal_state_distribution(batch_size: int):
     goal: torch.Tensor [bs, 6], x, y, theta, dtheta, v, delta
     """
 
-    # goal = np.random.uniform(low=np.array([4.0, 0.0, np.pi, 0.0, 0.0, 0.0]),
-    #                           high=np.array([12.0, 0.0, np.pi, 0.0, 0.0, 0.0]),
-    #                           size=(batch_size, 6))
+    goal = np.random.uniform(low=np.array([4.0, 0.0, np.pi, 0.0, 0.0, 0.0]),
+                              high=np.array([12.0, 0.0, np.pi, 0.0, 0.0, 0.0]),
+                              size=(batch_size, 6))
     # right turn
     # goal = np.random.uniform(low=np.array([24.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
     #                           high=np.array([42.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
@@ -195,9 +195,9 @@ def goal_state_distribution(batch_size: int):
     #                           high=np.array([12.0, 5.0, np.pi, 0.0, 0.0, 0.0]),
     #                           size=(batch_size, 6))
     # reverse right
-    goal = np.random.uniform(low=np.array([-12.0, 10.0, 0.0, 0.0, 0.0, 0.0]),
-                              high=np.array([-12.0, 10.0, 0.0, 0.0, 0.0, 0.0]),
-                              size=(batch_size, 6))
+    # goal = np.random.uniform(low=np.array([-12.0, 10.0, 0.0, 0.0, 0.0, 0.0]),
+    #                           high=np.array([-12.0, 10.0, 0.0, 0.0, 0.0, 0.0]),
+    #                           size=(batch_size, 6))
     return torch.from_numpy(goal)
 
 def obstacle_distribution(batch_size):

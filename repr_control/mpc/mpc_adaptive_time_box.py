@@ -12,9 +12,9 @@ import seaborn as sns
 import repr_control
 pkg_dir = os.path.dirname(repr_control.__file__)
 import yaml
-from repr_control.utils.util import FlowLastLayerList, represent_list_last_layer
+# from repr_control.utils.util import FlowLastLayerList, represent_list_last_layer
 
-yaml.add_representer(FlowLastLayerList, represent_list_last_layer)
+# yaml.add_representer(FlowLastLayerList, represent_list_last_layer)
 
 class SolverAdaptiveTime(object):
     """
@@ -257,10 +257,14 @@ class SolverAdaptiveTime(object):
         
     def generate_dataset_from_initial_dist(self, map_id=1, task='forward_left', num=512, horizon=500):
         from repr_control.envs.models.articulate_model_cstr_yaml import initial_distribution, load_config_from_map
-        task_config, obstacles_config, trailer_config = load_config_from_map(task, map_id)
-        data_config = {'task': task_config,
+        task_config, obstacles_config, trailer_config, config = load_config_from_map(task, map_id)
+        if 'box' in config.keys():
+            box_config = config['box']
+            self.set_box(box_config)
+        data_config = {'tasks': task_config,
                        'obstacles': obstacles_config,
-                       "trailer": trailer_config}
+                       "trailer": trailer_config,
+                       'box': box_config}
         data_fname = f'map{str(map_id)}_task_{task}'
         obs_init = initial_distribution(num, task_config, obstacles_config, trailer_config)
         x_init = obs_init[:, :6].numpy()
@@ -416,8 +420,8 @@ def try_openloop_solver():
     
 def try_openloop_solver_from_inital_dist(map_id=4, task='parking', reverse=False):
     from repr_control.envs.models.articulate_model_cstr_yaml import initial_distribution, load_config_from_map
-    task_config, obstacles, trailer_config = load_config_from_map(task, map_id)
-    obs_init = initial_distribution(1).squeeze().numpy()
+    task_config, obstacles_layout, trailer_config, _ = load_config_from_map(task, map_id)
+    obs_init = initial_distribution(1, task_config, obstacles_layout, trailer_config).squeeze().numpy()
     x_init = obs_init[:6].tolist()
     length = obs_init[-1]
     obstacles = obs_init[-33:-1].reshape([-1, 2])
@@ -425,7 +429,7 @@ def try_openloop_solver_from_inital_dist(map_id=4, task='parking', reverse=False
     solver = SolverAdaptiveTime()
     # solver.set_box([-inf, 20, -15, inf]) # backward left
     # solver.set_box([-21, inf, -8, inf])
-    solver.set_box([-inf, inf, -inf, inf])
+    solver.set_box([-20, 100, -inf, 15])
     state, control, tf = solver.single_solve(x_init=x_init, predictive_steps=500)
     print(state[-1], tf)
     # if reverse:
@@ -448,12 +452,14 @@ def try_openloop_solver_from_inital_dist(map_id=4, task='parking', reverse=False
 
 
 if __name__ == '__main__':
-    # try_openloop_solver_from_inital_dist()
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--trailer_length', type=float, default=15.)
-    parser.add_argument('--grid_size', type=int, default=20)
-    args = parser.parse_args()
-    solver = SolverAdaptiveTime(trailer_length=args.trailer_length)
-    # solver.generate_dataset_from_grid(grid_size=args.grid_size)
-    solver.generate_dataset_from_initial_dist(num=4)
+    try_openloop_solver_from_inital_dist()
+    # import argparse
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--map_id', type=int, default=4)
+    # parser.add_argument('--task', type=str, default='parking')
+    # args = parser.parse_args()
+    # solver = SolverAdaptiveTime()
+    # # solver.generate_dataset_from_grid(grid_size=args.grid_size)
+    # solver.generate_dataset_from_initial_dist(num=128, 
+    #                                           task=args.task,
+    #                                           map_id=args.map_id)
